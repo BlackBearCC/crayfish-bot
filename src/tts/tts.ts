@@ -49,6 +49,7 @@ const DEFAULT_OPENAI_VOICE = "alloy";
 const DEFAULT_EDGE_VOICE = "en-US-MichelleNeural";
 const DEFAULT_EDGE_LANG = "en-US";
 const DEFAULT_EDGE_OUTPUT_FORMAT = "audio-24khz-48kbitrate-mono-mp3";
+const DEFAULT_MINIMAX_MODEL = "speech-2.8-turbo";
 
 const DEFAULT_ELEVENLABS_VOICE_SETTINGS = {
   stability: 0.5,
@@ -63,13 +64,15 @@ const TELEGRAM_OUTPUT = {
   // ElevenLabs output formats use codec_sample_rate_bitrate naming.
   // Opus @ 48kHz/64kbps is a good voice-note tradeoff for Telegram.
   elevenlabs: "opus_48000_64",
-  extension: ".opus",
+  minimax: "mp3",
+  extension: ".mp3",
   voiceCompatible: true,
 };
 
 const DEFAULT_OUTPUT = {
   openai: "mp3" as const,
   elevenlabs: "mp3_44100_128",
+  minimax: "mp3",
   extension: ".mp3",
   voiceCompatible: false,
 };
@@ -77,6 +80,7 @@ const DEFAULT_OUTPUT = {
 const TELEPHONY_OUTPUT = {
   openai: { format: "pcm" as const, sampleRate: 24000 },
   elevenlabs: { format: "pcm_22050", sampleRate: 22050 },
+  minimax: { format: "mp3", sampleRate: 32000 },
 };
 
 const TTS_AUTO_MODES = new Set<TtsAutoMode>(["off", "always", "inbound", "tagged"]);
@@ -121,6 +125,11 @@ export type ResolvedTtsConfig = {
     saveSubtitles: boolean;
     proxy?: string;
     timeoutMs?: number;
+  };
+  minimax: {
+    apiKey?: string;
+    model: string;
+    baseUrl: string;
   };
   prefsPath?: string;
   maxTextLength: number;
@@ -295,6 +304,11 @@ export function resolveTtsConfig(cfg: OpenClawConfig): ResolvedTtsConfig {
       saveSubtitles: raw.edge?.saveSubtitles ?? false,
       proxy: raw.edge?.proxy?.trim() || undefined,
       timeoutMs: raw.edge?.timeoutMs,
+    },
+    minimax: {
+      apiKey: raw.minimax?.apiKey,
+      model: raw.minimax?.model ?? DEFAULT_MINIMAX_MODEL,
+      baseUrl: raw.minimax?.baseUrl?.trim() || "https://api.minimaxi.com",
     },
     prefsPath: raw.prefsPath,
     maxTextLength: raw.maxTextLength ?? DEFAULT_MAX_TEXT_LENGTH,
@@ -498,10 +512,13 @@ export function resolveTtsApiKey(
   if (provider === "openai") {
     return config.openai.apiKey || process.env.OPENAI_API_KEY;
   }
+  if (provider === "minimax") {
+    return config.minimax.apiKey || process.env.MINIMAX_API_KEY;
+  }
   return undefined;
 }
 
-export const TTS_PROVIDERS = ["openai", "elevenlabs", "edge"] as const;
+export const TTS_PROVIDERS = ["openai", "elevenlabs", "edge", "minimax"] as const;
 
 export function resolveTtsProviderOrder(primary: TtsProvider): TtsProvider[] {
   return [primary, ...TTS_PROVIDERS.filter((provider) => provider !== primary)];
@@ -510,6 +527,9 @@ export function resolveTtsProviderOrder(primary: TtsProvider): TtsProvider[] {
 export function isTtsProviderConfigured(config: ResolvedTtsConfig, provider: TtsProvider): boolean {
   if (provider === "edge") {
     return config.edge.enabled;
+  }
+  if (provider === "minimax") {
+    return Boolean(resolveTtsApiKey(config, provider));
   }
   return Boolean(resolveTtsApiKey(config, provider));
 }
@@ -1120,6 +1140,99 @@ async function openaiTTS(params: {
   }
 }
 
+async function minimaxTTS(params: {
+  text: string;
+  apiKey: string;
+  model: string;
+  baseUrl: string;
+  outputFormat: string;
+  timeoutMs: number;
+}): Promise<Buffer> {
+  const { text, apiKey, model, baseUrl, outputFormat, timeoutMs } = params;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const url = `${baseUrl.replace(/\/+$/, "")}/v1/t2a_v2`;
+    
+    // Map output format to MiniMax audio format
+    let audioFormat = "mp3";
+    if (outputFormat.includes("opus") || outputFormat.includes("ogg")) {
+      audioFormat = "mp3"; // MiniMax doesn't support opus directly
+    } else if (outputFormat.includes("wav") || outputFormat.includes("pcm")) {
+      audioFormat = "wav";
+    } else if (outputFormat.includes("flac")) {
+      audioFormat = "flac";
+    }
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        text,
+        stream: false,
+        voice_setting: {
+          voice_id: "female-shaonv",
+          speed: 1,
+          vol: 1,
+          pitch: 0,
+          emotion: "neutral",
+        },
+        audio_setting: {
+          sample_rate: 32000,
+          bitrate: 128000,
+          format: audioFormat,
+          channel: 1,
+        },
+        output_format: outputFormat === "url" ? "url" : "hex",
+      }),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      throw new Error(`MiniMax TTS API error (${response.status})`);
+    }
+
+    const data = (await response.json()) as {
+      data?: { audio_url?: string; audio?: string };
+      base_resp?: { status_code?: number; status_msg?: string };
+    };
+
+    if (data.base_resp?.status_code !== 0) {
+      throw new Error(
+        `MiniMax TTS API error: ${data.base_resp?.status_msg ?? "unknown error"}`,
+      );
+    }
+
+    // Handle hex format (default)
+    if (outputFormat !== "url" && data.data?.audio) {
+      return Buffer.from(data.data.audio, "hex");
+    }
+
+    // Handle URL format
+    if (data.data?.audio_url) {
+      const audioResponse = await fetch(data.data.audio_url, {
+        signal: controller.signal,
+      });
+
+      if (!audioResponse.ok) {
+        throw new Error(`Failed to fetch audio from URL (${audioResponse.status})`);
+      }
+
+      return Buffer.from(await audioResponse.arrayBuffer());
+    }
+
+    throw new Error("MiniMax TTS API did not return audio data");
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 function inferEdgeExtension(outputFormat: string): string {
   const normalized = outputFormat.toLowerCase();
   if (normalized.includes("webm")) {
@@ -1285,6 +1398,15 @@ export async function textToSpeech(params: {
           voiceSettings,
           timeoutMs: config.timeoutMs,
         });
+      } else if (provider === "minimax") {
+        audioBuffer = await minimaxTTS({
+          text: params.text,
+          apiKey,
+          model: config.minimax.model,
+          baseUrl: config.minimax.baseUrl,
+          outputFormat: output.minimax,
+          timeoutMs: config.timeoutMs,
+        });
       } else {
         const openaiModelOverride = params.overrides?.openai?.model;
         const openaiVoiceOverride = params.overrides?.openai?.voice;
@@ -1310,7 +1432,12 @@ export async function textToSpeech(params: {
         audioPath,
         latencyMs,
         provider,
-        outputFormat: provider === "openai" ? output.openai : output.elevenlabs,
+        outputFormat:
+          provider === "openai"
+            ? output.openai
+            : provider === "minimax"
+              ? output.minimax
+              : output.elevenlabs,
         voiceCompatible: output.voiceCompatible,
       };
     } catch (err) {
@@ -1376,6 +1503,27 @@ export async function textToSpeechTelephony(params: {
           applyTextNormalization: config.elevenlabs.applyTextNormalization,
           languageCode: config.elevenlabs.languageCode,
           voiceSettings: config.elevenlabs.voiceSettings,
+          timeoutMs: config.timeoutMs,
+        });
+
+        return {
+          success: true,
+          audioBuffer,
+          latencyMs: Date.now() - providerStart,
+          provider,
+          outputFormat: output.format,
+          sampleRate: output.sampleRate,
+        };
+      }
+
+      if (provider === "minimax") {
+        const output = TELEPHONY_OUTPUT.minimax;
+        const audioBuffer = await minimaxTTS({
+          text: params.text,
+          apiKey,
+          model: config.minimax.model,
+          baseUrl: config.minimax.baseUrl,
+          outputFormat: output.format,
           timeoutMs: config.timeoutMs,
         });
 
