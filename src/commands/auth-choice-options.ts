@@ -16,12 +16,13 @@ export type AuthChoiceGroupId =
   | "ai-gateway"
   | "moonshot"
   | "zai"
-  | "xiaomi"
   | "opencode-zen"
   | "minimax"
   | "synthetic"
   | "venice"
-  | "qwen";
+  | "qwen"
+  | "doubao"
+  | "qwen-api";
 
 export type AuthChoiceGroup = {
   value: AuthChoiceGroupId;
@@ -52,61 +53,13 @@ const AUTH_CHOICE_GROUP_DEFS: {
     value: "minimax",
     label: "MiniMax",
     hint: "M2.1 (recommended)",
-    choices: ["minimax-portal", "minimax-api", "minimax-api-lightning"],
-  },
-  {
-    value: "moonshot",
-    label: "Moonshot AI",
-    hint: "Kimi K2 + Kimi Coding",
-    choices: ["moonshot-api-key", "kimi-code-api-key"],
-  },
-  {
-    value: "google",
-    label: "Google",
-    hint: "Gemini API key + OAuth",
-    choices: ["gemini-api-key", "google-antigravity", "google-gemini-cli"],
-  },
-  {
-    value: "openrouter",
-    label: "OpenRouter",
-    hint: "API key",
-    choices: ["openrouter-api-key"],
+    choices: ["minimax-api", "minimax-api-lightning"],
   },
   {
     value: "qwen",
     label: "Qwen",
     hint: "OAuth",
     choices: ["qwen-portal"],
-  },
-  {
-    value: "zai",
-    label: "Z.AI (GLM 4.7)",
-    hint: "API key",
-    choices: ["zai-api-key"],
-  },
-  {
-    value: "copilot",
-    label: "Copilot",
-    hint: "GitHub + local proxy",
-    choices: ["github-copilot", "copilot-proxy"],
-  },
-  {
-    value: "ai-gateway",
-    label: "Vercel AI Gateway",
-    hint: "API key",
-    choices: ["ai-gateway-api-key"],
-  },
-  {
-    value: "opencode-zen",
-    label: "OpenCode Zen",
-    hint: "API key",
-    choices: ["opencode-zen"],
-  },
-  {
-    value: "xiaomi",
-    label: "Xiaomi",
-    hint: "API key",
-    choices: ["xiaomi-api-key"],
   },
   {
     value: "synthetic",
@@ -119,6 +72,60 @@ const AUTH_CHOICE_GROUP_DEFS: {
     label: "Venice AI",
     hint: "Privacy-focused (uncensored models)",
     choices: ["venice-api-key"],
+  },
+  {
+    value: "google",
+    label: "Google",
+    hint: "Gemini API key + OAuth",
+    choices: ["gemini-api-key", "google-antigravity", "google-gemini-cli"],
+  },
+  {
+    value: "copilot",
+    label: "Copilot",
+    hint: "GitHub + local proxy",
+    choices: ["github-copilot", "copilot-proxy"],
+  },
+  {
+    value: "openrouter",
+    label: "OpenRouter",
+    hint: "API key",
+    choices: ["openrouter-api-key"],
+  },
+  {
+    value: "ai-gateway",
+    label: "Vercel AI Gateway",
+    hint: "API key",
+    choices: ["ai-gateway-api-key"],
+  },
+  {
+    value: "moonshot",
+    label: "Moonshot AI",
+    hint: "Kimi K2 + Kimi Code",
+    choices: ["moonshot-api-key", "kimi-code-api-key"],
+  },
+  {
+    value: "zai",
+    label: "Z.AI (GLM 4.7)",
+    hint: "API key",
+    choices: ["zai-api-key"],
+  },
+  {
+    value: "opencode-zen",
+    label: "OpenCode Zen",
+    hint: "API key",
+    choices: ["opencode-zen"],
+  },
+  {
+    value: "doubao",
+    label: "Doubao (豆包)",
+    hint: "Volcengine API (DeepSeek/Doubao models)",
+    choices: ["doubao-api-key"],
+  },
+  {
+    value: "qwen-api",
+    label: "Qwen API (通义千问)",
+    hint: "Alibaba Cloud API key",
+    choices: ["qwen-api-key"],
   },
 ];
 
@@ -147,7 +154,7 @@ export function buildAuthChoiceOptions(params: {
     label: "Vercel AI Gateway API key",
   });
   options.push({ value: "moonshot-api-key", label: "Moonshot AI API key" });
-  options.push({ value: "kimi-code-api-key", label: "Kimi Coding API key" });
+  options.push({ value: "kimi-code-api-key", label: "Kimi Code API key" });
   options.push({ value: "synthetic-api-key", label: "Synthetic API key" });
   options.push({
     value: "venice-api-key",
@@ -171,15 +178,6 @@ export function buildAuthChoiceOptions(params: {
     hint: "Uses the bundled Gemini CLI auth plugin",
   });
   options.push({ value: "zai-api-key", label: "Z.AI (GLM 4.7) API key" });
-  options.push({
-    value: "xiaomi-api-key",
-    label: "Xiaomi API key",
-  });
-  options.push({
-    value: "minimax-portal",
-    label: "MiniMax OAuth",
-    hint: "Oauth plugin for MiniMax",
-  });
   options.push({ value: "qwen-portal", label: "Qwen OAuth" });
   options.push({
     value: "copilot-proxy",
@@ -198,6 +196,16 @@ export function buildAuthChoiceOptions(params: {
     value: "minimax-api-lightning",
     label: "MiniMax M2.1 Lightning",
     hint: "Faster, higher output cost",
+  });
+  options.push({
+    value: "doubao-api-key",
+    label: "Doubao (豆包) API key",
+    hint: "Volcengine API (DeepSeek/Doubao models)",
+  });
+  options.push({
+    value: "qwen-api-key",
+    label: "Qwen API key (通义千问)",
+    hint: "Alibaba Cloud DashScope API",
   });
   if (params.includeSkip) {
     options.push({ value: "skip", label: "Skip for now" });

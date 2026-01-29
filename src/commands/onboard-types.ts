@@ -33,6 +33,8 @@ export type AuthChoice =
   | "github-copilot"
   | "copilot-proxy"
   | "qwen-portal"
+  | "doubao-api-key"
+  | "qwen-api-key"
   | "skip";
 export type GatewayAuthChoice = "token" | "password";
 export type ResetScope = "config" | "config+creds+sessions" | "full";
@@ -74,6 +76,8 @@ export type OnboardOptions = {
   syntheticApiKey?: string;
   veniceApiKey?: string;
   opencodeZenApiKey?: string;
+  doubaoApiKey?: string;
+  qwenApiApiKey?: string;
   gatewayPort?: number;
   gatewayBind?: GatewayBind;
   gatewayAuth?: GatewayAuthChoice;

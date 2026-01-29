@@ -643,5 +643,81 @@ export async function applyAuthChoiceApiProviders(
     return { config: nextConfig, agentModelOverride };
   }
 
+  if (authChoice === "doubao-api-key") {
+    await params.prompter.note(
+      [
+        "Doubao (豆包) provides access to DeepSeek and Doubao models via Volcengine.",
+        "Get your API key at: https://console.volcengine.com/ark",
+      ].join("\n"),
+      "Doubao (豆包)",
+    );
+    const key = await params.prompter.text({
+      message: "Enter Doubao (豆包) API key",
+      placeholder: "Volcengine API key",
+      validate: validateApiKeyInput,
+    });
+    // Since models are configured in config file, update the config directly
+    const existingDoubao = nextConfig.models?.providers?.doubao;
+    nextConfig = {
+      ...nextConfig,
+      models: {
+        ...nextConfig.models,
+        providers: {
+          ...nextConfig.models?.providers,
+          doubao: {
+            baseUrl: existingDoubao?.baseUrl ?? "https://ark.cn-beijing.volces.com/api/v3",
+            api: existingDoubao?.api ?? "openai-completions",
+            models: existingDoubao?.models ?? [],
+            ...existingDoubao,
+            apiKey: normalizeApiKeyInput(String(key)),
+          },
+        },
+      },
+    };
+    await params.prompter.note(
+      "Doubao models are now available with your API key.",
+      "Doubao (豆包) configured",
+    );
+    return { config: nextConfig };
+  }
+
+  if (authChoice === "qwen-api-key") {
+    await params.prompter.note(
+      [
+        "Qwen API (通义千问) provides access to Alibaba Cloud's Qwen models.",
+        "Get your API key at: https://dashscope.console.aliyun.com/apiKey",
+      ].join("\n"),
+      "Qwen API",
+    );
+    const key = await params.prompter.text({
+      message: "Enter Qwen API key (通义千问)",
+      placeholder: "Alibaba Cloud DashScope API key",
+      validate: validateApiKeyInput,
+    });
+    // Since models are configured in config file, update the config directly
+    const existingQwen = nextConfig.models?.providers?.["qwen-api"];
+    nextConfig = {
+      ...nextConfig,
+      models: {
+        ...nextConfig.models,
+        providers: {
+          ...nextConfig.models?.providers,
+          "qwen-api": {
+            baseUrl: existingQwen?.baseUrl ?? "https://dashscope.aliyuncs.com/compatible-mode/v1",
+            api: existingQwen?.api ?? "openai-completions",
+            models: existingQwen?.models ?? [],
+            ...existingQwen,
+            apiKey: normalizeApiKeyInput(String(key)),
+          },
+        },
+      },
+    };
+    await params.prompter.note(
+      "Qwen models are now available with your API key.",
+      "Qwen API configured",
+    );
+    return { config: nextConfig };
+  }
+
   return null;
 }

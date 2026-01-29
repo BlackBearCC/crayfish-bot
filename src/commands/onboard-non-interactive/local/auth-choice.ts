@@ -428,6 +428,58 @@ export async function applyNonInteractiveAuthChoice(params: {
     return applyOpencodeZenConfig(nextConfig);
   }
 
+  if (authChoice === "doubao-api-key") {
+    if (!opts.doubaoApiKey) {
+      runtime.error("--doubao-api-key is required for doubao-api-key auth choice");
+      runtime.exit(1);
+      return null;
+    }
+    const existingDoubao = nextConfig.models?.providers?.doubao;
+    nextConfig = {
+      ...nextConfig,
+      models: {
+        ...nextConfig.models,
+        providers: {
+          ...nextConfig.models?.providers,
+          doubao: {
+            baseUrl: existingDoubao?.baseUrl ?? "https://ark.cn-beijing.volces.com/api/v3",
+            api: existingDoubao?.api ?? "openai-completions",
+            models: existingDoubao?.models ?? [],
+            ...existingDoubao,
+            apiKey: opts.doubaoApiKey,
+          },
+        },
+      },
+    };
+    return nextConfig;
+  }
+
+  if (authChoice === "qwen-api-key") {
+    if (!opts.qwenApiApiKey) {
+      runtime.error("--qwen-api-api-key is required for qwen-api-key auth choice");
+      runtime.exit(1);
+      return null;
+    }
+    const existingQwen = nextConfig.models?.providers?.["qwen-api"];
+    nextConfig = {
+      ...nextConfig,
+      models: {
+        ...nextConfig.models,
+        providers: {
+          ...nextConfig.models?.providers,
+          "qwen-api": {
+            baseUrl: existingQwen?.baseUrl ?? "https://dashscope.aliyuncs.com/compatible-mode/v1",
+            api: existingQwen?.api ?? "openai-completions",
+            models: existingQwen?.models ?? [],
+            ...existingQwen,
+            apiKey: opts.qwenApiApiKey,
+          },
+        },
+      },
+    };
+    return nextConfig;
+  }
+
   if (
     authChoice === "oauth" ||
     authChoice === "chutes" ||
