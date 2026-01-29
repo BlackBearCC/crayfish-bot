@@ -91,7 +91,7 @@ async function main(): Promise<void> {
     throw new Error("Missing MINIMAX_API_KEY in environment.");
   }
 
-  const minimaxBaseUrl = process.env.MINIMAX_BASE_URL?.trim() || "https://api.minimax.io/v1";
+  const minimaxBaseUrl = process.env.MINIMAX_BASE_URL?.trim() || "https://api.minimaxi.com/v1";
   const minimaxModelId = process.env.MINIMAX_MODEL?.trim() || "MiniMax-M2.1";
 
   const minimaxModel: Model<"openai-completions"> = {
