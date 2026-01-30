@@ -6,16 +6,21 @@ read_when:
 ---
 # MiniMax
 
-MiniMax is an AI company that builds the **M2/M2.1** model family. The current
-coding-focused release is **MiniMax M2.1** (December 23, 2025), built for
+MiniMax is an AI company that builds the **M2** model family. The current
+coding-focused release is **MiniMax M2** (default), built for
 real-world complex tasks.
 
-Source: [MiniMax M2.1 release note](https://www.minimax.io/news/minimax-m21)
+Source: [MiniMax M2 release note](https://www.minimax.io/news/minimax-m2)
 
-## Model overview (M2.1)
+## Model overview
 
-MiniMax highlights these improvements in M2.1:
+MiniMax offers three M2 variants:
 
+- **MiniMax-M2** (default): Built for efficient coding and Agent workflows
+- **MiniMax-M2.1**: Strong multi-language coding capabilities (Rust, Java, Go, C++, Kotlin, Objective-C, TS/JS)
+- **MiniMax-M2.1-lightning**: Faster variant (~100tps) for rapid iteration
+
+MiniMax M2.1 highlights:
 - Stronger **multi-language coding** (Rust, Java, Go, C++, Kotlin, Objective-C, TS/JS).
 - Better **web/app development** and aesthetic output quality (including native mobile).
 - Improved **composite instruction** handling for office-style workflows, building on
@@ -35,19 +40,19 @@ MiniMax highlights these improvements in M2.1:
 
 ## Choose a setup
 
-### MiniMax M2.1 — recommended
+### MiniMax M2 — recommended (default)
 
 **Best for:** hosted MiniMax with Anthropic-compatible API.
 
 Configure via CLI:
 - Run `moltbot configure`
 - Select **Model/auth**
-- Choose **MiniMax M2.1**
+- Choose **MiniMax M2** (default) or another M2 variant
 
 ```json5
 {
   env: { MINIMAX_API_KEY: "sk-..." },
-  agents: { defaults: { model: { primary: "minimax/MiniMax-M2.1" } } },
+  agents: { defaults: { model: { primary: "minimax/MiniMax-M2" } } },
   models: {
     mode: "merge",
     providers: {
@@ -57,8 +62,8 @@ Configure via CLI:
         api: "anthropic-messages",
         models: [
           {
-            id: "MiniMax-M2.1",
-            name: "MiniMax M2.1",
+            id: "MiniMax-M2",
+            name: "MiniMax M2",
             reasoning: false,
             input: ["text"],
             cost: { input: 15, output: 60, cacheRead: 2, cacheWrite: 10 },
@@ -72,9 +77,9 @@ Configure via CLI:
 }
 ```
 
-### MiniMax M2.1 as fallback (Opus primary)
+### MiniMax M2 as fallback (Opus primary)
 
-**Best for:** keep Opus 4.5 as primary, fail over to MiniMax M2.1.
+**Best for:** keep Opus 4.5 as primary, fail over to MiniMax M2.
 
 ```json5
 {
@@ -83,11 +88,11 @@ Configure via CLI:
     defaults: {
       models: {
         "anthropic/claude-opus-4-5": { alias: "opus" },
-        "minimax/MiniMax-M2.1": { alias: "minimax" }
+        "minimax/MiniMax-M2": { alias: "minimax" }
       },
       model: {
         primary: "anthropic/claude-opus-4-5",
-        fallbacks: ["minimax/MiniMax-M2.1"]
+        fallbacks: ["minimax/MiniMax-M2"]
       }
     }
   }
@@ -174,6 +179,7 @@ and no MiniMax auth profile/env key found). A fix for this detection is in
 - Setting `MINIMAX_API_KEY` (or a MiniMax auth profile) so the provider can be injected.
 
 Make sure the model id is **case‑sensitive**:
+- `minimax/MiniMax-M2` (default)
 - `minimax/MiniMax-M2.1`
 - `minimax/MiniMax-M2.1-lightning`
 

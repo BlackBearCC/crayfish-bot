@@ -18,7 +18,7 @@ type ModelsConfig = NonNullable<MoltbotConfig["models"]>;
 export type ProviderConfig = NonNullable<ModelsConfig["providers"]>[string];
 
 const MINIMAX_API_BASE_URL = "https://api.minimax.chat/v1";
-const MINIMAX_DEFAULT_MODEL_ID = "MiniMax-M2.1";
+const MINIMAX_DEFAULT_MODEL_ID = "MiniMax-M2";
 const MINIMAX_DEFAULT_VISION_MODEL_ID = "MiniMax-VL-01";
 const MINIMAX_DEFAULT_CONTEXT_WINDOW = 200000;
 const MINIMAX_DEFAULT_MAX_TOKENS = 8192;
@@ -247,8 +247,26 @@ function buildMinimaxProvider(): ProviderConfig {
     api: "openai-completions",
     models: [
       {
-        id: MINIMAX_DEFAULT_MODEL_ID,
+        id: "MiniMax-M2",
+        name: "MiniMax M2",
+        reasoning: false,
+        input: ["text"],
+        cost: MINIMAX_API_COST,
+        contextWindow: MINIMAX_DEFAULT_CONTEXT_WINDOW,
+        maxTokens: MINIMAX_DEFAULT_MAX_TOKENS,
+      },
+      {
+        id: "MiniMax-M2.1",
         name: "MiniMax M2.1",
+        reasoning: false,
+        input: ["text"],
+        cost: MINIMAX_API_COST,
+        contextWindow: MINIMAX_DEFAULT_CONTEXT_WINDOW,
+        maxTokens: MINIMAX_DEFAULT_MAX_TOKENS,
+      },
+      {
+        id: "MiniMax-M2.1-lightning",
+        name: "MiniMax M2.1 Lightning",
         reasoning: false,
         input: ["text"],
         cost: MINIMAX_API_COST,
