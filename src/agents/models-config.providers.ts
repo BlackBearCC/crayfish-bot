@@ -266,8 +266,26 @@ function buildMinimaxProvider(): ProviderConfig {
     api: "openai-completions",
     models: [
       {
-        id: MINIMAX_DEFAULT_MODEL_ID,
+        id: "MiniMax-M2",
+        name: "MiniMax M2",
+        reasoning: false,
+        input: ["text"],
+        cost: MINIMAX_API_COST,
+        contextWindow: MINIMAX_DEFAULT_CONTEXT_WINDOW,
+        maxTokens: MINIMAX_DEFAULT_MAX_TOKENS,
+      },
+      {
+        id: "MiniMax-M2.1",
         name: "MiniMax M2.1",
+        reasoning: false,
+        input: ["text"],
+        cost: MINIMAX_API_COST,
+        contextWindow: MINIMAX_DEFAULT_CONTEXT_WINDOW,
+        maxTokens: MINIMAX_DEFAULT_MAX_TOKENS,
+      },
+      {
+        id: "MiniMax-M2.1-lightning",
+        name: "MiniMax M2.1 Lightning",
         reasoning: false,
         input: ["text"],
         cost: MINIMAX_API_COST,
