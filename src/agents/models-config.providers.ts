@@ -65,6 +65,16 @@ const QWEN_PORTAL_DEFAULT_COST = {
   cacheWrite: 0,
 };
 
+const QWEN_API_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1";
+const QWEN_API_DEFAULT_CONTEXT_WINDOW = 128000;
+const QWEN_API_DEFAULT_MAX_TOKENS = 8192;
+const QWEN_API_DEFAULT_COST = {
+  input: 0,
+  output: 0,
+  cacheRead: 0,
+  cacheWrite: 0,
+};
+
 const OLLAMA_BASE_URL = "http://127.0.0.1:11434/v1";
 const OLLAMA_API_BASE_URL = "http://127.0.0.1:11434";
 const OLLAMA_DEFAULT_CONTEXT_WINDOW = 128000;
@@ -368,6 +378,33 @@ function buildQwenPortalProvider(): ProviderConfig {
   };
 }
 
+function buildQwenApiProvider(): ProviderConfig {
+  return {
+    baseUrl: QWEN_API_BASE_URL,
+    api: "openai-completions",
+    models: [
+      {
+        id: "qwen3-max",
+        name: "Qwen3 Max",
+        reasoning: false,
+        input: ["text"],
+        cost: QWEN_API_DEFAULT_COST,
+        contextWindow: QWEN_API_DEFAULT_CONTEXT_WINDOW,
+        maxTokens: QWEN_API_DEFAULT_MAX_TOKENS,
+      },
+      {
+        id: "kimi-k2.5",
+        name: "Kimi K2.5 (via Qwen API)",
+        reasoning: false,
+        input: ["text", "image"],
+        cost: QWEN_API_DEFAULT_COST,
+        contextWindow: 256000,
+        maxTokens: QWEN_API_DEFAULT_MAX_TOKENS,
+      },
+    ],
+  };
+}
+
 function buildSyntheticProvider(): ProviderConfig {
   return {
     baseUrl: SYNTHETIC_BASE_URL,
@@ -469,6 +506,13 @@ export async function resolveImplicitProviders(params: {
     resolveApiKeyFromProfiles({ provider: "xiaomi", store: authStore });
   if (xiaomiKey) {
     providers.xiaomi = { ...buildXiaomiProvider(), apiKey: xiaomiKey };
+  }
+
+  const qwenApiKey =
+    resolveEnvApiKeyVarName("qwen-api") ??
+    resolveApiKeyFromProfiles({ provider: "qwen-api", store: authStore });
+  if (qwenApiKey) {
+    providers["qwen-api"] = { ...buildQwenApiProvider(), apiKey: qwenApiKey };
   }
 
   // Ollama provider - only add if explicitly configured

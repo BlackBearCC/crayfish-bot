@@ -50,6 +50,9 @@ const DEFAULT_EDGE_VOICE = "en-US-MichelleNeural";
 const DEFAULT_EDGE_LANG = "en-US";
 const DEFAULT_EDGE_OUTPUT_FORMAT = "audio-24khz-48kbitrate-mono-mp3";
 const DEFAULT_MINIMAX_MODEL = "speech-2.8-turbo";
+const DEFAULT_QWEN_MODEL = "qwen3-tts-flash-realtime";
+const DEFAULT_QWEN_VOICE = "Cherry";
+const DEFAULT_QWEN_BASE_URL = "https://dashscope.aliyuncs.com";
 
 const DEFAULT_ELEVENLABS_VOICE_SETTINGS = {
   stability: 0.5,
@@ -65,6 +68,7 @@ const TELEGRAM_OUTPUT = {
   // Opus @ 48kHz/64kbps is a good voice-note tradeoff for Telegram.
   elevenlabs: "opus_48000_64",
   minimax: "mp3",
+  qwen: "pcm",
   extension: ".mp3",
   voiceCompatible: true,
 };
@@ -73,6 +77,7 @@ const DEFAULT_OUTPUT = {
   openai: "mp3" as const,
   elevenlabs: "mp3_44100_128",
   minimax: "mp3",
+  qwen: "pcm",
   extension: ".mp3",
   voiceCompatible: false,
 };
@@ -81,6 +86,7 @@ const TELEPHONY_OUTPUT = {
   openai: { format: "pcm" as const, sampleRate: 24000 },
   elevenlabs: { format: "pcm_22050", sampleRate: 22050 },
   minimax: { format: "mp3", sampleRate: 32000 },
+  qwen: { format: "pcm", sampleRate: 24000 },
 };
 
 const TTS_AUTO_MODES = new Set<TtsAutoMode>(["off", "always", "inbound", "tagged"]);
@@ -130,6 +136,12 @@ export type ResolvedTtsConfig = {
     apiKey?: string;
     model: string;
     baseUrl: string;
+  };
+  qwen: {
+    apiKey?: string;
+    model: string;
+    baseUrl: string;
+    voice: string;
   };
   prefsPath?: string;
   maxTextLength: number;
@@ -309,6 +321,12 @@ export function resolveTtsConfig(cfg: OpenClawConfig): ResolvedTtsConfig {
       apiKey: raw.minimax?.apiKey,
       model: raw.minimax?.model ?? DEFAULT_MINIMAX_MODEL,
       baseUrl: raw.minimax?.baseUrl?.trim() || "https://api.minimaxi.com",
+    },
+    qwen: {
+      apiKey: raw.qwen?.apiKey,
+      model: raw.qwen?.model ?? DEFAULT_QWEN_MODEL,
+      baseUrl: raw.qwen?.baseUrl?.trim() || DEFAULT_QWEN_BASE_URL,
+      voice: raw.qwen?.voice ?? DEFAULT_QWEN_VOICE,
     },
     prefsPath: raw.prefsPath,
     maxTextLength: raw.maxTextLength ?? DEFAULT_MAX_TEXT_LENGTH,
@@ -515,10 +533,13 @@ export function resolveTtsApiKey(
   if (provider === "minimax") {
     return config.minimax.apiKey || process.env.MINIMAX_API_KEY;
   }
+  if (provider === "qwen") {
+    return config.qwen.apiKey || process.env.DASHSCOPE_API_KEY || process.env.QWEN_API_KEY;
+  }
   return undefined;
 }
 
-export const TTS_PROVIDERS = ["openai", "elevenlabs", "edge", "minimax"] as const;
+export const TTS_PROVIDERS = ["openai", "elevenlabs", "edge", "minimax", "qwen"] as const;
 
 export function resolveTtsProviderOrder(primary: TtsProvider): TtsProvider[] {
   return [primary, ...TTS_PROVIDERS.filter((provider) => provider !== primary)];
@@ -1155,7 +1176,7 @@ async function minimaxTTS(params: {
 
   try {
     const url = `${baseUrl.replace(/\/+$/, "")}/v1/t2a_v2`;
-    
+
     // Map output format to MiniMax audio format
     let audioFormat = "mp3";
     if (outputFormat.includes("opus") || outputFormat.includes("ogg")) {
@@ -1204,9 +1225,7 @@ async function minimaxTTS(params: {
     };
 
     if (data.base_resp?.status_code !== 0) {
-      throw new Error(
-        `MiniMax TTS API error: ${data.base_resp?.status_msg ?? "unknown error"}`,
-      );
+      throw new Error(`MiniMax TTS API error: ${data.base_resp?.status_msg ?? "unknown error"}`);
     }
 
     // Handle hex format (default)
@@ -1228,6 +1247,85 @@ async function minimaxTTS(params: {
     }
 
     throw new Error("MiniMax TTS API did not return audio data");
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function qwenTTS(params: {
+  text: string;
+  apiKey: string;
+  model: string;
+  baseUrl: string;
+  voice: string;
+  outputFormat: string;
+  timeoutMs: number;
+}): Promise<Buffer> {
+  const { text, apiKey, model, baseUrl, voice, outputFormat, timeoutMs } = params;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const url = `${baseUrl.replace(/\/+$/, "")}/api/v1/services/aigc/text2speech/synthesis`;
+
+    // Map output format
+    let format = "pcm";
+    let sampleRate = 24000;
+    if (outputFormat.includes("wav")) {
+      format = "wav";
+    } else if (outputFormat.includes("mp3")) {
+      format = "mp3";
+    }
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "X-DashScope-Async": "enable",
+      },
+      body: JSON.stringify({
+        model,
+        input: {
+          text,
+        },
+        parameters: {
+          voice,
+          format,
+          sample_rate: sampleRate,
+          volume: 50,
+          speech_rate: 0,
+          pitch_rate: 0,
+        },
+      }),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Qwen TTS API error (${response.status}): ${errorText}`);
+    }
+
+    const data = (await response.json()) as {
+      output?: { audio_url?: string };
+      request_id?: string;
+    };
+
+    // Check if we got an audio URL
+    if (data.output?.audio_url) {
+      const audioResponse = await fetch(data.output.audio_url, {
+        signal: controller.signal,
+      });
+
+      if (!audioResponse.ok) {
+        throw new Error(`Failed to fetch audio from URL (${audioResponse.status})`);
+      }
+
+      return Buffer.from(await audioResponse.arrayBuffer());
+    }
+
+    throw new Error("Qwen TTS API did not return audio data");
   } finally {
     clearTimeout(timeout);
   }
@@ -1407,6 +1505,16 @@ export async function textToSpeech(params: {
           outputFormat: output.minimax,
           timeoutMs: config.timeoutMs,
         });
+      } else if (provider === "qwen") {
+        audioBuffer = await qwenTTS({
+          text: params.text,
+          apiKey,
+          model: config.qwen.model,
+          baseUrl: config.qwen.baseUrl,
+          voice: config.qwen.voice,
+          outputFormat: output.qwen,
+          timeoutMs: config.timeoutMs,
+        });
       } else {
         const openaiModelOverride = params.overrides?.openai?.model;
         const openaiVoiceOverride = params.overrides?.openai?.voice;
@@ -1437,7 +1545,9 @@ export async function textToSpeech(params: {
             ? output.openai
             : provider === "minimax"
               ? output.minimax
-              : output.elevenlabs,
+              : provider === "qwen"
+                ? output.qwen
+                : output.elevenlabs,
         voiceCompatible: output.voiceCompatible,
       };
     } catch (err) {
@@ -1523,6 +1633,28 @@ export async function textToSpeechTelephony(params: {
           apiKey,
           model: config.minimax.model,
           baseUrl: config.minimax.baseUrl,
+          outputFormat: output.format,
+          timeoutMs: config.timeoutMs,
+        });
+
+        return {
+          success: true,
+          audioBuffer,
+          latencyMs: Date.now() - providerStart,
+          provider,
+          outputFormat: output.format,
+          sampleRate: output.sampleRate,
+        };
+      }
+
+      if (provider === "qwen") {
+        const output = TELEPHONY_OUTPUT.qwen;
+        const audioBuffer = await qwenTTS({
+          text: params.text,
+          apiKey,
+          model: config.qwen.model,
+          baseUrl: config.qwen.baseUrl,
+          voice: config.qwen.voice,
           outputFormat: output.format,
           timeoutMs: config.timeoutMs,
         });

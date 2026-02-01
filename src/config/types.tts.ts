@@ -1,4 +1,4 @@
-export type TtsProvider = "elevenlabs" | "openai" | "edge" | "minimax";
+export type TtsProvider = "elevenlabs" | "openai" | "edge" | "minimax" | "qwen";
 
 export type TtsMode = "final" | "all";
 
@@ -78,6 +78,13 @@ export type TtsConfig = {
     apiKey?: string;
     model?: string;
     baseUrl?: string;
+  };
+  /** Qwen TTS configuration. */
+  qwen?: {
+    apiKey?: string;
+    model?: string;
+    baseUrl?: string;
+    voice?: string;
   };
   /** Optional path for local TTS user preferences JSON. */
   prefsPath?: string;
