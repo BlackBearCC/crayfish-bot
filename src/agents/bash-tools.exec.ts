@@ -475,7 +475,9 @@ async function runExecProcess(opts: {
     child = spawned as ChildProcessWithoutNullStreams;
     stdin = child.stdin;
   } else if (opts.usePty) {
-    const { shell, args: shellArgs } = getShellConfig();
+    const shellConfig = getShellConfig();
+    const { shell, args: shellArgs, wrapCommand } = shellConfig;
+    const command = wrapCommand ? wrapCommand(opts.command) : opts.command;
     try {
       const ptyModule = (await import("@lydell/node-pty")) as unknown as {
         spawn?: PtySpawn;
@@ -485,7 +487,7 @@ async function runExecProcess(opts: {
       if (!spawnPty) {
         throw new Error("PTY support is unavailable (node-pty spawn not found).");
       }
-      pty = spawnPty(shell, [...shellArgs, opts.command], {
+      pty = spawnPty(shell, [...shellArgs, command], {
         cwd: opts.workdir,
         env: opts.env,
         name: process.env.TERM ?? "xterm-256color",
@@ -517,7 +519,7 @@ async function runExecProcess(opts: {
       logWarn(`exec: PTY spawn failed (${errText}); retrying without PTY for "${opts.command}".`);
       opts.warnings.push(warning);
       const { child: spawned } = await spawnWithFallback({
-        argv: [shell, ...shellArgs, opts.command],
+        argv: [shell, ...shellArgs, command],
         options: {
           cwd: opts.workdir,
           env: opts.env,
@@ -542,9 +544,11 @@ async function runExecProcess(opts: {
       stdin = child.stdin;
     }
   } else {
-    const { shell, args: shellArgs } = getShellConfig();
+    const shellConfig = getShellConfig();
+    const { shell, args: shellArgs, wrapCommand } = shellConfig;
+    const command = wrapCommand ? wrapCommand(opts.command) : opts.command;
     const { child: spawned } = await spawnWithFallback({
-      argv: [shell, ...shellArgs, opts.command],
+      argv: [shell, ...shellArgs, command],
       options: {
         cwd: opts.workdir,
         env: opts.env,

@@ -19,16 +19,32 @@ function resolvePowerShellPath(): string {
   return "powershell.exe";
 }
 
-export function getShellConfig(): { shell: string; args: string[] } {
+export type ShellConfig = {
+  shell: string;
+  args: string[];
+  env?: Record<string, string>;
+  wrapCommand?: (cmd: string) => string;
+};
+
+export function getShellConfig(): ShellConfig {
   if (process.platform === "win32") {
     // Use PowerShell instead of cmd.exe on Windows.
     // Problem: Many Windows system utilities (ipconfig, systeminfo, etc.) write
     // directly to the console via WriteConsole API, bypassing stdout pipes.
     // When Node.js spawns cmd.exe with piped stdio, these utilities produce no output.
     // PowerShell properly captures and redirects their output to stdout.
+    // Set UTF-8 encoding to avoid issues with Chinese/Unicode characters.
     return {
       shell: resolvePowerShellPath(),
       args: ["-NoProfile", "-NonInteractive", "-Command"],
+      env: {
+        ...process.env,
+        PYTHONIOENCODING: "utf-8",
+      },
+      wrapCommand: (cmd: string) => {
+        // Set UTF-8 encoding for PowerShell to handle Chinese/Unicode characters
+        return `$OutputEncoding = [Text.Encoding]::UTF8; [Console]::OutputEncoding = [Text.Encoding]::UTF8; ${cmd}`;
+      },
     };
   }
 
