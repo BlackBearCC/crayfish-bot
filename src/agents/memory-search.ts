@@ -9,7 +9,7 @@ export type ResolvedMemorySearchConfig = {
   enabled: boolean;
   sources: Array<"memory" | "sessions">;
   extraPaths: string[];
-  provider: "openai" | "local" | "gemini" | "auto";
+  provider: "openai" | "local" | "gemini" | "qwen" | "auto";
   remote?: {
     baseUrl?: string;
     apiKey?: string;
@@ -25,7 +25,7 @@ export type ResolvedMemorySearchConfig = {
   experimental: {
     sessionMemory: boolean;
   };
-  fallback: "openai" | "gemini" | "local" | "none";
+  fallback: "openai" | "gemini" | "qwen" | "local" | "none";
   model: string;
   local: {
     modelPath?: string;
@@ -72,6 +72,7 @@ export type ResolvedMemorySearchConfig = {
 
 const DEFAULT_OPENAI_MODEL = "text-embedding-3-small";
 const DEFAULT_GEMINI_MODEL = "gemini-embedding-001";
+const DEFAULT_QWEN_MODEL = "text-embedding-v4";
 const DEFAULT_CHUNK_TOKENS = 400;
 const DEFAULT_CHUNK_OVERLAP = 80;
 const DEFAULT_WATCH_DEBOUNCE_MS = 1500;
@@ -136,7 +137,8 @@ function mergeConfig(
     defaultRemote?.headers,
   );
   const includeRemote =
-    hasRemoteConfig || provider === "openai" || provider === "gemini" || provider === "auto";
+    hasRemoteConfig ||
+    ["openai", "gemini", "qwen", "auto"].includes(provider);
   const batch = {
     enabled: overrideRemote?.batch?.enabled ?? defaultRemote?.batch?.enabled ?? true,
     wait: overrideRemote?.batch?.wait ?? defaultRemote?.batch?.wait ?? true,
@@ -158,12 +160,14 @@ function mergeConfig(
       }
     : undefined;
   const fallback = overrides?.fallback ?? defaults?.fallback ?? "none";
-  const modelDefault =
-    provider === "gemini"
-      ? DEFAULT_GEMINI_MODEL
-      : provider === "openai"
-        ? DEFAULT_OPENAI_MODEL
-        : undefined;
+  let modelDefault: string | undefined;
+  if (provider === "gemini") {
+    modelDefault = DEFAULT_GEMINI_MODEL;
+  } else if (provider === "qwen") {
+    modelDefault = DEFAULT_QWEN_MODEL;
+  } else if (provider === "openai") {
+    modelDefault = DEFAULT_OPENAI_MODEL;
+  }
   const model = overrides?.model ?? defaults?.model ?? modelDefault ?? "";
   const local = {
     modelPath: overrides?.local?.modelPath ?? defaults?.local?.modelPath,

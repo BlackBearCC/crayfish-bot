@@ -20,6 +20,7 @@ import {
 } from "./batch-openai.js";
 import { DEFAULT_GEMINI_EMBEDDING_MODEL } from "./embeddings-gemini.js";
 import { DEFAULT_OPENAI_EMBEDDING_MODEL } from "./embeddings-openai.js";
+import type { QwenEmbeddingClient } from "./embeddings-qwen.js";
 import {
   createEmbeddingProvider,
   type EmbeddingProvider,
@@ -121,11 +122,12 @@ export class MemoryIndexManager {
   private readonly workspaceDir: string;
   private readonly settings: ResolvedMemorySearchConfig;
   private provider: EmbeddingProvider;
-  private readonly requestedProvider: "openai" | "local" | "gemini" | "auto";
-  private fallbackFrom?: "openai" | "local" | "gemini";
+  private readonly requestedProvider: "openai" | "local" | "gemini" | "qwen" | "auto";
+  private fallbackFrom?: "openai" | "local" | "gemini" | "qwen";
   private fallbackReason?: string;
   private openAi?: OpenAiEmbeddingClient;
   private gemini?: GeminiEmbeddingClient;
+  private qwen?: QwenEmbeddingClient;
   private batch: {
     enabled: boolean;
     wait: boolean;
@@ -226,6 +228,7 @@ export class MemoryIndexManager {
     this.fallbackReason = params.providerResult.fallbackReason;
     this.openAi = params.providerResult.openAi;
     this.gemini = params.providerResult.gemini;
+    this.qwen = params.providerResult.qwen;
     this.sources = new Set(params.settings.sources);
     this.db = this.openDatabase();
     this.providerKey = this.computeProviderKey();
@@ -1406,7 +1409,7 @@ export class MemoryIndexManager {
     if (this.fallbackFrom) {
       return false;
     }
-    const fallbackFrom = this.provider.id as "openai" | "gemini" | "local";
+    const fallbackFrom = this.provider.id as "openai" | "gemini" | "qwen" | "local";
 
     const fallbackModel =
       fallback === "gemini"
@@ -1430,6 +1433,7 @@ export class MemoryIndexManager {
     this.provider = fallbackResult.provider;
     this.openAi = fallbackResult.openAi;
     this.gemini = fallbackResult.gemini;
+    this.qwen = fallbackResult.qwen;
     this.providerKey = this.computeProviderKey();
     this.batch = this.resolveBatchConfig();
     log.warn(`memory embeddings: switched to fallback provider (${fallback})`, { reason });

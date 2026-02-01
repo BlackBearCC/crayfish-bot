@@ -3,6 +3,7 @@ export type ModelApi =
   | "openai-responses"
   | "anthropic-messages"
   | "google-generative-ai"
+  | "qwen"
   | "github-copilot"
   | "bedrock-converse-stream";
 

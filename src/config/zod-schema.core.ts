@@ -6,6 +6,7 @@ export const ModelApiSchema = z.union([
   z.literal("openai-responses"),
   z.literal("anthropic-messages"),
   z.literal("google-generative-ai"),
+  z.literal("qwen"),
   z.literal("github-copilot"),
   z.literal("bedrock-converse-stream"),
 ]);
