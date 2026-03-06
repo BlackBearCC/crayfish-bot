@@ -48,13 +48,11 @@ function _signDevicePayload(privateKeyPem, payload) {
   return _base64UrlEncode(crypto.sign(null, Buffer.from(payload, 'utf8'), crypto.createPrivateKey(privateKeyPem)));
 }
 
-function _buildDeviceAuthPayloadV3(params) {
+function _buildDeviceAuthPayload(params) {
   const scopes = params.scopes.join(',');
   const token = params.token ?? '';
-  const platform = (params.platform ?? '').trim().toLowerCase();
-  const deviceFamily = (params.deviceFamily ?? '').trim().toLowerCase();
-  return ['v3', params.deviceId, params.clientId, params.clientMode, params.role,
-          scopes, String(params.signedAtMs), token, params.nonce, platform, deviceFamily].join('|');
+  return ['v2', params.deviceId, params.clientId, params.clientMode, params.role,
+          scopes, String(params.signedAtMs), token, params.nonce].join('|');
 }
 
 function _loadOrCreateDeviceIdentity() {
@@ -125,7 +123,6 @@ class LLMService {
     // 配置
     this.config = {
       agentId: 'main',
-      gatewayToken: '',
       systemPrompt: `你是一只可爱的桌面宠物猫助手。你的性格活泼、亲切、有点调皮。
 回复要简短可爱（一般不超过两句话），偶尔加个颜文字。
 你住在主人的桌面上，会关心主人的状态。
@@ -163,10 +160,11 @@ class LLMService {
   // ===== Gateway 生命周期 =====
 
   async _startGateway() {
+    // Pet 拥有 Gateway 生命周期：启动前先杀掉已有的
     if (await this._isGatewayAlive()) {
-      console.log('[llm] Gateway already running');
-      this.gatewayReady = true;
-      return;
+      console.log('[llm] Killing existing Gateway on port', this.gatewayPort);
+      await this._killPort(this.gatewayPort);
+      await this._sleep(1000);
     }
 
     const clawBin = this._findOpenClawBin();
@@ -177,7 +175,8 @@ class LLMService {
 
     console.log(`[llm] Starting Gateway via: ${clawBin}`);
 
-    // gateway.cmd is a self-contained script (already includes args)
+    // gateway.cmd 自带参数直接跑；其他方式手动传参
+    // token 已在 _ensurePetToken() 中写入 openclaw.json，Gateway 启动时会读取
     const isGatewayCmd = /gateway\.(cmd|sh)$/.test(clawBin);
     const isMjs = clawBin.endsWith('.mjs');
     const spawnCmd = isMjs ? 'node' : clawBin;
@@ -185,7 +184,6 @@ class LLMService {
       ...(isMjs ? [clawBin] : []),
       'gateway',
       '--port', String(this.gatewayPort),
-      '--auth', 'none',
       '--bind', 'loopback',
       '--allow-unconfigured',
     ];
@@ -283,6 +281,24 @@ class LLMService {
       this.gatewayProcess = null;
       this.gatewayReady = false;
     }
+    // 兜底：确保端口上的进程也被杀掉
+    this._killPort(this.gatewayPort).catch(() => {});
+  }
+
+  async _killPort(port) {
+    try {
+      const { execSync } = require('child_process');
+      if (process.platform === 'win32') {
+        const out = execSync(`netstat -ano | findstr :${port} | findstr LISTENING`, { encoding: 'utf-8', timeout: 5000 }).trim();
+        const pids = [...new Set(out.split('\n').map(l => l.trim().split(/\s+/).pop()).filter(Boolean))];
+        for (const pid of pids) {
+          console.log(`[llm] Killing PID ${pid} on port ${port}`);
+          try { execSync(`taskkill /F /PID ${pid}`, { timeout: 5000 }); } catch {}
+        }
+      } else {
+        try { execSync(`fuser -k ${port}/tcp`, { timeout: 5000 }); } catch {}
+      }
+    } catch {}
   }
 
   // ===== WebSocket RPC =====
@@ -382,7 +398,7 @@ class LLMService {
 
   _sendConnectRequest(nonce) {
     const role = 'operator';
-    const scopes = ['operator.read', 'operator.write'];
+    const scopes = ['operator.admin', 'operator.read', 'operator.write'];
     const clientId = 'gateway-client';
     const clientMode = 'ui';
     const signedAtMs = Date.now();
@@ -403,15 +419,15 @@ class LLMService {
       scopes,
     };
 
-    // Auth: token or device identity signing
-    const token = this.config.gatewayToken || undefined;
+    // Pet token 认证
+    const token = this.gatewayToken || undefined;
     if (token) {
       params.auth = { token };
     }
 
-    // Device identity signing (required for pairing)
+    // 设备签名（v2 格式，与 Gateway 一致）—— 必须有才能获得 scope 权限
     if (this.deviceIdentity && nonce) {
-      const payload = _buildDeviceAuthPayloadV3({
+      const payload = _buildDeviceAuthPayload({
         deviceId: this.deviceIdentity.deviceId,
         clientId,
         clientMode,
@@ -420,8 +436,6 @@ class LLMService {
         signedAtMs,
         token: token ?? null,
         nonce,
-        platform: process.platform,
-        deviceFamily: undefined,
       });
       const signature = _signDevicePayload(this.deviceIdentity.privateKeyPem, payload);
       params.device = {
@@ -640,10 +654,9 @@ class LLMService {
         'Content-Type': 'application/json',
         'x-openclaw-agent-id': this.config.agentId,
       };
-      if (this.config.gatewayToken) {
-        headers['Authorization'] = `Bearer ${this.config.gatewayToken}`;
+      if (this.gatewayToken) {
+        headers['Authorization'] = `Bearer ${this.gatewayToken}`;
       }
-
       const body = JSON.stringify({
         model: 'openclaw',
         messages: [
@@ -682,14 +695,8 @@ class LLMService {
       console.warn('[llm] Failed to load config:', e.message);
     }
 
-    // 始终尝试从 openclaw.json 读取 gateway token
-    if (!this.config.gatewayToken) {
-      const ocConfig = this._readOpenClawConfig();
-      if (ocConfig?.gateway?.auth?.token) {
-        this.config.gatewayToken = ocConfig.gateway.auth.token;
-        console.log('[llm] Auto-populated gateway token from openclaw config');
-      }
-    }
+    // Pet 主场：确保 gateway token 由 pet 控制
+    this.gatewayToken = this._ensurePetToken();
 
     // 如果 pet 配置里没有 AI 设置，尝试从 ~/.openclaw/openclaw.json 自动填充
     if (!this.config.aiProvider || !this.config.aiApiKey) {
@@ -705,12 +712,6 @@ class LLMService {
     if (!ocConfig) return;
 
     try {
-      // 读取 gateway auth token
-      if (!this.config.gatewayToken && ocConfig.gateway?.auth?.token) {
-        this.config.gatewayToken = ocConfig.gateway.auth.token;
-        console.log('[llm] Auto-populated gateway token from openclaw config');
-      }
-
       // 读取 primary model 来确定 provider 和 model
       const primaryModel = ocConfig.agents?.defaults?.model?.primary;
       const providers = ocConfig.models?.providers;
@@ -758,9 +759,9 @@ class LLMService {
   getConfig() {
     return {
       ...this.config,
-      gatewayToken: this.config.gatewayToken ? '****' : '',
+      gatewayToken: this.gatewayToken ? '****' : '',
       aiApiKey: this.config.aiApiKey ? '****' : '',
-      hasToken: !!this.config.gatewayToken,
+      hasToken: !!this.gatewayToken,
       hasApiKey: !!this.config.aiApiKey,
       gatewayReady: this.gatewayReady,
       wsConnected: this.wsConnected,
@@ -809,6 +810,47 @@ class LLMService {
     } catch (e) {
       console.warn('[llm] Failed to write exec-approvals:', e.message);
     }
+  }
+
+  // ===== Pet Token =====
+
+  _ensurePetToken() {
+    const configDir = path.join(os.homedir(), '.openclaw');
+    const configFile = path.join(configDir, 'openclaw.json');
+    const petTokenFile = path.join(configDir, 'pet-token');
+
+    // 读取或生成 pet token
+    let petToken;
+    try {
+      if (fs.existsSync(petTokenFile)) petToken = fs.readFileSync(petTokenFile, 'utf-8').trim();
+    } catch {}
+    if (!petToken) {
+      petToken = 'pet-' + crypto.randomBytes(24).toString('hex');
+      try {
+        if (!fs.existsSync(configDir)) fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(petTokenFile, petToken, 'utf-8');
+        console.log('[llm] Generated new pet token');
+      } catch (e) { console.warn('[llm] Failed to save pet token:', e.message); }
+    }
+
+    // 写入 openclaw.json，Gateway 启动时读取
+    try {
+      let config = {};
+      if (fs.existsSync(configFile)) {
+        try { config = JSON.parse(fs.readFileSync(configFile, 'utf-8')); } catch {}
+      }
+      if (!config.gateway) config.gateway = {};
+      if (!config.gateway.auth) config.gateway.auth = {};
+      if (config.gateway.auth.token !== petToken) {
+        config.gateway.auth.mode = 'token';
+        config.gateway.auth.token = petToken;
+        fs.writeFileSync(configFile, JSON.stringify(config, null, 2), 'utf-8');
+        console.log('[llm] Synced pet token to openclaw.json');
+      }
+    } catch (e) { console.warn('[llm] Failed to sync pet token:', e.message); }
+
+    console.log('[llm] Pet token ready');
+    return petToken;
   }
 
   // ===== OpenClaw config file (~/.openclaw/openclaw.json) =====
