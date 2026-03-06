@@ -317,10 +317,11 @@ function createWindow() {
     return next;
   });
 
-  // 渲染进程日志转发
+  // 渲染进程日志转发（strip emoji 防止 Windows GBK 终端乱码）
   mainWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
     const prefix = ['[renderer]', '[renderer:WARN]', '[renderer:ERR]'][level] || '[renderer]';
-    console.log(`${prefix} ${message}`);
+    const clean = message.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE00}-\u{FE0F}\u{200D}\u{20E3}]/gu, '');
+    console.log(`${prefix} ${clean}`);
   });
 
   // 开发模式
