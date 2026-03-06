@@ -331,7 +331,7 @@ class LLMService {
         console.log(`[ws] Closed (${code}): ${reasonText}`);
         this.wsConnected = false;
         this.ws = null;
-        this.helloOk = null;
+        // 保留 helloOk 用于 fallback session key，重连成功后会刷新
         this._flushPendingErrors(new Error(`WebSocket closed (${code})`));
 
         if (!this.wsReconnecting && this.gatewayReady && (this._wsRetries || 0) < 5) {
@@ -944,7 +944,7 @@ class LLMService {
   _getDefaultSessionKey() {
     const defaults = this.helloOk?.snapshot?.sessionDefaults;
     if (defaults?.mainSessionKey) return defaults.mainSessionKey;
-    return `${this.config.agentId}:main`;
+    return `agent:${this.config.agentId}:main`;
   }
 
   _extractText(message) {

@@ -760,7 +760,8 @@ class OpenClawPet {
     this.electronAPI.onChatStream?.((payload) => {
       if (payload?.state === 'final') {
         this.intimacySystem.gain(3);
-        const msg = payload.message || '';
+        const raw = payload.message;
+        const msg = typeof raw === 'string' ? raw : (raw?.content ?? String(raw ?? ''));
         this.hungerSystem.onChatFinal(msg.length);
         this._chatCompletionCount++;
         localStorage.setItem('pet-chat-count', String(this._chatCompletionCount));
