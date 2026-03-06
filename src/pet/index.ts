@@ -4,6 +4,7 @@
  * All exports for consumers of the pet engine.
  */
 
+// Core
 export { EventBus, type PetEventMap } from "./event-bus.js";
 export {
   AttributeEngine,
@@ -15,12 +16,24 @@ export {
 } from "./attribute-engine.js";
 export { GrowthSystem, type GrowthConfig, type GrowthStageDef } from "./growth-system.js";
 export { PersonaEngine, type PersonaModifier } from "./persona-engine.js";
+
+// Subsystems
+export { SkillSystem, type RealizedSkill, type EpiphanyEvent, type AttrLevelInfo } from "./skill-system.js";
+export { LearningSystem, type Course, type ActiveLesson, type LessonResult, LEVEL_THRESHOLDS } from "./learning-system.js";
+export { AchievementSystem } from "./achievement-system.js";
+
+// Domain definitions
 export {
-  PetEngine,
-  createPetEngine,
-  type PetEngineOptions,
-  type PetState,
-} from "./pet-engine.js";
+  DOMAINS,
+  SKILL_ATTRIBUTES,
+  DOMAIN_ATTR_WEIGHTS,
+  inferDomainFromText,
+  isValidDomain,
+  type DomainDef,
+  type SkillAttributeDef,
+} from "./domain-system.js";
+
+// Presets
 export {
   DEFAULT_ATTRIBUTES,
   ATTR_MOOD,
@@ -28,3 +41,11 @@ export {
   ATTR_HEALTH,
   GROWTH_INTIMACY,
 } from "./presets.js";
+
+// Main entry
+export {
+  PetEngine,
+  createPetEngine,
+  type PetEngineOptions,
+  type PetState,
+} from "./pet-engine.js";

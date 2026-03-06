@@ -15,6 +15,9 @@ import { EventBus } from "./event-bus.js";
 import { AttributeEngine, type PersistenceStore } from "./attribute-engine.js";
 import { GrowthSystem, type GrowthConfig } from "./growth-system.js";
 import { PersonaEngine } from "./persona-engine.js";
+import { SkillSystem } from "./skill-system.js";
+import { LearningSystem } from "./learning-system.js";
+import { AchievementSystem } from "./achievement-system.js";
 import { DEFAULT_ATTRIBUTES, GROWTH_INTIMACY } from "./presets.js";
 import type { AttributeDef } from "./attribute-engine.js";
 
@@ -52,18 +55,21 @@ export class PetEngine {
   readonly attributes: AttributeEngine;
   readonly growth: GrowthSystem;
   readonly persona: PersonaEngine;
+  readonly skills: SkillSystem;
+  readonly learning: LearningSystem;
+  readonly achievements: AchievementSystem;
 
   constructor(options: PetEngineOptions) {
     this.bus = new EventBus();
 
-    // Attributes
+    // Attributes (mood, hunger, health)
     this.attributes = new AttributeEngine(this.bus, options.store);
     const attrDefs = options.attributes ?? DEFAULT_ATTRIBUTES;
     for (const def of attrDefs) {
       this.attributes.register(def);
     }
 
-    // Growth
+    // Growth (intimacy stages)
     this.growth = new GrowthSystem(
       this.bus,
       options.store,
@@ -74,11 +80,23 @@ export class PetEngine {
     this.persona = new PersonaEngine(
       options.persona ?? "你是一只可爱的桌面宠物猫",
     );
+
+    // Skills (domain tracking, epiphany, attribute XP)
+    this.skills = new SkillSystem(this.bus, options.store);
+
+    // Learning (courses, timer, XP, fragments)
+    this.learning = new LearningSystem(this.bus, options.store, this.attributes);
+
+    // Achievements (badges)
+    this.achievements = new AchievementSystem(
+      this.bus, options.store, this.skills, this.growth,
+    );
   }
 
   /** Main tick — call from game loop / setInterval */
   tick(deltaMs: number): void {
     this.attributes.tick(deltaMs);
+    this.learning.tick(deltaMs);
     this.bus.emit("tick", { deltaMs });
   }
 
@@ -98,6 +116,20 @@ export class PetEngine {
     }
 
     this.bus.emit("interact", { action, payload: rewards });
+
+    // Check achievements after interaction
+    this.achievements.check();
+  }
+
+  /** Record a domain activity from chat or learning */
+  recordDomainActivity(domainName: string, context?: string, weight?: number): void {
+    this.skills.recordDomainActivity(domainName, context, weight);
+  }
+
+  /** Record a tool use (for almanac + achievements) */
+  recordToolUse(toolName: string): void {
+    this.skills.recordTool(toolName);
+    this.achievements.check();
   }
 
   /** Get a snapshot of the full pet state (for UI rendering) */
@@ -109,6 +141,15 @@ export class PetEngine {
         stage: this.growth.stage,
         stageName: this.growth.stageDef.name,
         pointsToNext: this.growth.pointsToNext,
+      },
+      skills: this.skills.getAttributes(),
+      learning: {
+        active: this.learning.getActiveLesson(),
+        isLearning: this.learning.isLearning(),
+      },
+      achievements: {
+        total: this.achievements.getAll().length,
+        unlocked: this.achievements.getAll().filter((a) => a.unlocked).length,
       },
     };
   }
@@ -132,6 +173,21 @@ export interface PetState {
     stage: number;
     stageName: string;
     pointsToNext: number;
+  };
+  skills: Array<{
+    key: string;
+    name: string;
+    xp: number;
+    level: number;
+    pct: number;
+  }>;
+  learning: {
+    active: unknown;
+    isLearning: boolean;
+  };
+  achievements: {
+    total: number;
+    unlocked: number;
   };
 }
 
