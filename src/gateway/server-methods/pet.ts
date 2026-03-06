@@ -28,7 +28,6 @@ import {
   createPetEngine,
   type PetEngine,
   type PersistenceStore,
-  type AttributeState,
   inferDomainFromText,
 } from "../../pet/index.js";
 import { ErrorCodes, errorShape } from "../protocol/index.js";
@@ -51,19 +50,19 @@ function createFileStore(): PersistenceStore {
   const dir = getPetStorePath();
 
   return {
-    load(key: string): AttributeState | null {
+    load(key: string): Record<string, unknown> | null {
       const file = path.join(dir, `${key}.json`);
       try {
         const raw = fs.readFileSync(file, "utf-8");
-        return JSON.parse(raw) as AttributeState;
+        return JSON.parse(raw) as Record<string, unknown>;
       } catch {
         return null;
       }
     },
-    save(key: string, state: AttributeState): void {
+    save(key: string, data: Record<string, unknown>): void {
       const file = path.join(dir, `${key}.json`);
       try {
-        fs.writeFileSync(file, JSON.stringify(state), "utf-8");
+        fs.writeFileSync(file, JSON.stringify(data), "utf-8");
       } catch (e) {
         console.error(`[pet:store] failed to save ${key}:`, e);
       }
