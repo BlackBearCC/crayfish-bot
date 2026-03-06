@@ -444,7 +444,8 @@
       "koffi",
       "node-llama-cpp",
       "protobufjs",
-      "sharp"
+      "sharp",
+      "electron"
     ],
     "packageExtensions": {
       "@mariozechner/pi-coding-agent": {

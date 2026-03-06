@@ -18,7 +18,9 @@
     "ai-assistant"
   ],
   "license": "MIT",
-  "dependencies": {},
+  "dependencies": {
+    "ws": "^8.19.0"
+  },
   "devDependencies": {
     "electron": "^33.4.11",
     "electron-builder": "^25.0.0",

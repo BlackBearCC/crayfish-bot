@@ -177,13 +177,20 @@ class LLMService {
 
     console.log(`[llm] Starting Gateway via: ${clawBin}`);
 
-    this.gatewayProcess = spawn(clawBin, [
+    // gateway.cmd is a self-contained script (already includes args)
+    const isGatewayCmd = /gateway\.(cmd|sh)$/.test(clawBin);
+    const isMjs = clawBin.endsWith('.mjs');
+    const spawnCmd = isMjs ? 'node' : clawBin;
+    const spawnArgs = isGatewayCmd ? [] : [
+      ...(isMjs ? [clawBin] : []),
       'gateway',
       '--port', String(this.gatewayPort),
       '--auth', 'none',
       '--bind', 'loopback',
       '--allow-unconfigured',
-    ], {
+    ];
+
+    this.gatewayProcess = spawn(spawnCmd, spawnArgs, {
       stdio: ['ignore', 'pipe', 'pipe'],
       detached: false,
       env: { ...process.env },
@@ -229,7 +236,19 @@ class LLMService {
     const relativeBin = path.join(__dirname, '..', 'node_modules', '.bin', binName);
     if (fs.existsSync(relativeBin)) return relativeBin;
 
-    // 4. 全局命令
+    // 4. ~/.openclaw/gateway.cmd（由 openclaw doctor 生成）
+    const homeGateway = path.join(os.homedir(), '.openclaw', isWin ? 'gateway.cmd' : 'gateway.sh');
+    if (fs.existsSync(homeGateway)) return homeGateway;
+
+    // 5. 项目根目录的 openclaw.mjs（开发模式）
+    let dir = path.resolve(__dirname, '..');
+    for (let i = 0; i < 5; i++) {
+      const mjsPath = path.join(dir, 'openclaw.mjs');
+      if (fs.existsSync(mjsPath)) return mjsPath;
+      dir = path.dirname(dir);
+    }
+
+    // 5. 全局命令
     return binName;
   }
 
