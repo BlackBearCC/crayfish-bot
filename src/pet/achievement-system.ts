@@ -6,7 +6,7 @@
  */
 
 import type { EventBus } from "./event-bus.js";
-import type { PersistenceStore, AttributeState } from "./attribute-engine.js";
+import type { PersistenceStore } from "./attribute-engine.js";
 import type { SkillSystem } from "./skill-system.js";
 import type { GrowthSystem } from "./growth-system.js";
 
@@ -172,7 +172,7 @@ export class AchievementSystem {
     const saved = this._store.load("achievement-system");
     if (!saved) return;
     try {
-      const data = saved.value as unknown as AchievementPersistence;
+      const data = saved as unknown as AchievementPersistence;
       if (data.unlocked) this._unlocked = data.unlocked;
       if (data.counters) {
         this._fileDropCount = data.counters.fileDropCount ?? 0;
@@ -194,7 +194,7 @@ export class AchievementSystem {
       },
     };
     this._store.save("achievement-system", {
-      value: data as unknown as number,
+      ...data,
       updatedAt: Date.now(),
     });
   }

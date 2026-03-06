@@ -9,7 +9,7 @@
  */
 
 import type { EventBus } from "./event-bus.js";
-import type { PersistenceStore, AttributeState } from "./attribute-engine.js";
+import type { PersistenceStore } from "./attribute-engine.js";
 
 export interface GrowthStageDef {
   threshold: number;
@@ -39,10 +39,9 @@ export class GrowthSystem {
     this._stage = 0;
 
     // Restore
-    const saved = this._store.load(config.key);
+    const saved = this._store.load(config.key) as { value: number } | null;
     if (saved) {
       this._points = saved.value;
-      // Derive stage from points
       this._stage = this._resolveStage(this._points);
     }
   }

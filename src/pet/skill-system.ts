@@ -8,7 +8,7 @@
  */
 
 import type { EventBus } from "./event-bus.js";
-import type { PersistenceStore, AttributeState } from "./attribute-engine.js";
+import type { PersistenceStore } from "./attribute-engine.js";
 import {
   SKILL_ATTRIBUTES,
   DOMAIN_ATTR_WEIGHTS,
@@ -234,7 +234,7 @@ export class SkillSystem {
     const saved = this._store.load("skill-system");
     if (!saved) return;
     try {
-      const data = saved.value as unknown as SkillPersistence;
+      const data = saved as unknown as SkillPersistence;
       if (data.domains) {
         for (const [k, v] of Object.entries(data.domains)) {
           if (isValidDomain(k)) this._domains[k] = v;
@@ -261,9 +261,8 @@ export class SkillSystem {
       tools: this._tools,
       realized: this._realized,
     };
-    // Store as a single blob; value field holds the full object
     this._store.save("skill-system", {
-      value: data as unknown as number,
+      ...data,
       updatedAt: Date.now(),
     });
   }

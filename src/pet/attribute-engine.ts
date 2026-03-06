@@ -63,8 +63,8 @@ export interface AttributeState {
 }
 
 export interface PersistenceStore {
-  load(key: string): AttributeState | null;
-  save(key: string, state: AttributeState): void;
+  load(key: string): Record<string, unknown> | null;
+  save(key: string, data: Record<string, unknown>): void;
 }
 
 // ─── Engine ───
@@ -95,7 +95,7 @@ export class AttributeEngine {
 
   /** Register an attribute definition and restore its state */
   register(def: AttributeDef): void {
-    const saved = this._store.load(def.key);
+    const saved = this._store.load(def.key) as AttributeState | null;
     let value = def.initial;
 
     if (saved) {

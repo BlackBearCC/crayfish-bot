@@ -9,7 +9,7 @@
  */
 
 import type { EventBus } from "./event-bus.js";
-import type { PersistenceStore, AttributeState } from "./attribute-engine.js";
+import type { PersistenceStore } from "./attribute-engine.js";
 import type { AttributeEngine } from "./attribute-engine.js";
 
 // ─── Constants ───
@@ -248,7 +248,7 @@ export class LearningSystem {
     }
   }
 
-  private _interruptLesson(reason: string): void {
+  private _interruptLesson(_reason: string): void {
     this._active = null;
     this._save();
   }
@@ -266,7 +266,7 @@ export class LearningSystem {
     const saved = this._store.load("learning-system");
     if (!saved) return;
     try {
-      const data = saved.value as unknown as LearningPersistence;
+      const data = saved as unknown as LearningPersistence;
       if (data.courses) this._courses = data.courses;
       if (data.progress) this._progress = data.progress;
       if (data.active) this._active = data.active;
@@ -284,7 +284,7 @@ export class LearningSystem {
       history: this._history,
     };
     this._store.save("learning-system", {
-      value: data as unknown as number,
+      ...data,
       updatedAt: Date.now(),
     });
   }
