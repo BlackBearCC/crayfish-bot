@@ -277,15 +277,31 @@ class LLMService {
   stopGateway() {
     if (this.gatewayProcess) {
       console.log('[llm] Stopping Gateway...');
-      this.gatewayProcess.kill('SIGTERM');
+      const pid = this.gatewayProcess.pid;
+      // Windows + shell:true 时 kill('SIGTERM') 只杀 cmd.exe 壳，
+      // 必须用 taskkill /T 杀整棵进程树，否则 node.exe 成孤儿
+      if (process.platform === 'win32' && pid) {
+        try {
+          require('child_process').execSync(`taskkill /F /T /PID ${pid}`, { timeout: 5000 });
+          console.log(`[llm] Killed Gateway process tree (PID ${pid})`);
+        } catch (e) {
+          console.warn('[llm] taskkill failed, trying SIGTERM:', e.message);
+          this.gatewayProcess.kill('SIGTERM');
+        }
+      } else {
+        this.gatewayProcess.kill('SIGTERM');
+      }
       this.gatewayProcess = null;
       this.gatewayReady = false;
     }
-    // 兜底：确保端口上的进程也被杀掉
-    this._killPort(this.gatewayPort).catch(() => {});
+    // 兜底：同步杀端口上残留的进程
+    this._killPortSync(this.gatewayPort);
   }
 
-  async _killPort(port) {
+  /**
+   * 同步杀端口上的残留进程（用于 destroy/退出时确保清理完成）
+   */
+  _killPortSync(port) {
     try {
       const { execSync } = require('child_process');
       if (process.platform === 'win32') {
@@ -293,12 +309,16 @@ class LLMService {
         const pids = [...new Set(out.split('\n').map(l => l.trim().split(/\s+/).pop()).filter(Boolean))];
         for (const pid of pids) {
           console.log(`[llm] Killing PID ${pid} on port ${port}`);
-          try { execSync(`taskkill /F /PID ${pid}`, { timeout: 5000 }); } catch {}
+          try { execSync(`taskkill /F /T /PID ${pid}`, { timeout: 5000 }); } catch {}
         }
       } else {
         try { execSync(`fuser -k ${port}/tcp`, { timeout: 5000 }); } catch {}
       }
     } catch {}
+  }
+
+  async _killPort(port) {
+    this._killPortSync(port);
   }
 
   // ===== WebSocket RPC =====
@@ -334,13 +354,15 @@ class LLMService {
         // 保留 helloOk 用于 fallback session key，重连成功后会刷新
         this._flushPendingErrors(new Error(`WebSocket closed (${code})`));
 
-        if (!this.wsReconnecting && this.gatewayReady && (this._wsRetries || 0) < 5) {
+        if (!this.wsReconnecting && (this._wsRetries || 0) < 5) {
           this.wsReconnecting = true;
           this._wsRetries = (this._wsRetries || 0) + 1;
           const delay = Math.min(2000 * this._wsRetries, 10000);
           setTimeout(async () => {
             this.wsReconnecting = false;
-            if (this.gatewayReady) await this._connectWebSocket();
+            try { await this._ensureConnected(); } catch (e) {
+              console.warn('[ws] Auto-reconnect failed:', e.message);
+            }
           }, delay);
         }
         done(false);
@@ -489,10 +511,31 @@ class LLMService {
     this.pendingRequests.clear();
   }
 
+  // ===== Gateway 自动恢复 =====
+
+  async _ensureConnected() {
+    if (this.wsConnected) return;
+
+    // Gateway 进程不在了 → 重新拉起
+    if (!this.gatewayReady) {
+      console.log('[llm] Gateway down, restarting...');
+      await this._startGateway();
+    }
+
+    // Gateway 活了但 WS 没连 → 重连
+    if (this.gatewayReady && !this.wsConnected) {
+      await this._connectWebSocket();
+    }
+
+    if (!this.wsConnected) {
+      throw new Error('Gateway 重启失败喵，请检查网络或重启应用');
+    }
+  }
+
   // ===== Chat API =====
 
   async chatSend(userMessage, sessionKey) {
-    if (!this.wsConnected) throw new Error('Gateway 还没准备好喵~');
+    await this._ensureConnected();
 
     const resolvedKey = sessionKey || this._getDefaultSessionKey();
     const runId = randomUUID();
@@ -519,7 +562,7 @@ class LLMService {
   }
 
   async chatHistory(sessionKey, limit = 50) {
-    if (!this.wsConnected) return { entries: [] };
+    try { await this._ensureConnected(); } catch { return { entries: [] }; }
     return await this._sendRequest('chat.history', {
       sessionKey: sessionKey || this._getDefaultSessionKey(),
       limit,

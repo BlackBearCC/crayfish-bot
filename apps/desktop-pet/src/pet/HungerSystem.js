@@ -9,7 +9,8 @@
 
 export class HungerSystem {
   constructor() {
-    const saved = parseFloat(localStorage.getItem('pet-hunger') ?? '70');
+    const raw = parseFloat(localStorage.getItem('pet-hunger') ?? '70');
+    const saved = Number.isFinite(raw) ? raw : 70;
     const savedTime = parseInt(localStorage.getItem('pet-hunger-time') ?? String(Date.now()));
 
     // 离线衰减：最多计算 8 小时，速率 0.6/min
@@ -101,6 +102,7 @@ export class HungerSystem {
   }
 
   _save() {
+    if (!Number.isFinite(this.hunger)) this.hunger = 70;
     localStorage.setItem('pet-hunger', String(Math.round(this.hunger)));
     localStorage.setItem('pet-hunger-time', String(Date.now()));
   }

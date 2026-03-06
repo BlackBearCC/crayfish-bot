@@ -100,10 +100,11 @@ export class ChatPanel {
     this.electronAPI.onChatStream((payload) => {
       if (!payload) return;
 
-      // 只在发送中处理事件；activeRunId 可能因竞态尚未设置
+      // 必须等 chatSend 返回设置 activeRunId 后才处理事件，
+      // 否则会误捕获上一轮的迟到事件导致回复错位
       if (!this.isSending) return;
-      if (this.activeRunId && payload.runId !== this.activeRunId) return;
-      if (!this.activeRunId && payload.runId) this.activeRunId = payload.runId;
+      if (!this.activeRunId) return;
+      if (payload.runId !== this.activeRunId) return;
 
       if (payload.state === 'delta') {
         const text = this._extractText(payload.message);

@@ -399,9 +399,10 @@ app.whenReady().then(async () => {
 });
 
 app.on('before-quit', () => {
-  if (llmService) llmService.destroy();
-  if (win32Monitor) win32Monitor.destroy();
-  if (clipboardInterval) clearInterval(clipboardInterval);
+  if (clipboardInterval) { clearInterval(clipboardInterval); clipboardInterval = null; }
+  if (win32Monitor) { win32Monitor.destroy(); win32Monitor = null; }
+  // Gateway 子进程必须同步杀干净，否则 app 退出后 node.exe 成孤儿
+  if (llmService) { llmService.destroy(); llmService = null; }
 });
 
 app.on('window-all-closed', () => {

@@ -100,9 +100,10 @@ export class BottomChatInput {
 
     this.electronAPI.onChatStream((payload) => {
       if (!payload || !this.isSending) return;
-      // activeRunId 可能因竞态尚未设置，从首个事件捕获
-      if (this.activeRunId && payload.runId !== this.activeRunId) return;
-      if (!this.activeRunId && payload.runId) this.activeRunId = payload.runId;
+      // 必须等 chatSend 返回设置 activeRunId 后才处理事件，
+      // 否则会误捕获上一轮的迟到事件导致回复错位
+      if (!this.activeRunId) return;
+      if (payload.runId !== this.activeRunId) return;
 
       if (payload.state === 'delta') {
         const text = this._extractText(payload.message);

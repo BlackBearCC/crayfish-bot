@@ -760,8 +760,7 @@ class OpenClawPet {
     this.electronAPI.onChatStream?.((payload) => {
       if (payload?.state === 'final') {
         this.intimacySystem.gain(3);
-        const raw = payload.message;
-        const msg = typeof raw === 'string' ? raw : (raw?.content ?? String(raw ?? ''));
+        const msg = this._extractText(payload.message);
         this.hungerSystem.onChatFinal(msg.length);
         this._chatCompletionCount++;
         localStorage.setItem('pet-chat-count', String(this._chatCompletionCount));
@@ -1069,6 +1068,22 @@ class OpenClawPet {
     ctx.font = '40px serif';
     ctx.textAlign = 'center';
     ctx.fillText('🐱', 64, 75);
+  }
+
+  /** 从 chat 事件 message 中提取纯文本 */
+  _extractText(message) {
+    if (!message) return '';
+    let content = message;
+    if (typeof message === 'object' && message.content !== undefined) content = message.content;
+    if (typeof content === 'string') return content.trim();
+    if (Array.isArray(content)) {
+      return content
+        .filter(b => b && typeof b === 'object' && b.type === 'text' && typeof b.text === 'string')
+        .map(b => b.text)
+        .join('\n')
+        .trim();
+    }
+    return String(content);
   }
 
   destroy() {
