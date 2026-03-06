@@ -100,13 +100,31 @@ const BASE_METHODS = [
   "chat.history",
   "chat.abort",
   "chat.send",
-  // Pet engine
+  // Pet engine — state & interaction
   "pet.state.get",
   "pet.interact",
   "pet.growth.info",
   "pet.persona.get",
   "pet.persona.set",
   "pet.config.get",
+  // Pet engine — skills
+  "pet.skill.record",
+  "pet.skill.tool",
+  "pet.skill.attributes",
+  "pet.skill.tools",
+  "pet.skill.realized",
+  "pet.skill.addRealized",
+  // Pet engine — learning
+  "pet.learn.courses",
+  "pet.learn.add",
+  "pet.learn.start",
+  "pet.learn.abort",
+  "pet.learn.active",
+  "pet.learn.progress",
+  "pet.learn.history",
+  // Pet engine — achievements
+  "pet.achievement.list",
+  "pet.achievement.check",
 ];
 
 export function listGatewayMethods(): string[] {

@@ -2,12 +2,26 @@
  * Gateway RPC handlers for the Pet Engine.
  *
  * Methods:
- *   pet.state.get     — get full pet state snapshot
- *   pet.interact      — process a user interaction (click/feed/drag/etc.)
- *   pet.growth.info   — get growth stage details
- *   pet.persona.get   — get current resolved persona
- *   pet.persona.set   — update base persona
- *   pet.config.get    — get pet engine configuration
+ *   pet.state.get           — full state snapshot
+ *   pet.interact            — process user interaction
+ *   pet.growth.info         — growth stage details
+ *   pet.persona.get/set     — persona management
+ *   pet.config.get          — combined state + persona
+ *   pet.skill.record        — record domain activity
+ *   pet.skill.tool          — record tool use
+ *   pet.skill.attributes    — get skill attribute levels
+ *   pet.skill.tools         — get tool almanac data
+ *   pet.skill.realized      — get realized skills
+ *   pet.skill.addRealized   — add a realized skill
+ *   pet.learn.courses       — list available courses
+ *   pet.learn.add           — add a course
+ *   pet.learn.start         — start a lesson
+ *   pet.learn.abort         — abort current lesson
+ *   pet.learn.active        — get active lesson
+ *   pet.learn.progress      — get category progress
+ *   pet.learn.history       — get completed courses
+ *   pet.achievement.list    — list all achievements
+ *   pet.achievement.check   — trigger achievement check
  */
 
 import {
@@ -15,6 +29,7 @@ import {
   type PetEngine,
   type PersistenceStore,
   type AttributeState,
+  inferDomainFromText,
 } from "../../pet/index.js";
 import { ErrorCodes, errorShape } from "../protocol/index.js";
 import type { GatewayRequestHandlers } from "./types.js";
@@ -82,17 +97,27 @@ export function shutdownPetEngine(): void {
   engine = null;
 }
 
+// ─── Helper ───
+
+function safeHandler(
+  fn: (engine: PetEngine, params: Record<string, unknown>) => unknown,
+): (opts: { params: Record<string, unknown>; respond: Function }) => void {
+  return ({ params, respond }) => {
+    try {
+      const result = fn(getEngine(), params);
+      (respond as Function)(true, result);
+    } catch (e) {
+      (respond as Function)(false, undefined, errorShape(ErrorCodes.UNAVAILABLE, String(e)));
+    }
+  };
+}
+
 // ─── RPC Handlers ───
 
 export const petHandlers: GatewayRequestHandlers = {
-  "pet.state.get": ({ respond }) => {
-    try {
-      const state = getEngine().getState();
-      respond(true, state);
-    } catch (e) {
-      respond(false, undefined, errorShape(ErrorCodes.UNAVAILABLE, String(e)));
-    }
-  },
+  // ── State ──
+
+  "pet.state.get": safeHandler((e) => e.getState()),
 
   "pet.interact": ({ params, respond }) => {
     const action = params?.action as string | undefined;
@@ -100,42 +125,32 @@ export const petHandlers: GatewayRequestHandlers = {
       respond(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, "missing 'action' param"));
       return;
     }
-
-    const customRewards = params?.rewards as Record<string, number> | undefined;
     try {
-      getEngine().interact(action, customRewards);
-      const state = getEngine().getState();
-      respond(true, state);
+      const e = getEngine();
+      e.interact(action, params?.rewards as Record<string, number> | undefined);
+      respond(true, e.getState());
     } catch (e) {
       respond(false, undefined, errorShape(ErrorCodes.UNAVAILABLE, String(e)));
     }
   },
 
-  "pet.growth.info": ({ respond }) => {
-    try {
-      const g = getEngine().growth;
-      respond(true, {
-        points: g.points,
-        stage: g.stage,
-        stageName: g.stageDef.name,
-        pointsToNext: g.pointsToNext,
-        stages: g.stages,
-      });
-    } catch (e) {
-      respond(false, undefined, errorShape(ErrorCodes.UNAVAILABLE, String(e)));
-    }
-  },
+  "pet.growth.info": safeHandler((e) => {
+    const g = e.growth;
+    return {
+      points: g.points,
+      stage: g.stage,
+      stageName: g.stageDef.name,
+      pointsToNext: g.pointsToNext,
+      stages: g.stages,
+    };
+  }),
 
-  "pet.persona.get": ({ respond }) => {
-    try {
-      respond(true, {
-        base: getEngine().persona.base,
-        resolved: getEngine().persona.resolve(),
-      });
-    } catch (e) {
-      respond(false, undefined, errorShape(ErrorCodes.UNAVAILABLE, String(e)));
-    }
-  },
+  // ── Persona ──
+
+  "pet.persona.get": safeHandler((e) => ({
+    base: e.persona.base,
+    resolved: e.persona.resolve(),
+  })),
 
   "pet.persona.set": ({ params, respond }) => {
     const persona = params?.persona as string | undefined;
@@ -144,25 +159,135 @@ export const petHandlers: GatewayRequestHandlers = {
       return;
     }
     try {
-      getEngine().persona.setBase(persona);
-      respond(true, { base: persona, resolved: getEngine().persona.resolve() });
+      const e = getEngine();
+      e.persona.setBase(persona);
+      respond(true, { base: persona, resolved: e.persona.resolve() });
     } catch (e) {
       respond(false, undefined, errorShape(ErrorCodes.UNAVAILABLE, String(e)));
     }
   },
 
-  "pet.config.get": ({ respond }) => {
+  "pet.config.get": safeHandler((e) => ({
+    ...e.getState(),
+    persona: { base: e.persona.base, resolved: e.persona.resolve() },
+  })),
+
+  // ── Skills ──
+
+  "pet.skill.record": ({ params, respond }) => {
+    const domain = (params?.domain as string) || (params?.text ? inferDomainFromText(params.text as string) : null);
+    if (!domain) {
+      respond(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, "missing 'domain' or 'text' param"));
+      return;
+    }
     try {
-      const state = getEngine().getState();
-      respond(true, {
-        ...state,
-        persona: {
-          base: getEngine().persona.base,
-          resolved: getEngine().persona.resolve(),
-        },
-      });
+      const e = getEngine();
+      e.recordDomainActivity(domain, params?.context as string, params?.weight as number);
+      respond(true, { domain, attributes: e.skills.getAttributes() });
     } catch (e) {
       respond(false, undefined, errorShape(ErrorCodes.UNAVAILABLE, String(e)));
     }
   },
+
+  "pet.skill.tool": ({ params, respond }) => {
+    const toolName = params?.toolName as string;
+    if (!toolName) {
+      respond(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, "missing 'toolName' param"));
+      return;
+    }
+    try {
+      getEngine().recordToolUse(toolName);
+      respond(true, { ok: true });
+    } catch (e) {
+      respond(false, undefined, errorShape(ErrorCodes.UNAVAILABLE, String(e)));
+    }
+  },
+
+  "pet.skill.attributes": safeHandler((e) => e.skills.getAttributes()),
+
+  "pet.skill.tools": safeHandler((e) => e.skills.getToolData()),
+
+  "pet.skill.realized": safeHandler((e) => e.skills.getRealizedSkills()),
+
+  "pet.skill.addRealized": ({ params, respond }) => {
+    try {
+      const e = getEngine();
+      e.skills.addRealized({
+        skillName: params?.skillName as string ?? "",
+        skillTitle: params?.skillTitle as string ?? "",
+        skillDesc: params?.skillDesc as string ?? "",
+        skillContent: params?.skillContent as string ?? "",
+        domainName: params?.domainName as string ?? "",
+        createdAt: Date.now(),
+      });
+      respond(true, { ok: true });
+    } catch (e) {
+      respond(false, undefined, errorShape(ErrorCodes.UNAVAILABLE, String(e)));
+    }
+  },
+
+  // ── Learning ──
+
+  "pet.learn.courses": safeHandler((e) => e.learning.getCourses()),
+
+  "pet.learn.add": ({ params, respond }) => {
+    try {
+      const e = getEngine();
+      const course = e.learning.addCourse({
+        title: params?.title as string ?? "",
+        categoryName: params?.categoryName as string ?? "",
+        complexity: (params?.complexity as number) ?? 3,
+      });
+      respond(true, course);
+    } catch (e) {
+      respond(false, undefined, errorShape(ErrorCodes.UNAVAILABLE, String(e)));
+    }
+  },
+
+  "pet.learn.start": ({ params, respond }) => {
+    const courseId = params?.courseId as string;
+    if (!courseId) {
+      respond(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, "missing 'courseId' param"));
+      return;
+    }
+    try {
+      const result = getEngine().learning.startLesson(courseId);
+      respond(result.ok, result);
+    } catch (e) {
+      respond(false, undefined, errorShape(ErrorCodes.UNAVAILABLE, String(e)));
+    }
+  },
+
+  "pet.learn.abort": safeHandler((e) => {
+    e.learning.abortLesson();
+    return { ok: true };
+  }),
+
+  "pet.learn.active": safeHandler((e) => e.learning.getActiveLesson()),
+
+  "pet.learn.progress": ({ params, respond }) => {
+    const categoryName = params?.categoryName as string;
+    if (!categoryName) {
+      respond(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, "missing 'categoryName' param"));
+      return;
+    }
+    try {
+      respond(true, getEngine().learning.getProgress(categoryName));
+    } catch (e) {
+      respond(false, undefined, errorShape(ErrorCodes.UNAVAILABLE, String(e)));
+    }
+  },
+
+  "pet.learn.history": safeHandler((e) => e.learning.getHistory()),
+
+  // ── Achievements ──
+
+  "pet.achievement.list": safeHandler((e) => e.achievements.getAll()),
+
+  "pet.achievement.check": safeHandler((e) => {
+    const newlyUnlocked = e.achievements.check();
+    return {
+      newlyUnlocked: newlyUnlocked.map((a) => ({ id: a.id, name: a.name, icon: a.icon })),
+    };
+  }),
 };
