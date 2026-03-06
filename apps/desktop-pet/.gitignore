@@ -1,0 +1,19 @@
+node_modules/
+dist/
+build/
+*.log
+
+# Electron
+.webpack/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Secrets & local config
+*.env
+openclaw-pet-config.json
+
+# Claude Code
+.claude/
