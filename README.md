@@ -8,7 +8,7 @@ Crayfish Bot turns OpenClaw into an AI desktop companion. A virtual pet lives on
 
 **Key features:**
 
-- **Desktop Pet** — Frameless, transparent, always-on-top Electron app with pixel-art cat animations
+- **Desktop Pet** — Frameless, transparent, always-on-top Electron app with high-quality frame-by-frame cat animations
 - **Pet Engine** — TypeScript state engine managing mood, hunger, health, growth, skills, learning, and achievements
 - **AI Personality** — LLM-driven inner voice with configurable persona and structured prompts
 - **Growth System** — 4 intimacy stages (kitten → friend → companion → soulmate) with visual evolution
