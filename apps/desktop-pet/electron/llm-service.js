@@ -489,6 +489,13 @@ class LLMService {
     this.pendingRequests.clear();
   }
 
+  // ===== Pet Engine RPC =====
+
+  async petRPC(method, params = {}) {
+    await this._ensureConnected();
+    return await this._sendRequest(method, params);
+  }
+
   // ===== Chat API =====
 
   async chatSend(userMessage, sessionKey) {

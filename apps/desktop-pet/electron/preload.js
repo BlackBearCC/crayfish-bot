@@ -82,6 +82,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onDockTargetUpdate: (callback) => ipcRenderer.on('dock-target-update', (e, data) => callback(data)),
   onToggleDocking: (callback) => ipcRenderer.on('toggle-docking', (e, enabled) => callback(enabled)),
 
+  // === Pet Engine RPC（状态同步，走 gateway） ===
+  petRPC: (method, params) => ipcRenderer.invoke('pet-rpc', method, params),
+
   // === PetAI — 宠物内心活动，直接调 LLM，不过 gateway ===
   petAIComplete: (prompt) => ipcRenderer.invoke('pet-ai-complete', prompt),
 

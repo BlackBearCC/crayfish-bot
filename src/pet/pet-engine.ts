@@ -40,9 +40,9 @@ export interface InteractionRewards {
 
 /** Predefined interaction → reward mappings */
 const INTERACTION_REWARDS: Record<string, InteractionRewards & { intimacy?: number }> = {
-  click:      { mood: 2, intimacy: 1 },
-  longpress:  { mood: 5, intimacy: 5 },
-  feed:       { hunger: 35, mood: 3, intimacy: 10 },
+  click:      { mood: 3, intimacy: 1 },
+  longpress:  { mood: 15, intimacy: 5 },
+  feed:       { hunger: 35, mood: 20, intimacy: 10 },
   chat:       { mood: 3, intimacy: 3 },
   file_drop:  { mood: 5, intimacy: 8 },
   drag:       { mood: 1 },
