@@ -23,6 +23,20 @@
  *   pet.learn.history       — get completed courses
  *   pet.achievement.list    — list all achievements
  *   pet.achievement.check   — trigger achievement check
+ *   pet.level.info          — get level, EXP, title
+ *   pet.care.feed           — use food item to feed pet
+ *   pet.care.play           — perform play action
+ *   pet.care.rest           — start resting
+ *   pet.care.heal           — use healing item
+ *   pet.chat.canChat        — check if pet has enough hunger to chat
+ *   pet.chat.eval           — get chat eval state
+ *   pet.chat.onMessage      — notify chat system of user message
+ *   pet.chat.onToolCall     — notify chat system of tool call
+ *   pet.inventory.list      — list backpack items
+ *   pet.inventory.use       — use an inventory item
+ *   pet.daily.tasks         — get today's tasks
+ *   pet.daily.claim         — claim completed task reward
+ *   pet.daily.streak        — get login streak info
  */
 
 import {
@@ -339,4 +353,140 @@ export const petHandlers: GatewayRequestHandlers = {
       newlyUnlocked: newlyUnlocked.map((a) => ({ id: a.id, name: a.name, icon: a.icon })),
     };
   }),
+
+  // ── Level ──
+
+  "pet.level.info": safeHandler((e) => e.levels.getInfo()),
+
+  // ── Care ──
+
+  "pet.care.feed": ({ params, respond }) => {
+    const itemId = (params?.itemId as string) ?? "ration_42";
+    try {
+      const e = getEngine();
+      const result = e.care.feed(itemId);
+      (respond as Function)(result.ok, { ...result, state: e.getState() });
+    } catch (err) {
+      (respond as Function)(false, undefined, errorShape(ErrorCodes.UNAVAILABLE, String(err)));
+    }
+  },
+
+  "pet.care.play": ({ params, respond }) => {
+    const actionId = params?.actionId as string;
+    if (!actionId) {
+      (respond as Function)(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, "missing 'actionId' param"));
+      return;
+    }
+    try {
+      const e = getEngine();
+      const result = e.care.play(actionId);
+      (respond as Function)(result.ok, { ...result, state: e.getState() });
+    } catch (err) {
+      (respond as Function)(false, undefined, errorShape(ErrorCodes.UNAVAILABLE, String(err)));
+    }
+  },
+
+  "pet.care.rest": ({ params, respond }) => {
+    const typeId = (params?.typeId as string) ?? "nap";
+    try {
+      const e = getEngine();
+      const result = e.care.rest(typeId);
+      (respond as Function)(result.ok, { ...result, state: e.getState() });
+    } catch (err) {
+      (respond as Function)(false, undefined, errorShape(ErrorCodes.UNAVAILABLE, String(err)));
+    }
+  },
+
+  "pet.care.heal": ({ params, respond }) => {
+    const itemId = params?.itemId as string;
+    if (!itemId) {
+      (respond as Function)(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, "missing 'itemId' param"));
+      return;
+    }
+    try {
+      const e = getEngine();
+      const result = e.care.heal(itemId);
+      (respond as Function)(result.ok, { ...result, state: e.getState() });
+    } catch (err) {
+      (respond as Function)(false, undefined, errorShape(ErrorCodes.UNAVAILABLE, String(err)));
+    }
+  },
+
+  // ── Chat ──
+
+  "pet.chat.canChat": safeHandler((e) => e.chatEval.canChat()),
+
+  "pet.chat.eval": safeHandler((e) => e.chatEval.getState()),
+
+  "pet.chat.onMessage": ({ params, respond }) => {
+    const text = (params?.text as string) ?? "";
+    try {
+      const e = getEngine();
+      const result = e.chatEval.onUserMessage(text);
+      (respond as Function)(result.ok, { ...result, state: e.getState() });
+    } catch (err) {
+      (respond as Function)(false, undefined, errorShape(ErrorCodes.UNAVAILABLE, String(err)));
+    }
+  },
+
+  "pet.chat.onToolCall": safeHandler((e) => {
+    e.chatEval.onToolCall();
+    return { ok: true };
+  }),
+
+  // ── Inventory ──
+
+  "pet.inventory.list": safeHandler((e) => ({
+    items: e.inventory.list(),
+    capacity: e.inventory.capacity,
+    usedSlots: e.inventory.usedSlots,
+  })),
+
+  "pet.inventory.use": ({ params, respond }) => {
+    const itemId = params?.itemId as string;
+    if (!itemId) {
+      (respond as Function)(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, "missing 'itemId' param"));
+      return;
+    }
+    try {
+      const e = getEngine();
+      const result = e.inventory.useItem(itemId);
+      if (!result) {
+        (respond as Function)(false, { reason: "cannot_use" });
+        return;
+      }
+      (respond as Function)(true, { ...result, state: e.getState() });
+    } catch (err) {
+      (respond as Function)(false, undefined, errorShape(ErrorCodes.UNAVAILABLE, String(err)));
+    }
+  },
+
+  // ── Daily Tasks ──
+
+  "pet.daily.tasks": async ({ params: _params, respond }) => {
+    try {
+      const e = getEngine();
+      const tasks = await e.dailyTasks.ensureTodayTasks();
+      (respond as Function)(true, { tasks, counters: e.dailyTasks.getCounters() });
+    } catch (err) {
+      (respond as Function)(false, undefined, errorShape(ErrorCodes.UNAVAILABLE, String(err)));
+    }
+  },
+
+  "pet.daily.claim": ({ params, respond }) => {
+    const taskId = params?.taskId as string;
+    if (!taskId) {
+      (respond as Function)(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, "missing 'taskId' param"));
+      return;
+    }
+    try {
+      const e = getEngine();
+      const result = e.dailyTasks.claimTask(taskId);
+      (respond as Function)(result.ok, { ...result, state: e.getState() });
+    } catch (err) {
+      (respond as Function)(false, undefined, errorShape(ErrorCodes.UNAVAILABLE, String(err)));
+    }
+  },
+
+  "pet.daily.streak": safeHandler((e) => e.login.getInfo()),
 };

@@ -38,6 +38,8 @@ export interface AttributeDef {
   decayPerMinute: number;
   /** Max offline hours to calculate decay for on restore */
   maxOfflineHours: number;
+  /** Minimum value after offline decay (attribute won't drop below this) */
+  offlineFloor?: number;
   /** Ordered ascending by threshold */
   levels: AttributeLevel[];
   /**
@@ -87,10 +89,20 @@ export class AttributeEngine {
   private _attrs = new Map<string, AttributeRuntime>();
   private _store: PersistenceStore;
   private _bus: EventBus;
+  private _decayMultiplier = 1.0;
 
   constructor(bus: EventBus, store: PersistenceStore) {
     this._bus = bus;
     this._store = store;
+  }
+
+  /** Set a global decay multiplier (driven by pet level) */
+  setDecayMultiplier(multiplier: number): void {
+    this._decayMultiplier = multiplier;
+  }
+
+  getDecayMultiplier(): number {
+    return this._decayMultiplier;
   }
 
   /** Register an attribute definition and restore its state */
@@ -106,7 +118,8 @@ export class AttributeEngine {
           (Date.now() - saved.updatedAt) / 60_000,
           def.maxOfflineHours * 60,
         );
-        value = Math.max(def.min, value - elapsedMin * def.decayPerMinute);
+        const floor = def.offlineFloor ?? def.min;
+        value = Math.max(floor, value - elapsedMin * def.decayPerMinute);
       }
     }
 
@@ -186,7 +199,7 @@ export class AttributeEngine {
         rt.decayAcc += deltaMs;
         if (rt.decayAcc >= TICK_INTERVAL_MS) {
           const prev = rt.level;
-          const decayAmount = (rt.decayAcc / 60_000) * rt.def.decayPerMinute;
+          const decayAmount = (rt.decayAcc / 60_000) * rt.def.decayPerMinute * this._decayMultiplier;
           rt.value = Math.max(rt.def.min, rt.value - decayAmount);
           rt.decayAcc = 0;
           rt.level = this._resolveLevel(rt.def, rt.value);

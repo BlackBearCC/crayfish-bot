@@ -18,7 +18,8 @@ export const ATTR_MOOD: AttributeDef = {
   min: 15,
   max: 100,
   decayPerMinute: 0.4,
-  maxOfflineHours: 8,
+  maxOfflineHours: 4,
+  offlineFloor: 20,
   levels: [
     { name: "sad", threshold: 0 },
     { name: "normal", threshold: 30 },
@@ -30,16 +31,17 @@ export const ATTR_MOOD: AttributeDef = {
 export const ATTR_HUNGER: AttributeDef = {
   key: "hunger",
   name: "饱腹",
-  initial: 70,
+  initial: 210,
   min: 0,
-  max: 100,
-  decayPerMinute: 0.6,
-  maxOfflineHours: 8,
+  max: 300,
+  decayPerMinute: 0.3,
+  maxOfflineHours: 4,
+  offlineFloor: 60,
   levels: [
     { name: "starving", threshold: 0 },
-    { name: "hungry", threshold: 10 },
-    { name: "normal", threshold: 35 },
-    { name: "full", threshold: 75 },
+    { name: "hungry", threshold: 30 },
+    { name: "normal", threshold: 105 },
+    { name: "full", threshold: 225 },
   ],
 };
 
@@ -50,7 +52,8 @@ export const ATTR_HEALTH: AttributeDef = {
   min: 0,
   max: 100,
   decayPerMinute: 0, // driven by dependencies, not time
-  maxOfflineHours: 0,
+  maxOfflineHours: 4,
+  offlineFloor: 20,
   levels: [
     { name: "sick", threshold: 0 },
     { name: "subhealthy", threshold: 35 },

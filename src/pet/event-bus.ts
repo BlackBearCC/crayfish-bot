@@ -18,6 +18,26 @@ export type PetEventMap = {
   'tick': { deltaMs: number };
   /** Pet interaction received */
   'interact': { action: string; payload?: Record<string, unknown> };
+  /** Pet leveled up */
+  'level:up': { level: number; prevLevel: number; title: string };
+  /** EXP gained */
+  'level:exp-gain': { amount: number; source: string; totalExp: number };
+  /** Chat intent evaluated by LLM */
+  'chat:eval': { intent: string; moodDelta: number; intimacyDelta: number; streak: number };
+  /** Inventory item used */
+  'inventory:use': { itemId: string; effects: Record<string, number> };
+  /** Daily task completed */
+  'daily:task-complete': { taskId: string; difficulty: string };
+  /** Daily task reward claimed */
+  'daily:task-claim': { taskId: string; reward: { exp: number; items: Array<{ id: string; qty: number }> } };
+  /** Care action performed */
+  'care:action': { action: string; effects: Record<string, number> };
+  /** Rest started */
+  'care:rest-start': { type: string; durationMs: number; endsAt: number };
+  /** Rest ended */
+  'care:rest-end': { type: string; effects: Record<string, number> };
+  /** Login streak updated */
+  'login:streak': { streak: number; date: string };
 };
 
 type EventHandler<T> = (data: T) => void;

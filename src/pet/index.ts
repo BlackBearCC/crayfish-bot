@@ -22,6 +22,30 @@ export { SkillSystem, type RealizedSkill, type EpiphanyEvent, type AttrLevelInfo
 export { LearningSystem, type Course, type ActiveLesson, type LessonResult, LEVEL_THRESHOLDS } from "./learning-system.js";
 export { AchievementSystem } from "./achievement-system.js";
 
+// Nurturing subsystems
+export { LevelSystem, LEVEL_EXP, MAX_LEVEL, LEVEL_TIERS, type LevelTier } from "./level-system.js";
+export { InventorySystem, ITEM_DEFS, type ItemDef, type InventorySlot } from "./inventory-system.js";
+export { CareSystem, PLAY_ACTIONS, REST_TYPES, type PlayAction, type RestType } from "./care-system.js";
+export {
+  ChatEvalSystem,
+  INTENT_EFFECTS,
+  CHAT_HUNGER_COST,
+  TOOL_HUNGER_COST,
+  MIN_HUNGER_TO_CHAT,
+  streakMultiplier,
+  type ChatIntent,
+  type LLMEvalCallback,
+} from "./chat-eval-system.js";
+export { LoginTracker } from "./login-tracker.js";
+export {
+  DailyTaskSystem,
+  type DailyTask,
+  type TaskCondition,
+  type TaskReward,
+  type DailyCounters,
+  type TaskLLMCallback,
+} from "./daily-task-system.js";
+
 // Domain definitions
 export {
   DOMAINS,
