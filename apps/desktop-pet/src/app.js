@@ -13,7 +13,6 @@ import { SpriteSheet } from './pet/SpriteSheet.js';
 import { PetRenderer } from './pet/PetRenderer.js';
 import { StateMachine } from './pet/StateMachine.js';
 import { Behaviors } from './pet/Behaviors.js';
-import { MoodSystem } from './pet/MoodSystem.js';
 import { DragHandler } from './interaction/DragHandler.js';
 import { ClickHandler } from './interaction/ClickHandler.js';
 import { ContextMenu } from './interaction/ContextMenu.js';
@@ -21,7 +20,6 @@ import { FeedingAnimator } from './pet/FeedingAnimator.js';
 import { Bubble } from './ui/Bubble.js';
 import { ChatPanel } from './ui/ChatPanel.js';
 import { SettingsPanel } from './ui/SettingsPanel.js';
-import { IntimacySystem } from './pet/IntimacySystem.js';
 import { FileDropHandler } from './interaction/FileDropHandler.js';
 import { ToolStatusBar } from './ui/ToolStatusBar.js';
 import { MiniCatSystem } from './pet/MiniCatSystem.js';
@@ -33,8 +31,6 @@ import { AchievementSystem } from './pet/AchievementSystem.js';
 import { StreamingBubble } from './ui/StreamingBubble.js';
 import { BottomChatInput } from './ui/BottomChatInput.js';
 import { MarkdownPanel } from './ui/MarkdownPanel.js';
-import { HungerSystem } from './pet/HungerSystem.js';
-import { HealthSystem } from './pet/HealthSystem.js';
 import { SkillSystem } from './pet/SkillSystem.js';
 import { PetAI } from './pet/PetAI.js';
 import { LearningSystem } from './pet/LearningSystem.js';
@@ -73,9 +69,6 @@ class OpenClawPet {
     this.idleEarTwitchSheet = new SpriteSheet();
     this.idleYawnSheet = new SpriteSheet();
     this.stateMachine = new StateMachine();
-    this.moodSystem = new MoodSystem();
-    this.hungerSystem = new HungerSystem();
-    this.healthSystem = new HealthSystem();
     this.skillSystem = new SkillSystem();
     this.petAI = null; // 初始化在 init() 后（需要 electronAPI）
     this.renderer = null;
@@ -88,7 +81,6 @@ class OpenClawPet {
     this.dragHandler = null;
     this.clickHandler = null;
     this.contextMenu = null;
-    this.intimacySystem = null;
     this.fileDropHandler = null;
     this.toolStatusBar = null;
     this.miniCatSystem = null;
@@ -165,77 +157,57 @@ class OpenClawPet {
       return;
     }
 
-    // 2. 亲密度系统（需要在渲染器之前初始化，以获取当前阶段）
-    this.intimacySystem = new IntimacySystem();
+    // 2. Pet Engine 服务端状态同步
+    this.petSync = new PetStateSync(this.electronAPI);
+    await this.petSync.init();
 
-    // 2a. Pet Engine 服务端状态同步
-    if (this.electronAPI) {
-      this.petSync = new PetStateSync(this.electronAPI);
-      const synced = await this.petSync.init();
-      if (synced) {
-        // 用服务端权威数据覆盖本地缓存
-        this.moodSystem.mood = this.petSync.getMood();
-        this.hungerSystem.hunger = this.petSync.getHunger();
-        this.healthSystem.health = this.petSync.getHealth();
-        this.intimacySystem.points = this.petSync.getGrowthPoints();
-        this.intimacySystem.stage = this.petSync.getGrowthStage();
-        console.log('[app] Server state synced to local systems');
-      }
-
-      // 属性等级变化 → UI 反应（气泡 + 动画）
-      this.petSync.onAttributeChange((key, level, value) => {
-        if (key === 'mood') {
-          this.moodSystem.mood = value;
-          if (level === 'sad') {
-            this.bubble.show('主人...你不陪我吗 ?', 4000);
-            this.stateMachine.transition('sad', { force: true, duration: 2000 });
-          } else if (level === 'joyful') {
-            this.bubble.show('今天好开心！', 2500);
-            this.stateMachine.transition('happy', { force: true, duration: 3000 });
-          }
-        } else if (key === 'hunger') {
-          this.hungerSystem.hunger = value;
-          if (level === 'starving') {
-            this.bubble.show('呜...好饿喵', 4000);
-            this.stateMachine.transition('sad', { force: true, duration: 2000 });
-          } else if (level === 'hungry') {
-            this.bubble.show('主人，我有点饿了...', 3000);
-          } else if (level === 'full') {
-            this.bubble.show('吃饱了！好满足~', 2500);
-          }
-        } else if (key === 'health') {
-          this.healthSystem.health = value;
-          if (level === 'sick') {
-            this.bubble.show('感觉有点不舒服...', 4000);
-            this.stateMachine.transition('sad', { force: true, duration: 3000 });
-          } else if (level === 'healthy') {
-            this.bubble.show('感觉好多了喵！', 2500);
-            this.stateMachine.transition('happy', { force: true, duration: 2000 });
-          }
-        }
-      });
-
-      // 成长阶段提升 → 里程碑
-      this.petSync.onGrowthStageUp((stage, stageName) => {
-        this.intimacySystem.points = this.petSync.getGrowthPoints();
-        this.intimacySystem.stage = stage;
-        this.intimacySystem._save();
-        this.renderer.setGrowthStage(stage);
-        const msgs = {
-          1: '我们成为朋友啦！谢谢你陪伴我~',
-          2: '主人，我们已经是亲密伙伴了喵！',
-          3: '心灵契合！我跟主人之间有特别的缘分喵~',
-        };
-        if (msgs[stage]) {
-          this.bubble.show(msgs[stage], 5000);
+    // 属性等级变化 → UI 反应（气泡 + 动画）
+    this.petSync.onAttributeChange((key, level) => {
+      if (key === 'mood') {
+        if (level === 'sad') {
+          this.bubble.show('主人...你不陪我吗 ?', 4000);
+          this.stateMachine.transition('sad', { force: true, duration: 2000 });
+        } else if (level === 'joyful') {
+          this.bubble.show('今天好开心！', 2500);
           this.stateMachine.transition('happy', { force: true, duration: 3000 });
         }
-      });
-    }
+      } else if (key === 'hunger') {
+        if (level === 'starving') {
+          this.bubble.show('呜...好饿喵', 4000);
+          this.stateMachine.transition('sad', { force: true, duration: 2000 });
+        } else if (level === 'hungry') {
+          this.bubble.show('主人，我有点饿了...', 3000);
+        } else if (level === 'full') {
+          this.bubble.show('吃饱了！好满足~', 2500);
+        }
+      } else if (key === 'health') {
+        if (level === 'sick') {
+          this.bubble.show('感觉有点不舒服...', 4000);
+          this.stateMachine.transition('sad', { force: true, duration: 3000 });
+        } else if (level === 'healthy') {
+          this.bubble.show('感觉好多了喵！', 2500);
+          this.stateMachine.transition('happy', { force: true, duration: 2000 });
+        }
+      }
+    });
+
+    // 成长阶段提升 → 里程碑
+    this.petSync.onGrowthStageUp((stage) => {
+      this.renderer.setGrowthStage(stage);
+      const msgs = {
+        1: '我们成为朋友啦！谢谢你陪伴我~',
+        2: '主人，我们已经是亲密伙伴了喵！',
+        3: '心灵契合！我跟主人之间有特别的缘分喵~',
+      };
+      if (msgs[stage]) {
+        this.bubble.show(msgs[stage], 5000);
+        this.stateMachine.transition('happy', { force: true, duration: 3000 });
+      }
+    });
 
     // 3. 初始化渲染器（传入幼猫 sheet）
     this.renderer = new PetRenderer(this.canvas, this.kittenSheet, 960);
-    this.renderer.setGrowthStage(this.intimacySystem.stage);
+    this.renderer.setGrowthStage(this.petSync.getGrowthStage());
 
     // 3a. 注册额外 spritesheet 和复合动画
     this.renderer.registerSheet('sleep_enter', this.sleepEnterSheet);
@@ -360,7 +332,7 @@ class OpenClawPet {
     this.agentStatsTracker = new AgentStatsTracker();
 
     // 6h3. 成就系统
-    this.achievementSystem = new AchievementSystem(this.skillSystem, this.intimacySystem);
+    this.achievementSystem = new AchievementSystem(this.skillSystem, this.petSync);
     this.achievementSystem.onUnlock((ach) => {
       this.bubble.show(`🏆 成就解锁：${ach.name}！${ach.icon}`, 4000);
       this.stateMachine.transition('happy', { force: true, duration: 3000 });
@@ -378,7 +350,7 @@ class OpenClawPet {
     );
 
     // 6h5. 学习系统
-    this.learningSystem = new LearningSystem(this.hungerSystem, this.moodSystem);
+    this.learningSystem = new LearningSystem(this.petSync);
     this.courseGenerator = new CourseGenerator(this.electronAPI);
 
     // 注入到 SkillPanel
@@ -617,7 +589,7 @@ class OpenClawPet {
     const hoursSince = (now - lastLaunch) / 3600000;
     localStorage.setItem('pet-last-launch', String(now));
 
-    const stage = this.intimacySystem?.stage ?? 0;
+    const stage = this.petSync.getGrowthStage();
 
     // 阶段 0：幼猫
     if (stage === 0) {

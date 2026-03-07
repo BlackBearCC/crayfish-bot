@@ -25,9 +25,8 @@ const MIN_MOOD_TO_START = 30;
 const COURSE_EXPIRE_DAYS = 30;
 
 export class LearningSystem {
-  constructor(hungerSystem, moodSystem) {
-    this._hungerSystem = hungerSystem;
-    this._moodSystem = moodSystem;
+  constructor(petSync) {
+    this._petSync = petSync;
 
     this._courses = this._loadCourses();
     this._progress = this._loadProgress();
@@ -73,9 +72,9 @@ export class LearningSystem {
 
   canStartLearning() {
     if (this._active) return { ok: false, reason: '正在学习中' };
-    if (this._hungerSystem.getHunger() < MIN_HUNGER_TO_START)
+    if (this._petSync.getHunger() < MIN_HUNGER_TO_START)
       return { ok: false, reason: '太饿了，先喂饱再学习吧' };
-    if (this._moodSystem.getMood() < MIN_MOOD_TO_START)
+    if (this._petSync.getMood() < MIN_MOOD_TO_START)
       return { ok: false, reason: '心情不好，先安慰一下吧' };
     return { ok: true };
   }
@@ -123,7 +122,7 @@ export class LearningSystem {
     this._active.elapsed += deltaMs;
 
     // 检查中断条件
-    if (this._hungerSystem.getHunger() <= 0 || this._moodSystem.getMood() <= 15) {
+    if (this._petSync.getHunger() <= 0 || this._petSync.getMood() <= 15) {
       this._interruptLesson();
       return;
     }
@@ -260,7 +259,7 @@ export class LearningSystem {
     this._saveActive();
 
     const reason = explicitReason
-      || (this._hungerSystem.getHunger() <= 0 ? '太饿了' : '心情太差了');
+      || (this._petSync.getHunger() <= 0 ? '太饿了' : '心情太差了');
     for (const cb of this._onLessonInterrupt) cb({ courseTitle: lesson.courseTitle, reason });
   }
 
