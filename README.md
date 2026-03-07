@@ -92,12 +92,20 @@ crayfish-bot/
 ### Data Flow
 
 ```
-Desktop Pet (Electron)
-  ──WebSocket──→ Gateway (port 18789)
-                   ├── pet.* handlers → PetEngine (in-memory, file-persisted)
-                   ├── chat.* handlers → LLM API (streaming)
-                   └── agent.* handlers → Tool execution
+Desktop Pet (Electron Renderer)
+  │  PetStateSync — polls pet.state.get every 10s, caches for UI reads
+  │  All mutations via petSync.interact(action, rewards) → generic petRPC
+  ▼
+Electron Main (single petRPC IPC channel)
+  │  llm-service.petRPC(method, params) → WebSocket
+  ▼
+Gateway (port 18789)
+  ├── pet.* handlers → PetEngine (in-memory, file-persisted)
+  ├── chat.* handlers → LLM API (streaming)
+  └── agent.* handlers → Tool execution
 ```
+
+Client has no local state systems — server Pet Engine is the sole authority for mood, hunger, health, and growth.
 
 ### Pet Engine RPC Methods (21 total)
 

@@ -107,10 +107,34 @@ Key conventions:
 - **IPC only**: Renderer uses `window.electronAPI`, never Node.js directly
 - **Canvas rendering**: Pet animation via `requestAnimationFrame` in PetRenderer
 - **Streaming chat**: `electronAPI.chatSend()` + `onChatStream()` for AI conversation
+- **Server-authoritative state**: Client has no local state systems — all pet state (mood/hunger/health/growth) lives in the server-side Pet Engine, accessed via `PetStateSync` → generic `petRPC`
+
+### Client–Server State Architecture
+
+```
+Renderer (PetStateSync)
+  │  petRPC('pet.state.get')        ← 10s polling
+  │  petRPC('pet.interact', {...})  ← click/feed/chat/quiz/...
+  │  petRPC('pet.skill.record')     ← domain activity
+  ▼
+Preload (single IPC channel)
+  │  petRPC: (method, params) => ipcRenderer.invoke('pet-rpc', method, params)
+  ▼
+Main → llm-service.petRPC()
+  │  _ensureConnected() + _sendRequest(method, params)
+  ▼
+Gateway (21 pet.* RPC handlers) → PetEngine (in-memory, file-persisted)
+```
+
+- **No local MoodSystem/HungerSystem/HealthSystem/IntimacySystem** — removed entirely
+- All state reads go through `petSync.getMood()`, `petSync.getGrowthStage()`, etc.
+- All mutations go through `petSync.interact(action, rewards)` → server RPC
+- UI reactions (bubbles, animations) triggered by `petSync.onAttributeChange()` / `onGrowthStageUp()` callbacks
 
 ## Key Conventions
 
 - Pet engine is TypeScript (`src/pet/`), desktop client is plain JS (`apps/desktop-pet/`)
 - All pet state logic lives in the engine, clients are thin renderers
+- One generic `petRPC(method, params)` covers all `pet.*` methods — no specialized IPC per method
 - Keep upstream OpenClaw modules untouched when possible for easy sync
 - New pet features go in `src/pet/` + `src/gateway/server-methods/pet.ts`

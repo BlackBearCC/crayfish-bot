@@ -40,29 +40,35 @@ OpenClaw Pet is a frameless, transparent, always-on-top Electron desktop pet. Th
 - All renderer→main calls go through `window.electronAPI`
 - Main→renderer events: `toggle-chat`, `chat-stream`, `agent-event`, `clipboard-changed`, `feed-pet`, `dock-target-update`, etc.
 - Renderer→main: `chatSend(text, sessionKey)` → streaming; `chatWithAI(text)` → one-shot legacy; `expandWindow(bool)`, `setIgnoreMouse(bool)`, etc.
+- **Generic RPC**: `petRPC(method, params)` — single IPC channel covering all 21 `pet.*` gateway methods. No per-method specialized IPC.
+
+**Server-authoritative state** (`src/pet/PetStateSync.js`):
+- All pet state (mood/hunger/health/growth/skills) managed by server-side Pet Engine
+- `PetStateSync` polls `pet.state.get` every 10s, caches values for synchronous UI reads
+- All mutations route through `petSync.interact(action, rewards)` → server RPC
+- No local MoodSystem/HungerSystem/HealthSystem/IntimacySystem — removed entirely
+- UI reactions (bubbles, animations) triggered by `onAttributeChange()` / `onGrowthStageUp()` callbacks
 
 ## Renderer Subsystems
 
 ```
 src/app.js (OpenClawPet)
+├── pet/PetStateSync.js           Server state bridge (petRPC, 10s polling, callbacks)
 ├── pet/PetRenderer.js            Canvas 2D renderer; wraps SpriteSheet + StateMachine
 ├── pet/StateMachine.js           Animation state transitions (idle/walk/sit/sleep/work/eat/…)
 ├── pet/Behaviors.js              Autonomous behavior scheduler (random movement, idle actions)
-├── pet/MoodSystem.js             Mood level with time-based decay
-├── pet/HungerSystem.js           Hunger with time-based decay
-├── pet/HealthSystem.js           Health driven by hunger + mood
-├── pet/IntimacySystem.js         Growth stages 0-3, persistent via localStorage
 ├── pet/FeedingAnimator.js        4-phase feeding sequence
 ├── pet/DomainSystem.js           7 life domains + 5 attributes + weight matrix (static defs)
 ├── pet/SkillSystem.js            Domain activity tracking + epiphany trigger + attribute XP
 ├── pet/PetAI.js                  Pet inner-voice LLM (persona-aware, structured prompts)
-├── pet/LearningSystem.js         Course timer, XP, fragments, online-only completion
+├── pet/LearningSystem.js         Course timer, XP, fragments, reads state from petSync
 ├── pet/CourseGenerator.js        LLM-generated courses (persona-aware)
 ├── pet/LearningEventScheduler.js Learning session interactive events (murmur/quiz/story)
-├── pet/AchievementSystem.js      12 achievement badges
+├── pet/AchievementSystem.js      12 achievement badges, reads stage from petSync
 ├── pet/MiniCatSystem.js          Sub-agent mini-cat companions (≤4)
 ├── pet/AgentStatsTracker.js      Sub-session tool stats
 ├── pet/WorkspaceWatcher.js       Foreground window title parsing
+├── pet/MemoryGraph.js            Memory graph extraction
 ├── ui/ChatPanel.js               Full chat UI with streaming support
 ├── ui/StreamingBubble.js         Stacked speech bubbles (up to 8)
 ├── ui/BottomChatInput.js         Quick-input bar below the pet
@@ -72,11 +78,12 @@ src/app.js (OpenClawPet)
 ├── ui/LearningStatusBar.js       Bottom learning progress bar
 ├── ui/LearningChoiceUI.js        Interactive Q&A choice buttons during learning
 ├── ui/SettingsPanel.js           Config UI (model, personality, etc.)
+├── ui/MemoryGraphPanel.js        Memory graph visualization panel
 ├── ui/AgentConnections.js        SVG connection lines visualization
 ├── interaction/DragHandler.js    Window drag via moveWindow IPC
 ├── interaction/ClickHandler.js   Single / double / long-press detection
-├── interaction/FileDropHandler.js File drop → AI analysis → bubble or chat
-└── interaction/ContextMenu.js    Right-click menu with stat bars
+├── interaction/FileDropHandler.js File drop → AI analysis, mutations via petSync
+└── interaction/ContextMenu.js    Right-click menu with stat bars from petSync
 ```
 
 ## Sprite System
@@ -85,7 +92,7 @@ Spritesheets live in `assets/sprites/placeholder/`. Each animation has a `.png` 
 
 Regenerate all sprites: `npm run generate-placeholder` (calls `scripts/generate-placeholder.js`).
 
-## IntimacySystem Stages
+## Growth Stages (server-managed)
 
 | Stage | Points | Name | Spritesheet | CSS filter |
 |-------|--------|------|-------------|------------|
@@ -94,7 +101,7 @@ Regenerate all sprites: `npm run generate-placeholder` (calls `scripts/generate-
 | 2 | 350 | 亲密伙伴 | adult | none |
 | 3 | 800 | 心灵契合 | adult | saturate(1.25) brightness(0.92) |
 
-Persisted to `localStorage['pet-intimacy']` as `{points, stage}`.
+Persisted server-side in `~/.openclaw/store/pet/intimacy.json`. Client reads via `petSync.getGrowthStage()`.
 
 ## PetAI & Prompt Engineering
 
@@ -122,5 +129,6 @@ Persisted to `localStorage['pet-intimacy']` as `{points, stage}`.
 - **IPC only**: Renderer must never use Node.js APIs directly. All system access goes through `window.electronAPI`.
 - **Canvas rendering**: Pet animation runs via `requestAnimationFrame` in `PetRenderer`. Do not manipulate the canvas outside this class.
 - **Streaming chat**: Use `electronAPI.chatSend()` + `onChatStream()` for new AI calls. `chatWithAI()` is legacy (one-shot, used only for quick bubble responses when chat panel is closed).
-- **Persistent state**: Use `localStorage` for renderer-side persistence (mood, intimacy, settings cache). No files written from renderer.
+- **Server-authoritative state**: All pet state (mood, hunger, health, growth) managed by server Pet Engine via `petSync`. No local state systems. Client-side `localStorage` only for UI preferences (settings cache, chat count).
+- **Generic RPC**: Use `petRPC(method, params)` for all `pet.*` calls. Do not create specialized IPC handlers per method.
 - **Mouse passthrough**: Interactive UI elements must be added to the `isOverPanel` check in `_setupMousePassthrough()` to receive clicks.
