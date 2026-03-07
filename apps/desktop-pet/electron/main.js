@@ -130,6 +130,15 @@ function createWindow() {
   // ===== IPC: 窗口展开/收缩（no-op，窗口固定大小）=====
   ipcMain.on('expand-window', () => {});
 
+  // ===== IPC: Pet Engine RPC =====
+  ipcMain.handle('pet-rpc', async (event, method, params) => {
+    try {
+      return await llmService.petRPC(method, params);
+    } catch (e) {
+      return { _error: e.message };
+    }
+  });
+
   // ===== IPC: LLM 对话（兼容旧接口） =====
   ipcMain.handle('chat-with-ai', async (event, message) => {
     return await llmService.chat(message);
@@ -197,15 +206,6 @@ function createWindow() {
 
   ipcMain.handle('get-ai-providers', () => {
     return AI_PROVIDERS;
-  });
-
-  // ===== IPC: Pet 配置（gateway RPC） =====
-  ipcMain.handle('pet-config-get', async () => {
-    return await llmService.petConfigGet();
-  });
-
-  ipcMain.handle('pet-config-set', async (event, params) => {
-    return await llmService.petConfigSet(params);
   });
 
   ipcMain.handle('clear-chat-history', () => {

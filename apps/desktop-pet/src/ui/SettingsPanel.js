@@ -198,14 +198,14 @@ export class SettingsPanel {
     const statusEl = document.getElementById('set-fs-status');
     const workdirEl = document.getElementById('set-fs-workdir');
 
-    if (!this.electronAPI?.petConfigGet) {
+    if (!this.electronAPI?.petRPC) {
       toggle.checked = true;
       statusEl.textContent = 'Gateway 未连接，无法读取';
       return;
     }
 
     try {
-      const result = await this.electronAPI.petConfigGet();
+      const result = await this.electronAPI.petRPC('pet.config.get', {});
       const fsAccess = result?.settings?.fsAccess;
       if (fsAccess) {
         toggle.checked = fsAccess.fullAccess !== false;
@@ -224,14 +224,14 @@ export class SettingsPanel {
   async _toggleFsAccess(fullAccess) {
     const statusEl = document.getElementById('set-fs-status');
 
-    if (!this.electronAPI?.petConfigSet) {
+    if (!this.electronAPI?.petRPC) {
       statusEl.textContent = 'Gateway 未连接，无法修改';
       return;
     }
 
     statusEl.textContent = '保存中...';
     try {
-      await this.electronAPI.petConfigSet({
+      await this.electronAPI.petRPC('pet.config.set', {
         settings: { fsAccess: { fullAccess } },
       });
       statusEl.textContent = fullAccess ? '可读写电脑上的所有文件' : '仅限工作目录';

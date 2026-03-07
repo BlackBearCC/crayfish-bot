@@ -21,18 +21,16 @@ export class LearningEventScheduler {
    * @param {import('../ui/Bubble').Bubble} deps.bubble
    * @param {import('../ui/MarkdownPanel').MarkdownPanel} deps.markdownPanel
    * @param {import('./StateMachine').StateMachine} deps.stateMachine
-   * @param {import('./MoodSystem').MoodSystem} deps.moodSystem
-   * @param {import('./IntimacySystem').IntimacySystem} deps.intimacySystem
+   * @param {import('./PetStateSync').PetStateSync} deps.petSync
    * @param {object} deps.electronAPI
    * @param {import('../ui/LearningChoiceUI').LearningChoiceUI} deps.choiceUI
    */
-  constructor({ petAI, bubble, markdownPanel, stateMachine, moodSystem, intimacySystem, electronAPI, choiceUI }) {
+  constructor({ petAI, bubble, markdownPanel, stateMachine, petSync, electronAPI, choiceUI }) {
     this._petAI = petAI;
     this._bubble = bubble;
     this._mdPanel = markdownPanel;
     this._sm = stateMachine;
-    this._mood = moodSystem;
-    this._intimacy = intimacySystem;
+    this._petSync = petSync;
     this._api = electronAPI;
     this._choiceUI = choiceUI;
 
@@ -134,8 +132,10 @@ export class LearningEventScheduler {
       const reaction = data.reactions?.[String(idx)] || '喵~';
 
       // 奖励
-      if (choice.mood)     this._mood.gain(Math.abs(choice.mood));
-      if (choice.intimacy) this._intimacy.gain(choice.intimacy);
+      const rewards = {};
+      if (choice.mood) rewards.mood = Math.abs(choice.mood);
+      if (choice.intimacy) rewards.intimacy = choice.intimacy;
+      if (rewards.mood || rewards.intimacy) this._petSync.interact('quiz', rewards);
 
       // 反应
       this._bubble.hide();

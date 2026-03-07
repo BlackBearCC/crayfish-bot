@@ -24,14 +24,14 @@ export class FileDropHandler {
    * @param {import('../pet/StateMachine').StateMachine} stateMachine
    * @param {import('../ui/Bubble').Bubble} bubble
    * @param {import('../ui/ChatPanel').ChatPanel} chatPanel
-   * @param {import('../pet/IntimacySystem').IntimacySystem} intimacySystem
+   * @param {import('../pet/PetStateSync').PetStateSync} petSync
    */
-  constructor(_dropTarget, electronAPI, stateMachine, bubble, chatPanel, intimacySystem) {
+  constructor(_dropTarget, electronAPI, stateMachine, bubble, chatPanel, petSync) {
     this.electronAPI = electronAPI;
     this.sm = stateMachine;
     this.bubble = bubble;
     this.chatPanel = chatPanel;
-    this.intimacySystem = intimacySystem;
+    this.petSync = petSync;
 
     this._analyzing = false; // 防止并发分析
 
@@ -138,7 +138,7 @@ export class FileDropHandler {
       }
 
       // 亲密度增益 + 文件拖拽计数（成就系统用）
-      this.intimacySystem?.gain(8);
+      this.petSync.interact('file_drop', { intimacy: 8 });
       const dropCount = parseInt(localStorage.getItem('pet-file-drop-count') || '0') + 1;
       localStorage.setItem('pet-file-drop-count', String(dropCount));
       this.sm.transition('happy', { force: true, duration: 3000 });

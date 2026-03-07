@@ -106,10 +106,6 @@ export class LearningSystem {
     };
     this._saveActive();
 
-    // 加速衰减
-    this._hungerSystem.setDecayMultiplier(2);
-    this._moodSystem.setDecayMultiplier(1.5);
-
     return { ok: true, lesson: this._active };
   }
 
@@ -178,8 +174,6 @@ export class LearningSystem {
     const lesson = this._active;
     this._active = null;
     this._saveActive();
-    this._hungerSystem.setDecayMultiplier(1);
-    this._moodSystem.setDecayMultiplier(1);
 
     return { resumed: true, completed: false, interrupted: true, lesson };
   }
@@ -198,10 +192,6 @@ export class LearningSystem {
     if (!lesson) return;
 
     const catName = lesson.categoryName;
-
-    // 恢复衰减
-    this._hungerSystem.setDecayMultiplier(1);
-    this._moodSystem.setDecayMultiplier(1);
 
     // XP 增长（按领域）
     const progress = this._progress[catName] || { xp: 0, level: 1 };
@@ -251,10 +241,6 @@ export class LearningSystem {
   _interruptLesson(explicitReason) {
     const lesson = this._active;
     if (!lesson) return;
-
-    // 恢复衰减
-    this._hungerSystem.setDecayMultiplier(1);
-    this._moodSystem.setDecayMultiplier(1);
 
     this._active = null;
     this._saveActive();

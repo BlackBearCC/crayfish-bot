@@ -532,6 +532,13 @@ class LLMService {
     }
   }
 
+  // ===== 通用 RPC（覆盖所有 pet.* / 其他 gateway 方法） =====
+
+  async petRPC(method, params = {}) {
+    await this._ensureConnected();
+    return await this._sendRequest(method, params);
+  }
+
   // ===== Chat API =====
 
   async chatSend(userMessage, sessionKey) {
@@ -625,22 +632,6 @@ class LLMService {
     } catch {
       return null;
     }
-  }
-
-  // ===== Pet Config (pet.config.get / pet.config.set) =====
-
-  async petConfigGet() {
-    if (!this.wsConnected) return null;
-    try {
-      return await this._sendRequest('pet.config.get', {});
-    } catch {
-      return null;
-    }
-  }
-
-  async petConfigSet(params) {
-    if (!this.wsConnected) throw new Error('Gateway 未连接');
-    return await this._sendRequest('pet.config.set', params);
   }
 
   // ===== Legacy sync chat (fallback) =====
