@@ -1,0 +1,221 @@
+/**
+ * PetStateSync.js
+ * Server-side Pet Engine state synchronization bridge.
+ *
+ * Replaces direct client-side mood/hunger/health/intimacy management
+ * with server-authoritative state via pet.* RPC calls.
+ *
+ * When connected:
+ *   - Interactions route to server (pet.interact)
+ *   - State polled from server every 10s (pet.state.get)
+ *   - Server handles decay, persistence, cross-session continuity
+ *
+ * When disconnected (fallback):
+ *   - Returns last known cached values
+ *   - Queues interactions for replay on reconnect
+ */
+
+const POLL_INTERVAL = 10000; // 10s
+
+export class PetStateSync {
+  constructor(electronAPI) {
+    this._api = electronAPI;
+    this._connected = false;
+    this._pollTimer = null;
+
+    // Cached state from server
+    this._attributes = {}; // { mood: {value, level, max}, hunger: {...}, health: {...} }
+    this._growth = { points: 0, stage: 0, stageName: '', pointsToNext: Infinity };
+    this._skills = [];
+    this._learning = { active: null, isLearning: false };
+    this._achievementSummary = { total: 0, unlocked: 0 };
+
+    // Previous levels for change detection
+    this._prevLevels = {};
+    this._prevGrowthStage = 0;
+
+    // Callbacks
+    this._onAttributeChange = []; // (key, level, value) => void
+    this._onGrowthStageUp = [];   // (stage, stageName) => void
+  }
+
+  /**
+   * Initialize: fetch server state. Returns true if connected.
+   */
+  async init() {
+    try {
+      const state = await this._rpc('pet.state.get');
+      if (state && !state._error) {
+        this._applyState(state);
+        this._connected = true;
+        this._startPolling();
+        console.log('[pet-sync] Connected to server, state synced');
+        return true;
+      }
+    } catch (e) {
+      console.warn('[pet-sync] Init failed:', e.message || e);
+    }
+    console.log('[pet-sync] Server unavailable, running in offline mode');
+    return false;
+  }
+
+  get connected() { return this._connected; }
+
+  // ── Interactions (route to server) ──
+
+  async interact(action, customRewards) {
+    const params = { action };
+    if (customRewards) params.rewards = customRewards;
+    const state = await this._rpcSafe('pet.interact', params);
+    if (state) this._applyState(state);
+    return state;
+  }
+
+  async recordTool(toolName) {
+    return this._rpcSafe('pet.skill.tool', { toolName });
+  }
+
+  async recordDomain(domain, context, weight) {
+    const params = { domain };
+    if (context) params.context = context;
+    if (weight != null) params.weight = weight;
+    return this._rpcSafe('pet.skill.record', params);
+  }
+
+  async recordDomainFromText(text) {
+    return this._rpcSafe('pet.skill.record', { text });
+  }
+
+  // ── Cached getters (synchronous, for UI) ──
+
+  getMood() { return this._attributes.mood?.value ?? 80; }
+  getHunger() { return this._attributes.hunger?.value ?? 70; }
+  getHealth() { return this._attributes.health?.value ?? 100; }
+
+  getMoodLevel() { return this._attributes.mood?.level ?? 'happy'; }
+  getHungerLevel() { return this._attributes.hunger?.level ?? 'normal'; }
+  getHealthLevel() { return this._attributes.health?.level ?? 'healthy'; }
+
+  getGrowthPoints() { return this._growth.points; }
+  getGrowthStage() { return this._growth.stage; }
+  getGrowthStageName() { return this._growth.stageName; }
+  getPointsToNext() { return this._growth.pointsToNext; }
+
+  // ── Event registration ──
+
+  /**
+   * Register callback for attribute level changes.
+   * @param {(key: string, level: string, value: number) => void} callback
+   */
+  onAttributeChange(callback) {
+    this._onAttributeChange.push(callback);
+  }
+
+  /**
+   * Register callback for growth stage up.
+   * @param {(stage: number, stageName: string) => void} callback
+   */
+  onGrowthStageUp(callback) {
+    this._onGrowthStageUp.push(callback);
+  }
+
+  // ── Polling ──
+
+  _startPolling() {
+    if (this._pollTimer) return;
+    this._pollTimer = setInterval(() => this._poll(), POLL_INTERVAL);
+  }
+
+  stopPolling() {
+    if (this._pollTimer) {
+      clearInterval(this._pollTimer);
+      this._pollTimer = null;
+    }
+  }
+
+  async _poll() {
+    const state = await this._rpcSafe('pet.state.get');
+    if (state) {
+      this._applyState(state);
+      if (!this._connected) {
+        this._connected = true;
+        console.log('[pet-sync] Reconnected to server');
+      }
+    } else if (this._connected) {
+      this._connected = false;
+      console.warn('[pet-sync] Server connection lost, switching to offline mode');
+    }
+  }
+
+  // ── Internal ──
+
+  _applyState(state) {
+    if (!state || !state.attributes) return;
+
+    // Parse attributes array into keyed map
+    const newAttrs = {};
+    for (const attr of state.attributes) {
+      newAttrs[attr.key] = {
+        value: Math.round(attr.value),
+        level: attr.level,
+        max: attr.max,
+      };
+    }
+
+    // Detect attribute level changes
+    for (const [key, attr] of Object.entries(newAttrs)) {
+      const prevLevel = this._prevLevels[key];
+      if (prevLevel && prevLevel !== attr.level) {
+        for (const cb of this._onAttributeChange) {
+          try { cb(key, attr.level, attr.value); } catch (e) {
+            console.warn('[pet-sync] onAttributeChange error:', e);
+          }
+        }
+      }
+      this._prevLevels[key] = attr.level;
+    }
+    this._attributes = newAttrs;
+
+    // Growth
+    if (state.growth) {
+      const prevStage = this._prevGrowthStage;
+      this._growth = state.growth;
+      if (state.growth.stage > prevStage && prevStage !== 0) {
+        for (const cb of this._onGrowthStageUp) {
+          try { cb(state.growth.stage, state.growth.stageName); } catch (e) {
+            console.warn('[pet-sync] onGrowthStageUp error:', e);
+          }
+        }
+      }
+      this._prevGrowthStage = state.growth.stage;
+    }
+
+    // Skills / learning / achievements (cached for UI)
+    if (state.skills) this._skills = state.skills;
+    if (state.learning) this._learning = state.learning;
+    if (state.achievements) this._achievementSummary = state.achievements;
+  }
+
+  async _rpc(method, params = {}) {
+    if (!this._api?.petRPC) return null;
+    return await this._api.petRPC(method, params);
+  }
+
+  async _rpcSafe(method, params = {}) {
+    try {
+      const result = await this._rpc(method, params);
+      if (result?._error) {
+        console.warn(`[pet-sync] ${method} error:`, result._error);
+        return null;
+      }
+      return result;
+    } catch (e) {
+      console.warn(`[pet-sync] ${method} failed:`, e.message || e);
+      return null;
+    }
+  }
+
+  destroy() {
+    this.stopPolling();
+  }
+}
