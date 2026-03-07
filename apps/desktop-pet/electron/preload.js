@@ -53,6 +53,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getGatewayHealth: () => ipcRenderer.invoke('get-gateway-health'),
   getAIProviders: () => ipcRenderer.invoke('get-ai-providers'),
 
+  // === Pet 配置（gateway pet.config.get/set） ===
+  petConfigGet: () => ipcRenderer.invoke('pet-config-get'),
+  petConfigSet: (params) => ipcRenderer.invoke('pet-config-set', params),
+
   // === 绝对窗口定位 ===
   setWindowPosition: (x, y) => ipcRenderer.send('set-window-position', x, y),
 

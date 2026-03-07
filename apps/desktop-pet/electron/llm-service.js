@@ -627,6 +627,22 @@ class LLMService {
     }
   }
 
+  // ===== Pet Config (pet.config.get / pet.config.set) =====
+
+  async petConfigGet() {
+    if (!this.wsConnected) return null;
+    try {
+      return await this._sendRequest('pet.config.get', {});
+    } catch {
+      return null;
+    }
+  }
+
+  async petConfigSet(params) {
+    if (!this.wsConnected) throw new Error('Gateway 未连接');
+    return await this._sendRequest('pet.config.set', params);
+  }
+
   // ===== Legacy sync chat (fallback) =====
 
   async chat(userMessage) {

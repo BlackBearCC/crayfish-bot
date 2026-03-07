@@ -99,6 +99,7 @@ const BASE_METHODS = [
   "pet.persona.get",
   "pet.persona.set",
   "pet.config.get",
+  "pet.config.set",
   // Pet engine — skills
   "pet.skill.record",
   "pet.skill.tool",

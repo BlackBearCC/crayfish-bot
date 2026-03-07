@@ -6,7 +6,8 @@
  *   pet.interact            — process user interaction
  *   pet.growth.info         — growth stage details
  *   pet.persona.get/set     — persona management
- *   pet.config.get          — combined state + persona
+ *   pet.config.get          — combined state + persona + settings
+ *   pet.config.set          — update pet settings (fsAccess toggle, etc.)
  *   pet.skill.record        — record domain activity
  *   pet.skill.tool          — record tool use
  *   pet.skill.attributes    — get skill attribute levels
@@ -38,6 +39,8 @@ import type { GatewayRequestHandlers } from "./types.js";
 import fs from "node:fs";
 import path from "node:path";
 import { resolveStorePath } from "../../config/sessions/paths.js";
+import { loadConfig, readConfigFileSnapshotForWrite, writeConfigFile } from "../../config/config.js";
+import { resolveAgentWorkspaceDir, resolveDefaultAgentId } from "../../agents/agent-scope.js";
 
 function getPetStorePath(): string {
   const base = resolveStorePath();
@@ -67,6 +70,19 @@ function createFileStore(): PersistenceStore {
         console.error(`[pet:store] failed to save ${key}:`, e);
       }
     },
+  };
+}
+
+// ─── Settings helpers ───
+
+function getFsAccessSettings() {
+  const cfg = loadConfig();
+  const workspaceOnly = cfg.tools?.fs?.workspaceOnly === true;
+  const defaultAgentId = resolveDefaultAgentId(cfg);
+  const workDir = resolveAgentWorkspaceDir(cfg, defaultAgentId);
+  return {
+    fullAccess: !workspaceOnly,
+    workDir,
   };
 }
 
@@ -166,10 +182,44 @@ export const petHandlers: GatewayRequestHandlers = {
     }
   },
 
+  // ── Config ──
+
   "pet.config.get": safeHandler((e) => ({
     ...e.getState(),
     persona: { base: e.persona.base, resolved: e.persona.resolve() },
+    settings: {
+      fsAccess: getFsAccessSettings(),
+    },
   })),
+
+  "pet.config.set": async ({ params, respond }) => {
+    try {
+      const settings = params?.settings as Record<string, unknown> | undefined;
+      if (!settings) {
+        respond(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, "missing 'settings' param"));
+        return;
+      }
+
+      const fsAccess = settings.fsAccess as Record<string, unknown> | undefined;
+      if (fsAccess && typeof fsAccess.fullAccess === "boolean") {
+        const { snapshot, writeOptions } = await readConfigFileSnapshotForWrite();
+        const cfg = { ...snapshot.config };
+        cfg.tools = { ...cfg.tools, fs: { ...cfg.tools?.fs, workspaceOnly: !fsAccess.fullAccess } };
+        await writeConfigFile(cfg, writeOptions);
+      }
+
+      const e = getEngine();
+      respond(true, {
+        ok: true,
+        settings: {
+          fsAccess: getFsAccessSettings(),
+        },
+        state: e.getState(),
+      });
+    } catch (e) {
+      respond(false, undefined, errorShape(ErrorCodes.UNAVAILABLE, String(e)));
+    }
+  },
 
   // ── Skills ──
 

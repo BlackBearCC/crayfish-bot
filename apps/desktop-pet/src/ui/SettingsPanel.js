@@ -1,6 +1,6 @@
 /**
  * SettingsPanel.js
- * 设置面板 — 配置 AI 服务、OpenClaw Gateway 连接和宠物人设
+ * 设置面板 — 配置 AI 服务、OpenClaw Gateway 连接、文件权限和宠物人设
  */
 
 // AI Provider 预设（与 llm-service.js 保持一致）
@@ -81,6 +81,24 @@ export class SettingsPanel {
           <input type="password" id="set-token" placeholder="如果 Gateway 设了密码" />
         </div>
 
+        <!-- 权限设置 -->
+        <div class="settings-section-title">权限</div>
+        <div class="settings-group">
+          <div class="settings-toggle-row">
+            <label>文件全局访问</label>
+            <label class="toggle-switch">
+              <input type="checkbox" id="set-fs-full-access" />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="settings-toggle-detail">
+            <span id="set-fs-status">开启后可读写电脑上的所有文件</span>
+          </div>
+          <div class="settings-toggle-detail">
+            工作目录: <span class="fs-path" id="set-fs-workdir" title="">--</span>
+          </div>
+        </div>
+
         <!-- 宠物人设 -->
         <div class="settings-section-title">宠物人设</div>
         <div class="settings-group">
@@ -108,6 +126,11 @@ export class SettingsPanel {
         document.getElementById('set-ai-base-url').value = preset.baseUrl;
         document.getElementById('set-ai-model').value = preset.defaultModel;
       }
+    });
+
+    // 文件访问开关 — 即时生效，不需要点保存
+    this.element.querySelector('#set-fs-full-access').addEventListener('change', (e) => {
+      this._toggleFsAccess(e.target.checked);
     });
 
     document.body.appendChild(this.element);
@@ -166,6 +189,58 @@ export class SettingsPanel {
       }
     }
 
+    // 加载文件访问设置（通过 gateway pet.config.get）
+    this._loadFsAccessSettings();
+  }
+
+  async _loadFsAccessSettings() {
+    const toggle = document.getElementById('set-fs-full-access');
+    const statusEl = document.getElementById('set-fs-status');
+    const workdirEl = document.getElementById('set-fs-workdir');
+
+    if (!this.electronAPI?.petConfigGet) {
+      toggle.checked = true;
+      statusEl.textContent = 'Gateway 未连接，无法读取';
+      return;
+    }
+
+    try {
+      const result = await this.electronAPI.petConfigGet();
+      const fsAccess = result?.settings?.fsAccess;
+      if (fsAccess) {
+        toggle.checked = fsAccess.fullAccess !== false;
+        statusEl.textContent = toggle.checked ? '可读写电脑上的所有文件' : '仅限工作目录';
+        if (fsAccess.workDir) {
+          workdirEl.textContent = fsAccess.workDir;
+          workdirEl.title = fsAccess.workDir;
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to load fs access settings:', e);
+      statusEl.textContent = '读取失败';
+    }
+  }
+
+  async _toggleFsAccess(fullAccess) {
+    const statusEl = document.getElementById('set-fs-status');
+
+    if (!this.electronAPI?.petConfigSet) {
+      statusEl.textContent = 'Gateway 未连接，无法修改';
+      return;
+    }
+
+    statusEl.textContent = '保存中...';
+    try {
+      await this.electronAPI.petConfigSet({
+        settings: { fsAccess: { fullAccess } },
+      });
+      statusEl.textContent = fullAccess ? '可读写电脑上的所有文件' : '仅限工作目录';
+    } catch (e) {
+      console.warn('Failed to toggle fs access:', e);
+      statusEl.textContent = '保存失败: ' + e.message;
+      // 回滚 toggle 状态
+      document.getElementById('set-fs-full-access').checked = !fullAccess;
+    }
   }
 
   async _save() {

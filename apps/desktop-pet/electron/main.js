@@ -199,6 +199,15 @@ function createWindow() {
     return AI_PROVIDERS;
   });
 
+  // ===== IPC: Pet 配置（gateway RPC） =====
+  ipcMain.handle('pet-config-get', async () => {
+    return await llmService.petConfigGet();
+  });
+
+  ipcMain.handle('pet-config-set', async (event, params) => {
+    return await llmService.petConfigSet(params);
+  });
+
   ipcMain.handle('clear-chat-history', () => {
     llmService.clearHistory();
     return true;
