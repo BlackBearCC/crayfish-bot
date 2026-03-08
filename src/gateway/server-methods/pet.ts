@@ -52,13 +52,13 @@ import type { GatewayRequestHandlers } from "./types.js";
 
 import fs from "node:fs";
 import path from "node:path";
-import { resolveStorePath } from "../../config/sessions/paths.js";
+import { resolveStateDir } from "../../config/paths.js";
 import { loadConfig, readConfigFileSnapshotForWrite, writeConfigFile } from "../../config/config.js";
 import { resolveAgentWorkspaceDir, resolveDefaultAgentId } from "../../agents/agent-scope.js";
 
 function getPetStorePath(): string {
-  const base = resolveStorePath();
-  const dir = path.join(base, "pet");
+  const base = resolveStateDir();
+  const dir = path.join(base, "store", "pet");
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   return dir;
 }

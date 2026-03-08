@@ -41,19 +41,20 @@ export class ContextMenu {
     // 养成状态块（顶部）
     if (this.getStats) {
       const s = this.getStats();
+      const iconBase = '../assets/icons';
       const block = document.createElement('div');
       block.className = 'ctx-stats';
       block.innerHTML = `
         <div class="ctx-stat-row">
-          <span class="ctx-stat-icon">🍖</span>
+          <span class="ctx-stat-icon"><img src="${iconBase}/attribute/attr_hunger.png" alt="饱食"></span>
           <div class="ctx-stat-track"><div class="ctx-stat-fill ctx-stat--hunger" style="width:${s.hunger}%"></div></div>
         </div>
         <div class="ctx-stat-row">
-          <span class="ctx-stat-icon">😊</span>
+          <span class="ctx-stat-icon"><img src="${iconBase}/attribute/attr_mood.png" alt="心情"></span>
           <div class="ctx-stat-track"><div class="ctx-stat-fill ctx-stat--mood" style="width:${s.mood}%"></div></div>
         </div>
         <div class="ctx-stat-row">
-          <span class="ctx-stat-icon">💚</span>
+          <span class="ctx-stat-icon"><img src="${iconBase}/attribute/attr_health.png" alt="健康"></span>
           <div class="ctx-stat-track"><div class="ctx-stat-fill ctx-stat--health" style="width:${s.health}%"></div></div>
         </div>
       `;

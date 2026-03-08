@@ -200,20 +200,23 @@ export class Behaviors {
     this.idleVariantTimer = setTimeout(() => {
       if (this.isActive && this.sm.getState() === 'idle' && !this.sm.isLocked()) {
         const roll = Math.random();
-        if (roll < 0.3) {
+        if (roll < 0.50) {
+          // chase_butterfly: 追蝴蝶（36帧单次动画，12fps=3s）
+          this.sm.transition('chase_butterfly', { duration: 3000 });
+        } else if (roll < 0.65) {
           // idle_ear_twitch: 耳朵抖动歪头
           this.sm.transition('idle_ear_twitch', { duration: 3000 });
-        } else if (roll < 0.55) {
+        } else if (roll < 0.75) {
           // idle_yawn: 打哈欠伸懒腰
           this.sm.transition('idle_yawn', { duration: 3000 });
-        } else if (roll < 0.7) {
+        } else if (roll < 0.85) {
           // idle_sneeze: 打喷嚏
           this.sm.transition('idle_sneeze', { duration: 3000 });
-        } else if (roll < 0.85) {
+        } else if (roll < 0.95) {
           // idle_trip: 绊倒
           this.sm.transition('idle_trip', { duration: 3000 });
         } else {
-          // idle_butterfly: 追蝴蝶
+          // idle_butterfly: 旧追蝴蝶（单次）
           this.sm.transition('idle_butterfly', { duration: 3000 });
         }
       }

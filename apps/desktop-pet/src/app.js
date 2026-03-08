@@ -41,6 +41,7 @@ import { LearningChoiceUI } from './ui/LearningChoiceUI.js';
 import { MemoryGraph } from './pet/MemoryGraph.js';
 import { MemoryGraphPanel } from './ui/MemoryGraphPanel.js';
 import { PetStateSync } from './pet/PetStateSync.js';
+import { NurturingPanel } from './ui/NurturingPanel.js';
 
 class OpenClawPet {
   constructor() {
@@ -68,6 +69,7 @@ class OpenClawPet {
     this.idleButterflySheet = new SpriteSheet();
     this.idleEarTwitchSheet = new SpriteSheet();
     this.idleYawnSheet = new SpriteSheet();
+    this.chaseButterflySheet = new SpriteSheet();
     this.stateMachine = new StateMachine();
     this.skillSystem = new SkillSystem();
     this.petAI = null; // 初始化在 init() 后（需要 electronAPI）
@@ -149,6 +151,8 @@ class OpenClawPet {
           .catch(() => console.warn('⚠️ idle_yawn spritesheet not found')),
         this.idleSheet.load(spritePath + 'idle.png', spritePath + 'idle.json')
           .catch(() => console.warn('⚠️ idle spritesheet not found')),
+        this.chaseButterflySheet.load(spritePath + 'chase_butterfly.png', spritePath + 'chase_butterfly.json')
+          .catch(() => console.warn('⚠️ chase_butterfly spritesheet not found')),
       ]);
       console.log('✅ Spritesheets loaded');
     } catch (e) {
@@ -231,6 +235,7 @@ class OpenClawPet {
     this.renderer.registerCompound('sleep', 'sleep_enter', 'sleep_loop', 'sleep_exit');
     this.renderer.registerCompound('work', 'work_enter', 'work_loop', 'work_exit');
     this.renderer.registerCompound('swing', 'swing_enter', 'swing_loop', 'swing_exit');
+    this.renderer.registerSheet('chase_butterfly', this.chaseButterflySheet);
 
     // 3b. 喂食动画
     this.feedingAnimator = new FeedingAnimator(this.renderer, this.stateMachine);
@@ -259,6 +264,14 @@ class OpenClawPet {
     this.markdownPanel = new MarkdownPanel(petArea, this.electronAPI);
     this.chatPanel = new ChatPanel(this.electronAPI, this.stateMachine, this.bubble);
     this.settingsPanel = new SettingsPanel(this.electronAPI);
+    this.nurturingPanel = new NurturingPanel(
+      (method, params) => this.electronAPI.petRPC(method, params),
+      {
+        onBubble: (msg) => this.bubble.show(msg, 3000),
+        onAnimation: (anim) => this.stateMachine.transition(anim, { force: true, duration: 3000 }),
+        isConnected: () => this.petSync?.connected ?? false,
+      }
+    );
 
     // 6a2. 底部快捷聊天
     this.bottomChatInput = new BottomChatInput(
@@ -528,14 +541,23 @@ class OpenClawPet {
 
     if (this.electronAPI) {
       const api = this.electronAPI;
+      const _ic = (cat, name) => `<img src="../assets/icons/${cat}/${name}.png" alt="${name}">`;
+      const _closeOtherPanels = (...except) => {
+        const panels = [this.chatPanel, this.settingsPanel, this.skillPanel, this.memoryGraphPanel, this.nurturingPanel];
+        for (const p of panels) { if (p && !except.includes(p) && p.isOpen) p.closeQuiet(); }
+      };
       this.contextMenu = new ContextMenu(this.canvas, [
         { icon: '💬', label: '打开聊天',   action: () => this.chatPanel.toggle() },
-        { icon: '⚙️', label: '设置',       action: () => { this.chatPanel.isOpen && this.chatPanel.closeQuiet(); this.skillPanel.isOpen && this.skillPanel.closeQuiet(); this.memoryGraphPanel?.isOpen && this.memoryGraphPanel.closeQuiet(); this.settingsPanel.open(); } },
-        { icon: '📖', label: '图鉴',       action: () => { this.chatPanel.isOpen && this.chatPanel.closeQuiet(); this.settingsPanel.isOpen && this.settingsPanel.closeQuiet(); this.memoryGraphPanel?.isOpen && this.memoryGraphPanel.closeQuiet(); this.skillPanel.toggle(); } },
-        { icon: '🧠', label: '记忆图谱',   action: () => { this.chatPanel.isOpen && this.chatPanel.closeQuiet(); this.settingsPanel.isOpen && this.settingsPanel.closeQuiet(); this.skillPanel.isOpen && this.skillPanel.closeQuiet(); this.memoryGraphPanel?.toggle(); } },
+        { icon: '⚙️', label: '设置',       action: () => { _closeOtherPanels(this.settingsPanel); this.settingsPanel.open(); } },
+        { icon: '📖', label: '图鉴',       action: () => { _closeOtherPanels(this.skillPanel); this.skillPanel.toggle(); } },
+        { icon: '🐾', label: '养成',       action: () => { _closeOtherPanels(this.nurturingPanel); this.nurturingPanel.toggle(); } },
+        { icon: '🧠', label: '记忆图谱',   action: () => { _closeOtherPanels(this.memoryGraphPanel); this.memoryGraphPanel?.toggle(); } },
         { type: 'separator' },
-        { icon: '🍤', label: '喂零食',     action: () => { if (!this.feedingAnimator.isPlaying) { this.behaviors.recordInteraction(); this.feedingAnimator.play(() => { this.petSync.interact('feed'); this.bubble.show(['好吃！~ 😋','喵呜~ 谢谢主人！','啊好香！还有吗！'][Math.floor(Math.random()*3)], 3000); }); } } },
-        { icon: '📚', label: '去学习',     action: () => { this.chatPanel.isOpen && this.chatPanel.closeQuiet(); this.settingsPanel.isOpen && this.settingsPanel.closeQuiet(); this.skillPanel.openToLearning(); } },
+        { icon: _ic('action','action_feed'), label: '喂零食',   action: async () => { if (!this.feedingAnimator.isPlaying) { this.behaviors.recordInteraction(); this.feedingAnimator.play(async () => { try { const r = await api.petRPC('pet.care.feed', { itemId: 'ration_42' }); this.bubble.show(r?.ok ? ['好吃！~ 😋','喵呜~ 谢谢主人！','啊好香！还有吗！'][Math.floor(Math.random()*3)] : (r?.reason || '吃不下了...'), 3000); } catch { this.petSync.interact('feed'); this.bubble.show('好吃！~ 😋', 3000); } }); } } },
+        { icon: _ic('action','action_play'), label: '玩耍',     action: async () => { this.behaviors.recordInteraction(); try { const r = await api.petRPC('pet.care.play', { actionId: 'pet_stroke' }); this.bubble.show(r?.ok ? ['好好玩！🎉','再来一次！','嘿嘿~ 开心！'][Math.floor(Math.random()*3)] : (r?.reason || '不想玩...'), 3000); } catch { this.petSync.interact('play'); } this.stateMachine.transition('happy', { force: true, duration: 3000 }); } },
+        { icon: _ic('action','action_heal'), label: '治疗',     action: () => { _closeOtherPanels(this.nurturingPanel); this.nurturingPanel.open().then(() => this.nurturingPanel._switchTab('care')); } },
+        { icon: _ic('action','action_rest'), label: '休息',     action: async () => { this.behaviors.recordInteraction(); try { const r = await api.petRPC('pet.care.rest', { typeId: 'nap' }); this.bubble.show(r?.ok ? ['困了...zzZ','晚安~','让我眯一会儿...'][Math.floor(Math.random()*3)] : (r?.reason || '不困...'), 3000); } catch { this.petSync.interact('rest'); } this.stateMachine.transition('sleep', { force: true }); } },
+        { icon: '📚', label: '去学习',     action: () => { _closeOtherPanels(this.skillPanel); this.skillPanel.openToLearning(); } },
         { type: 'separator' },
         { icon: '📌', label: '置顶',       action: () => api.toggleAlwaysOnTop?.() },
         { type: 'separator' },
@@ -684,6 +706,7 @@ class OpenClawPet {
         return;
       }
       const mgPanel = document.getElementById('memory-graph-panel');
+      const nurPanel = document.getElementById('nurturing-panel');
       const isOverPanel =
         !!miniCatEl ||
         !!bottomChatEl ||
@@ -693,7 +716,8 @@ class OpenClawPet {
         (chatPanel?.classList.contains('open') && chatPanel.contains(e.target)) ||
         (settingsPanel?.classList.contains('open') && settingsPanel.contains(e.target)) ||
         (skillPanel?.classList.contains('open') && skillPanel.contains(e.target)) ||
-        (mgPanel?.classList.contains('open') && mgPanel.contains(e.target));
+        (mgPanel?.classList.contains('open') && mgPanel.contains(e.target)) ||
+        (nurPanel?.classList.contains('open') && nurPanel.contains(e.target));
 
       if (isOverPanel) {
         this.electronAPI.setIgnoreMouse(false);

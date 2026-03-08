@@ -25,7 +25,7 @@ export class StateMachine {
   }
 
   _buildTransitions() {
-    const fromIdle = ['walk', 'sit', 'sleep', 'swing', 'work', 'drag', 'click_react', 'talk', 'happy', 'sad', 'idle_ear_twitch', 'idle_yawn', 'idle_sneeze', 'idle_trip', 'idle_butterfly', 'eat', 'edge_idle'];
+    const fromIdle = ['walk', 'sit', 'sleep', 'swing', 'work', 'drag', 'click_react', 'talk', 'happy', 'sad', 'idle_ear_twitch', 'idle_yawn', 'idle_sneeze', 'idle_trip', 'idle_butterfly', 'chase_butterfly', 'eat', 'edge_idle'];
     const interruptible = ['idle', 'drag', 'click_react', 'talk', 'happy', 'sad'];
     return {
       idle:        fromIdle,
@@ -34,6 +34,7 @@ export class StateMachine {
       idle_sneeze: ['idle', ...interruptible, 'eat', 'edge_idle', 'work'],
       idle_trip:   ['idle', ...interruptible, 'eat', 'edge_idle', 'work'],
       idle_butterfly: ['idle', ...interruptible, 'eat', 'edge_idle', 'work'],
+      chase_butterfly: ['idle', 'drag', 'click_react', 'talk', 'happy', 'sad', 'eat', 'edge_idle'],
       walk:        ['idle', 'drag', 'click_react', 'talk', 'happy', 'sad', 'eat', 'edge_idle', 'work'],
       sit:         ['idle', 'drag', 'click_react', 'talk', 'happy', 'sad', 'eat', 'edge_idle', 'work'],
       sleep:       ['idle', 'drag', 'click_react', 'talk', 'happy', 'sad', 'eat', 'edge_idle', 'work'],

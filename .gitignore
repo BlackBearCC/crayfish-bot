@@ -121,3 +121,6 @@ dist/protocol.schema.json
 
 # Synthing
 **/.stfolder/
+
+# Source asset library (design docs, raw sprites, intermediate outputs)
+resources/

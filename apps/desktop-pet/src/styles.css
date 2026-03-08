@@ -108,7 +108,14 @@ html, body {
   line-height: 1;
   flex-shrink: 0;
   width: 16px;
+  height: 16px;
   text-align: center;
+}
+.ctx-stat-icon img {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  vertical-align: middle;
 }
 
 .ctx-stat-track {
@@ -819,8 +826,15 @@ html, body {
 .ctx-icon {
   font-size: 13px;
   width: 18px;
+  height: 18px;
   text-align: center;
   flex-shrink: 0;
+}
+.ctx-icon img {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  vertical-align: middle;
 }
 .ctx-label { flex: 1; }
 .ctx-check {
@@ -2267,4 +2281,420 @@ html, body {
 .mg-frag-role {
   font-weight: 600;
   color: var(--ink);
+}
+
+/* ===== 养成面板 ===== */
+#nurturing-panel {
+  position: fixed;
+  bottom: 10px;
+  right: 210px;
+  width: 0;
+  height: 0;
+  background: var(--paper);
+  border: var(--border-ink);
+  border-radius: var(--radius-sketchy);
+  box-shadow: var(--shadow-ink);
+  overflow: hidden;
+  opacity: 0;
+  transform: scale(0.8) translateX(20px);
+  transition: all 0.25s ease-out;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  z-index: 50;
+}
+#nurturing-panel.open {
+  width: 300px;
+  height: 520px;
+  opacity: 1;
+  transform: scale(1) translateX(0);
+  pointer-events: all;
+}
+
+.nur-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--clr-primary);
+  color: white;
+  font-size: 13px;
+  font-weight: 700;
+  border-bottom: var(--border-ink);
+  flex-shrink: 0;
+  text-shadow: 1px 1px 0 rgba(0,0,0,0.15);
+}
+.nur-close {
+  background: none;
+  border: 1.5px solid rgba(255,255,255,0.5);
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: var(--radius-sketchy-sm);
+  font-weight: 700;
+}
+.nur-close:hover { background: rgba(255,255,255,0.25); }
+
+/* Level bar */
+.nur-level-bar {
+  padding: 8px 12px 6px;
+  background: var(--paper-warm);
+  border-bottom: 1.5px solid var(--ink-faint);
+  flex-shrink: 0;
+}
+.nur-level-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.nur-level-badge {
+  background: var(--clr-primary);
+  color: white;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 1px 6px;
+  border-radius: 8px 3px 8px 3px;
+  border: 1.5px solid var(--ink);
+}
+.nur-level-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-light);
+}
+.nur-streak {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--clr-primary-dark);
+}
+.nur-exp-track {
+  height: 5px;
+  background: var(--ink-faint);
+  border: 1.5px solid var(--ink);
+  border-radius: 3px 1px 3px 1px;
+  overflow: hidden;
+}
+.nur-exp-fill {
+  height: 100%;
+  background: var(--clr-primary);
+  border-radius: 2px;
+  transition: width 0.3s;
+}
+.nur-exp-text {
+  font-size: 10px;
+  color: var(--ink-light);
+  text-align: right;
+  margin-top: 2px;
+  font-weight: 600;
+}
+
+/* Tabs */
+.nur-tabs {
+  display: flex;
+  border-bottom: 2px solid var(--ink);
+  flex-shrink: 0;
+  background: var(--paper);
+}
+.nur-tab {
+  flex: 1;
+  padding: 8px 4px;
+  background: none;
+  border: none;
+  border-right: 1.5px solid var(--ink-faint);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-light);
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+}
+.nur-tab:last-child { border-right: none; }
+.nur-tab:hover { color: var(--ink); background: rgba(42,42,42,0.04); }
+.nur-tab.active {
+  color: var(--clr-primary);
+  background: var(--paper-warm);
+  font-weight: 800;
+  box-shadow: inset 0 -3px 0 var(--clr-primary);
+}
+
+/* Body */
+.nur-body {
+  padding: 10px 12px;
+  overflow-y: auto;
+  flex: 1;
+  background: var(--paper-warm);
+}
+.nur-body::-webkit-scrollbar { width: 4px; }
+.nur-body::-webkit-scrollbar-thumb { background: var(--ink); border-radius: 2px; }
+
+.nur-loading {
+  text-align: center;
+  padding: 30px 0;
+  color: var(--ink-light);
+  font-size: 12px;
+}
+.nur-empty {
+  text-align: center;
+  padding: 30px 10px;
+  color: var(--ink-light);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+/* ── Inventory ── */
+.nur-inv-summary {
+  font-size: 11px;
+  color: var(--ink-light);
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.nur-item-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.nur-item-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: white;
+  border: 2px solid var(--ink);
+  border-radius: var(--radius-sketchy-sm);
+  padding: 8px;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.nur-item-card:hover:not(.nur-disabled) {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-ink-sm);
+}
+.nur-item-card.nur-disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.nur-item-icon {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+}
+.nur-item-icon img {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+}
+.nur-item-icon span {
+  font-size: 24px;
+  display: block;
+  text-align: center;
+  line-height: 36px;
+}
+.nur-item-info {
+  flex: 1;
+  min-width: 0;
+}
+.nur-item-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.nur-item-desc {
+  font-size: 10px;
+  color: var(--ink-light);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nur-item-cd {
+  font-size: 10px;
+  color: var(--clr-primary-dark);
+  font-weight: 600;
+}
+.nur-item-qty {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--clr-primary);
+  flex-shrink: 0;
+  min-width: 28px;
+  text-align: center;
+}
+
+/* ── Tasks ── */
+.nur-task-header {
+  font-size: 11px;
+  color: var(--ink-light);
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.nur-task-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.nur-task-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: white;
+  border: 2px solid var(--ink);
+  border-radius: var(--radius-sketchy-sm);
+  padding: 8px;
+  position: relative;
+}
+.nur-task-card.nur-task-done {
+  opacity: 0.65;
+}
+.nur-task-icon {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+}
+.nur-task-icon img {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+.nur-task-body {
+  flex: 1;
+  min-width: 0;
+}
+.nur-task-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.nur-task-desc {
+  font-size: 10px;
+  color: var(--ink-light);
+  margin: 2px 0 4px;
+}
+.nur-task-progress-track {
+  height: 4px;
+  background: var(--ink-faint);
+  border: 1px solid var(--ink);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+.nur-task-progress-fill {
+  height: 100%;
+  background: var(--clr-primary);
+  border-radius: 2px;
+  transition: width 0.3s;
+}
+.nur-task-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: var(--ink-light);
+}
+.nur-task-reward {
+  font-weight: 600;
+}
+.nur-task-claimed {
+  color: var(--clr-green);
+  font-weight: 700;
+}
+.nur-task-claim {
+  align-self: center;
+  background: var(--clr-primary);
+  color: white;
+  border: 1.5px solid var(--ink);
+  border-radius: var(--radius-sketchy-sm);
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+.nur-task-claim:hover { background: var(--clr-primary-dark); }
+
+/* ── Care ── */
+.nur-care-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.nur-care-card {
+  display: flex;
+  gap: 10px;
+  background: white;
+  border: 2px solid var(--ink);
+  border-radius: var(--radius-sketchy-sm);
+  padding: 10px;
+}
+.nur-care-icon {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+}
+.nur-care-icon img {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+}
+.nur-care-info {
+  flex: 1;
+  min-width: 0;
+}
+.nur-care-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.nur-care-desc {
+  font-size: 10px;
+  color: var(--ink-light);
+  margin-bottom: 6px;
+}
+.nur-care-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.nur-care-opt {
+  background: var(--paper);
+  border: 1.5px solid var(--ink);
+  border-radius: var(--radius-sketchy-sm);
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--ink);
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.nur-care-opt:hover {
+  background: var(--clr-primary-light);
+  transform: translateY(-1px);
+}
+.nur-opt-icon {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+}
+.nur-care-go {
+  background: var(--clr-primary);
+  color: white;
+  border: 1.5px solid var(--ink);
+  border-radius: var(--radius-sketchy-sm);
+  padding: 4px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+.nur-care-go:hover { background: var(--clr-primary-dark); }
+.nur-care-no-items {
+  font-size: 10px;
+  color: var(--ink-light);
+  font-style: italic;
 }
