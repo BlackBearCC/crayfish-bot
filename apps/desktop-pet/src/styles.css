@@ -68,7 +68,7 @@ html, body {
 /* ===== 宠物区域（右下角） ===== */
 #pet-area {
   position: relative;
-  width: 280px;
+  width: 512px;
   height: 580px;
   display: flex;
   flex-direction: column;
@@ -78,8 +78,8 @@ html, body {
 }
 
 #pet-canvas {
-  width: 256px;
-  height: 256px;
+  width: 512px;
+  height: 512px;
   flex-shrink: 0;
   cursor: grab;
   animation: petAppear 0.5s ease-out;

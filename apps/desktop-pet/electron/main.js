@@ -45,7 +45,7 @@ function detectClipboardType(text) {
 }
 
 // ===== 窗口尺寸（固定大小，不再动态 resize）=====
-const PET_SIZE = { width: 620, height: 580 };
+const PET_SIZE = { width: 852, height: 580 };
 
 function createWindow() {
   const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;

@@ -1,0 +1,12 @@
+{
+  "frameSize": 960,
+  "cols": 10,
+  "totalFrames": 60,
+  "fps": 12,
+  "sections": {
+    "idle_2": [
+      0,
+      59
+    ]
+  }
+}

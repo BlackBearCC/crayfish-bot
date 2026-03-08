@@ -21,6 +21,7 @@ export class PetRenderer {
     this.spriteSheetKitten = spriteSheetKitten;
     this.renderSize = renderSize;
     this._growthStage = 0;
+    this.characterScale = 1.0; // 角色渲染放大倍数（以底部中心为锚点）
 
     // 设置 canvas 尺寸
     this.canvas.width = renderSize;
@@ -38,17 +39,16 @@ export class PetRenderer {
     this._animFrameId = null;
     this._fallbackTimer = null; // rAF 停滞时的保底定时器
 
-    // 呼吸效果
-    this._totalTime = 0;
-    this._breathPeriod = 3200;  // 一次完整呼吸 3.2s
-    this._breathAmount = 0.018; // 垂直缩放幅度 ±1.8%
-
     // overlay 绘制回调（用于叠加动画，如喂食特效）
     this.overlayDrawFn = null;   // 兼容旧 API
     this._overlays = [];         // 多 overlay 数组
 
     // 额外 spritesheet 映射：animationName → SpriteSheet
     this._extraSheets = new Map();
+
+    // idle 变体随机轮换：['idle', 'idle_2', 'idle_3', ...]
+    this._idleVariants = ['idle'];
+    this._idleVariantTimer = null;
 
     // 复合动画（enter→loop→exit）：stateName → { enter, loop, exit? }
     this._compoundAnims = new Map();
@@ -79,6 +79,50 @@ export class PetRenderer {
    */
   registerCompound(stateName, enterAnim, loopAnim, exitAnim) {
     this._compoundAnims.set(stateName, { enter: enterAnim, loop: loopAnim, exit: exitAnim || null });
+  }
+
+  /**
+   * 注册 idle 变体（如 idle_2, idle_3），自动随机轮换
+   * @param {string} name - 变体名（如 'idle_2'）
+   * @param {import('./SpriteSheet').SpriteSheet} sheet
+   */
+  registerIdleVariant(name, sheet) {
+    this._extraSheets.set(name, sheet);
+    if (!this._idleVariants.includes(name)) {
+      this._idleVariants.push(name);
+    }
+  }
+
+  _pickRandomIdleVariant() {
+    const loaded = this._idleVariants.filter(v => {
+      if (v === 'idle') return this._getDefaultSheet()?.loaded;
+      return this._extraSheets.get(v)?.loaded;
+    });
+    if (loaded.length <= 1) return loaded[0] || 'idle';
+    return loaded[Math.floor(Math.random() * loaded.length)];
+  }
+
+  _startIdleVariantRotation() {
+    this._stopIdleVariantRotation();
+    if (this._idleVariants.length <= 1) return;
+    const rotate = () => {
+      if (!this._idleVariants.includes(this.currentAnimation)) return;
+      const next = this._pickRandomIdleVariant();
+      if (next !== this.currentAnimation) {
+        this.currentAnimation = next;
+        this.currentFrame = 0;
+        this.frameAccumulator = 0;
+      }
+      this._idleVariantTimer = setTimeout(rotate, 8000 + Math.random() * 7000);
+    };
+    this._idleVariantTimer = setTimeout(rotate, 8000 + Math.random() * 7000);
+  }
+
+  _stopIdleVariantRotation() {
+    if (this._idleVariantTimer) {
+      clearTimeout(this._idleVariantTimer);
+      this._idleVariantTimer = null;
+    }
   }
 
   /**
@@ -123,10 +167,34 @@ export class PetRenderer {
       return;
     }
 
+    // 离开 idle 变体 → 停止轮换定时器
+    if (this._idleVariants.includes(this.currentAnimation) && !this._idleVariants.includes(resolved)) {
+      this._stopIdleVariantRotation();
+    }
+
+    // 进入 idle 状态 → 随机选择变体并启动轮换
+    if (resolved === 'idle') {
+      const variant = this._pickRandomIdleVariant();
+      if (this.currentAnimation === variant && !resetFrame) return;
+      const variantSheet = this._getSheetForAnimation(variant);
+      const variantAnim = variantSheet?.getAnimation(variant);
+      if (!variantAnim) {
+        console.warn(`Idle variant "${variant}" not found, keeping current`);
+        return;
+      }
+      this.currentAnimation = variant;
+      if (resetFrame) {
+        this.currentFrame = 0;
+        this.frameAccumulator = 0;
+      }
+      this._startIdleVariantRotation();
+      return;
+    }
+
     if (this.currentAnimation === resolved && !resetFrame) return;
 
     const sheet = this._getSheetForAnimation(resolved);
-    const anim = sheet.getAnimation(resolved);
+    const anim = sheet?.getAnimation(resolved);
     if (!anim) {
       console.warn(`Animation "${animationName}" not found, keeping current`);
       return;
@@ -298,7 +366,6 @@ export class PetRenderer {
    * 更新帧
    */
   _updateFrame(deltaMs) {
-    this._totalTime += deltaMs;
     const sheet = this._getActiveSheet();
     const fps = sheet.getFPS(this.currentAnimation);
     const frameDuration = 1000 / fps;
@@ -347,10 +414,6 @@ export class PetRenderer {
     ];
     const stageFilter = stageFilters[this._growthStage] || null;
 
-    // 呼吸效果：以底部为锚点，垂直轻微缩放
-    const breathPhase = (this._totalTime % this._breathPeriod) / this._breathPeriod;
-    const breathScale = 1 + this._breathAmount * Math.sin(breathPhase * Math.PI * 2);
-
     this.ctx.save();
     // filter 在 save 之后设置，restore 时自动归位，无需手动重置
     if (stageFilter) {
@@ -358,12 +421,11 @@ export class PetRenderer {
     }
     this.ctx.translate(w / 2, h);          // 锚点移到底部中心
 
-    // 幼猫缩小 0.85x，以底部为锚点
-    if (this._growthStage === 0) {
-      this.ctx.scale(0.85, 0.85);
-    }
+    // 角色放大（以底部中心为锚点）
+    const baseScale = this._growthStage === 0 ? 0.85 : 1.0;
+    const totalScale = baseScale * this.characterScale;
+    this.ctx.scale(totalScale, totalScale);
 
-    this.ctx.scale(1, breathScale);         // 仅垂直方向缩放
     this.ctx.translate(-w / 2, -h);        // 还原
 
     // 绘制当前帧

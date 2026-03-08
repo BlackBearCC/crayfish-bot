@@ -69,6 +69,7 @@ class OpenClawPet {
     this.idleButterflySheet = new SpriteSheet();
     this.idleEarTwitchSheet = new SpriteSheet();
     this.idleYawnSheet = new SpriteSheet();
+    this.idle2Sheet = new SpriteSheet();
     this.chaseButterflySheet = new SpriteSheet();
     this.stateMachine = new StateMachine();
     this.skillSystem = new SkillSystem();
@@ -151,6 +152,8 @@ class OpenClawPet {
           .catch(() => console.warn('⚠️ idle_yawn spritesheet not found')),
         this.idleSheet.load(spritePath + 'idle.png', spritePath + 'idle.json')
           .catch(() => console.warn('⚠️ idle spritesheet not found')),
+        this.idle2Sheet.load(spritePath + 'idle_2.png', spritePath + 'idle_2.json')
+          .catch(() => console.warn('⚠️ idle_2 spritesheet not found')),
         this.chaseButterflySheet.load(spritePath + 'chase_butterfly.png', spritePath + 'chase_butterfly.json')
           .catch(() => console.warn('⚠️ chase_butterfly spritesheet not found')),
       ]);
@@ -211,7 +214,7 @@ class OpenClawPet {
 
     // 3. 初始化渲染器（传入幼猫 sheet）
     this.renderer = new PetRenderer(this.canvas, this.kittenSheet, 960);
-    this.renderer.setGrowthStage(this.petSync.getGrowthStage());
+    this.renderer.setGrowthStage(1); // TODO: 测试阶段强制 stage=1 使用新 idle 精灵图
 
     // 3a. 注册额外 spritesheet 和复合动画
     this.renderer.registerSheet('sleep_enter', this.sleepEnterSheet);
@@ -232,6 +235,7 @@ class OpenClawPet {
     this.renderer.registerSheet('idle_ear_twitch', this.idleEarTwitchSheet);
     this.renderer.registerSheet('idle_yawn', this.idleYawnSheet);
     this.renderer.registerSheet('idle', this.idleSheet);
+    this.renderer.registerIdleVariant('idle_2', this.idle2Sheet);
     this.renderer.registerCompound('sleep', 'sleep_enter', 'sleep_loop', 'sleep_exit');
     this.renderer.registerCompound('work', 'work_enter', 'work_loop', 'work_exit');
     this.renderer.registerCompound('swing', 'swing_enter', 'swing_loop', 'swing_exit');

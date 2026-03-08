@@ -24,8 +24,32 @@ export class SpriteSheet {
     ]);
 
     this.image = image;
-    this.meta = metaResponse;
+    this.meta = this._normalizeMeta(metaResponse);
     this.loaded = true;
+  }
+
+  /**
+   * 支持新紧凑格式：{ frameSize, cols, totalFrames, fps, sections: { enter:[s,e], loop:[s,e], exit:[s,e] } }
+   * 自动展开为标准 animations 格式，无需手写每帧坐标
+   */
+  _normalizeMeta(meta) {
+    if (!meta.sections) return meta;
+
+    const { frameSize, cols, fps, sections } = meta;
+    const animations = {};
+    for (const [name, [start, end]] of Object.entries(sections)) {
+      const frames = [];
+      for (let i = start; i <= end; i++) {
+        frames.push({
+          x: (i % cols) * frameSize,
+          y: Math.floor(i / cols) * frameSize,
+          w: frameSize,
+          h: frameSize,
+        });
+      }
+      animations[name] = { frames, fps, loop: name === 'loop' || name === 'idle' || /^idle_\d+$/.test(name) };
+    }
+    return { ...meta, animations };
   }
 
   _loadImage(src) {

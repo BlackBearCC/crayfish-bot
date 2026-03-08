@@ -174,18 +174,16 @@ export class Behaviors {
     // 只在任意 idle 变体下触发随机行为
     if (!this.sm.isIdle()) return;
 
-    const roll = Math.random();
-
-    if (roll < 0.30) {
-      this._startWalk();
-    } else if (roll < 0.45) {
-      this.sm.transition('sit', { duration: 5000 + Math.random() * 5000 });
-    } else if (roll < 0.55) {
-      // 荡秋千：随机 20~60s，enter→loop→exit 复合动画
-      const duration = 20000 + Math.random() * 40000;
-      this.sm.transition('swing', { duration });
-    }
-    // 25% 保持当前待机（什么都不做）
+    // TODO: 测试阶段暂时禁用随机行为（walk/sit/swing）
+    // const roll = Math.random();
+    // if (roll < 0.30) {
+    //   this._startWalk();
+    // } else if (roll < 0.45) {
+    //   this.sm.transition('sit', { duration: 5000 + Math.random() * 5000 });
+    // } else if (roll < 0.55) {
+    //   const duration = 20000 + Math.random() * 40000;
+    //   this.sm.transition('swing', { duration });
+    // }
   }
 
   /**
@@ -199,26 +197,22 @@ export class Behaviors {
 
     this.idleVariantTimer = setTimeout(() => {
       if (this.isActive && this.sm.getState() === 'idle' && !this.sm.isLocked()) {
-        const roll = Math.random();
-        if (roll < 0.50) {
-          // chase_butterfly: 追蝴蝶（36帧单次动画，12fps=3s）
-          this.sm.transition('chase_butterfly', { duration: 3000 });
-        } else if (roll < 0.65) {
-          // idle_ear_twitch: 耳朵抖动歪头
-          this.sm.transition('idle_ear_twitch', { duration: 3000 });
-        } else if (roll < 0.75) {
-          // idle_yawn: 打哈欠伸懒腰
-          this.sm.transition('idle_yawn', { duration: 3000 });
-        } else if (roll < 0.85) {
-          // idle_sneeze: 打喷嚏
-          this.sm.transition('idle_sneeze', { duration: 3000 });
-        } else if (roll < 0.95) {
-          // idle_trip: 绊倒
-          this.sm.transition('idle_trip', { duration: 3000 });
-        } else {
-          // idle_butterfly: 旧追蝴蝶（单次）
-          this.sm.transition('idle_butterfly', { duration: 3000 });
-        }
+        // TODO: 测试阶段只触发 idle_sneeze
+        this.sm.transition('idle_sneeze', { duration: 5000 });
+        // const roll = Math.random();
+        // if (roll < 0.50) {
+        //   this.sm.transition('chase_butterfly', { duration: 3000 });
+        // } else if (roll < 0.65) {
+        //   this.sm.transition('idle_ear_twitch', { duration: 3000 });
+        // } else if (roll < 0.75) {
+        //   this.sm.transition('idle_yawn', { duration: 3000 });
+        // } else if (roll < 0.85) {
+        //   this.sm.transition('idle_sneeze', { duration: 3000 });
+        // } else if (roll < 0.95) {
+        //   this.sm.transition('idle_trip', { duration: 3000 });
+        // } else {
+        //   this.sm.transition('idle_butterfly', { duration: 3000 });
+        // }
       }
       this._scheduleIdleVariant();
     }, delay);

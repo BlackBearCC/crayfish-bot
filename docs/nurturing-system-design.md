@@ -351,9 +351,9 @@ const LEVEL_EXP = [
 | 食物 | 饱腹(token)恢复 | 约等于消息数 | 心情附加 | 健康附加 | 获取方式 |
 |------|-----------------|-------------|----------|----------|----------|
 | 42号口粮 | +75 | ~8条 | +3 | - | 免费，无限使用，冷却 20min |
-| 巴别鱼罐头 | +45 | ~5条 | +12 | - | 每日任务奖励 |
-| 泛银河爆破饮 | +120 | ~12条 | +8 | +5 | 升级奖励 / 成就奖励 |
-| 不要恐慌胶囊 | +30 | ~3条 | +5 | +15 | 连续登录奖励 |
+| 巴别鱼罐头 | +45 | ~5条 | +12 | - | 商城 30 星币 / 每日任务奖励 |
+| 泛银河爆破饮 | +120 | ~12条 | +8 | +5 | 商城 80 星币 / 升级奖励 / 成就奖励 |
+| 不要恐慌胶囊 | +30 | ~3条 | +5 | +15 | 商城 25 星币 / 连续登录奖励 |
 
 **设计要点:**
 - 42号口粮免费保底 (+75, ~8条消息)，用户永远能喂食，不会被卡死
@@ -406,8 +406,8 @@ hunger 上限: 300
 
 | 道具 | 健康恢复 | 冷却 | 获取方式 |
 |------|----------|------|----------|
-| 马文牌退烧贴 | +20 | 4h | 每日任务 |
-| 深思重启针 | 恢复至满 | 24h | 等级奖励 (Lv.10/20/30) |
+| 马文牌退烧贴 | +20 | 4h | 商城 40 星币 / 每日任务 |
+| 深思重启针 | 恢复至满 | 24h | 商城 200 星币(周限1) / 等级奖励 (Lv.10/20/30) |
 
 ---
 
@@ -459,10 +459,10 @@ const DIFFICULTY_TIERS: DifficultyTier[] = [
       { type: "click_count", threshold: 5 },      // 点击 5 次
     ],
     rewardPool: [
-      { exp: 8,  items: [] },
-      { exp: 5,  items: [{ id: "fish_snack", qty: 1 }] },
-      { exp: 10, items: [] },
-      { exp: 6,  items: [{ id: "cat_food_premium", qty: 1 }] },
+      { exp: 8,  coins: 12, items: [] },
+      { exp: 5,  coins: 10, items: [{ id: "fish_snack", qty: 1 }] },
+      { exp: 10, coins: 15, items: [] },
+      { exp: 6,  coins: 10, items: [{ id: "cat_food_premium", qty: 1 }] },
     ],
   },
   {
@@ -476,11 +476,11 @@ const DIFFICULTY_TIERS: DifficultyTier[] = [
       { type: "mood_above", threshold: 70, duration_min: 30 }, // 心情>70 持续 30min
     ],
     rewardPool: [
-      { exp: 15, items: [] },
-      { exp: 10, items: [{ id: "fish_snack", qty: 2 }] },
-      { exp: 12, items: [{ id: "nutrition_paste", qty: 1 }] },
-      { exp: 18, items: [] },
-      { exp: 10, items: [{ id: "cold_medicine", qty: 1 }] },
+      { exp: 15, coins: 25, items: [] },
+      { exp: 10, coins: 20, items: [{ id: "fish_snack", qty: 2 }] },
+      { exp: 12, coins: 22, items: [{ id: "nutrition_paste", qty: 1 }] },
+      { exp: 18, coins: 30, items: [] },
+      { exp: 10, coins: 20, items: [{ id: "cold_medicine", qty: 1 }] },
     ],
   },
   {
@@ -493,11 +493,11 @@ const DIFFICULTY_TIERS: DifficultyTier[] = [
       { type: "achievement_unlock", threshold: 1 },  // 解锁一个成就
     ],
     rewardPool: [
-      { exp: 25, items: [{ id: "premium_can", qty: 1 }] },
-      { exp: 20, items: [{ id: "fish_snack", qty: 3 }] },
-      { exp: 30, items: [] },
-      { exp: 20, items: [{ id: "nutrition_paste", qty: 2 }] },
-      { exp: 25, items: [{ id: "cold_medicine", qty: 1 }, { id: "fish_snack", qty: 1 }] },
+      { exp: 25, coins: 45, items: [{ id: "premium_can", qty: 1 }] },
+      { exp: 20, coins: 50, items: [{ id: "fish_snack", qty: 3 }] },
+      { exp: 30, coins: 60, items: [] },
+      { exp: 20, coins: 40, items: [{ id: "nutrition_paste", qty: 2 }] },
+      { exp: 25, coins: 45, items: [{ id: "cold_medicine", qty: 1 }, { id: "fish_snack", qty: 1 }] },
     ],
   },
 ];
@@ -549,6 +549,7 @@ interface TaskCondition {
 
 interface TaskReward {
   exp: number;
+  coins: number;          // 星币奖励
   items: Array<{ id: string; qty: number }>;
 }
 ```
@@ -694,7 +695,92 @@ const ITEM_DEFS = {
 
 ---
 
-## 九、成长系统与等级系统的关系
+## 九、商城与货币系统
+
+### 9.1 货币: 星币
+
+整个养成经济的通用货币。**不可充值购买**，只能通过游戏行为赚取。
+
+#### 获取来源
+
+| 来源 | 星币 | 频率 |
+|------|------|------|
+| 简单任务完成 | 10~15 | 每日 2 个 |
+| 中等任务完成 | 20~30 | 每日 1 个 |
+| 困难任务完成 | 40~60 | 每日 1 个 |
+| 升级奖励 | 20 × 当前等级 | 升级时 |
+| 成就解锁 | 50 | 解锁时 |
+| 连续登录 (第 N 天) | 5 × N (上限 50) | 每日 |
+| 每日在线满 30min | 10 | 每日 |
+| 聊天里程碑 (每日第 20 条) | 5 | 每日 |
+
+**日均收入估算:** ~120–170 星币 (轻度) / ~200+ 星币 (重度活跃)
+
+### 9.2 商城
+
+#### 商品列表
+
+| 商品 | 价格 | 每日限购 | 说明 |
+|------|------|----------|------|
+| 巴别鱼罐头 | 30 星币 | 5 | 中档食物，+45 饱腹 +12 心情 |
+| 泛银河爆破饮 | 80 星币 | 2 | 高级食物，+120 饱腹 +8 心情 +5 健康 |
+| 不要恐慌胶囊 | 25 星币 | 3 | 回血食物，+30 饱腹 +15 健康 |
+| 马文牌退烧贴 | 40 星币 | 3 | 治疗道具，+20 健康 |
+| 深思重启针 | 200 星币 | 1/周 | 满血复活，每周限购 1 次 |
+
+**设计要点:**
+- 42号口粮不进商城，永远免费保底(冷却 20min)
+- 无限非概率逗猫器是永久道具，通过等级/成就解锁，不卖
+- 任务/升级/成就获得的道具 = 白嫖渠道，商城 = 主动购买渠道，两条线并行
+- 重度聊天用户消耗快，需要更多任务或攒币来支撑
+
+### 9.3 经济平衡
+
+```
+日收入 (中度活跃):
+  2 easy 任务:         ~25 星币
+  1 medium 任务:       ~25 星币
+  1 hard 任务:         ~50 星币
+  登录 + 在线 + 聊天:  ~25 星币
+  ≈ 125 星币/日
+
+日支出 (中度消耗):
+  2x 巴别鱼罐头:       60
+  1x 不要恐慌胶囊:     25
+  1x 马文牌退烧贴:     40
+  ≈ 125 星币/日
+
+  → 收支基本平衡
+  → 结余攒深思重启针 (200 星币/周)
+  → 升级时一次性获得大量星币 (20 x Lv)，可集中采购
+```
+
+### 9.4 数据结构
+
+```typescript
+interface ShopItem {
+  id: string;              // 对应 ITEM_DEFS 的 key
+  price: number;           // 星币价格
+  dailyLimit: number;      // 每日限购 (0 = 不限)
+  weeklyLimit?: number;    // 每周限购 (可选)
+  unlockLevel?: number;    // 解锁等级 (可选，默认 Lv.1)
+}
+
+interface PlayerWallet {
+  coins: number;           // 当前星币
+  totalEarned: number;     // 累计获得 (用于成就检测)
+  totalSpent: number;      // 累计消费
+}
+
+interface ShopPurchaseRecord {
+  date: string;            // "2026-03-08"
+  purchases: Record<string, number>;  // { "babel_fish_can": 3, ... }
+}
+```
+
+---
+
+## 十、成长系统与等级系统的关系
 
 ### 现有的 intimacy 成长系统保留
 
@@ -718,9 +804,9 @@ intimacy (亲密度) 代表**关系深度**，等级代表**成长进度**，两
 
 ---
 
-## 十、技术实现规划
+## 十一、技术实现规划
 
-### 10.1 新增引擎模块
+### 11.1 新增引擎模块
 
 ```
 src/pet/
@@ -729,10 +815,11 @@ src/pet/
   ├── daily-task-system.ts     # 每日任务 (档位/条件/奖励池/计数器)
   ├── chat-eval-system.ts      # 聊天评估 (消息计数/LLM 评估/clamp)
   ├── inventory-system.ts      # 背包系统 (道具管理/使用)
+  ├── shop-system.ts           # 商城系统 (商品列表/购买/限购/星币)
   └── login-tracker.ts         # 登录追踪 (连续登录/在线时长)
 ```
 
-### 10.2 修改现有模块
+### 11.2 修改现有模块
 
 | 文件 | 改动 |
 |------|------|
@@ -742,7 +829,7 @@ src/pet/
 | `growth-system.ts` | 新增 intimacy -> EXP 联动事件 |
 | `persona-engine.ts` | 根据等级注入更丰富的 prompt 片段 |
 
-### 10.3 新增 RPC 方法
+### 11.3 新增 RPC 方法
 
 | 方法 | 功能 |
 |------|------|
@@ -758,8 +845,11 @@ src/pet/
 | `pet.daily.tasks` | 获取今日任务列表(含 LLM 生成的描述) |
 | `pet.daily.claim` | 领取已完成任务奖励 |
 | `pet.daily.streak` | 获取连续登录信息 |
+| `pet.shop.list` | 获取商城商品列表(含价格/库存/限购状态) |
+| `pet.shop.buy` | 购买商品(扣星币 + 检查限购 + 入背包) |
+| `pet.wallet.info` | 获取星币余额和收支统计 |
 
-### 10.4 聊天评估集成点
+### 11.4 聊天评估集成点
 
 ```
 现有聊天流程:
@@ -789,7 +879,7 @@ src/pet/
      - 客户端显示"太饿了"气泡，引导喂食
 ```
 
-### 10.5 每日任务 LLM 集成点
+### 11.5 每日任务 LLM 集成点
 
 ```
 每日首次上线 / 跨日时:
@@ -799,7 +889,7 @@ src/pet/
   4. LLM 调用失败时，使用预设的 fallback 名称/描述
 ```
 
-### 10.6 数据持久化
+### 11.6 数据持久化
 
 新增 JSON 文件 (`~/.openclaw/store/pet/`):
 
@@ -809,11 +899,13 @@ inventory.json         — { items: [...], capacity }
 daily-tasks.json       — { date, tasks, streak, lastLoginDate, counters }
 chat-eval.json         — { msgCount, lastEvalAt, streak, lastDirection, recentMessages }
 care-cooldowns.json    — { feed: timestamp, play: timestamp, ... }
+wallet.json            — { coins, totalEarned, totalSpent }
+shop-purchases.json    — { date, purchases: { itemId: count, ... } }
 ```
 
 ---
 
-## 十一、实现优先级
+## 十二、实现优先级
 
 ### P0 -- 核心循环 (第一期)
 
@@ -825,11 +917,11 @@ care-cooldowns.json    — { feed: timestamp, play: timestamp, ... }
 
 完成后效果: 聊天消耗饱腹，喂食补充饱腹，宠物有等级。核心经济循环成立。
 
-### P1 -- LLM 评估 + 任务 (第二期)
+### P1 -- LLM 评估 + 任务 + 商城 (第二期)
 
 6. **聊天 LLM 意图提取** -- 每5轮+间隔>=5min 双条件触发，程序侧查表+二次函数
-7. **每日任务系统** -- 后端档位 + LLM 生成描述 + 奖励发放
-8. **道具背包** -- 道具数据结构 + 背包 UI + 多种食物
+7. **每日任务系统** -- 后端档位 + LLM 生成描述 + 奖励发放(含星币)
+8. **道具背包 + 商城** -- 道具数据结构 + 背包 UI + 商城 UI + 星币货币
 9. **玩耍/休息/治疗** -- 更多养护手段
 
 ### P2 -- 长线内容 (第三期)
@@ -840,7 +932,7 @@ care-cooldowns.json    — { feed: timestamp, play: timestamp, ... }
 
 ---
 
-## 十二、体验节奏设计
+## 十三、体验节奏设计
 
 ```
 用户一天的典型体验:
@@ -860,11 +952,11 @@ care-cooldowns.json    — { feed: timestamp, play: timestamp, ... }
 
 09:30  右键 -> 喂食(42号口粮，CD 已好) -> hunger +75
        -> 完成 easy 任务"和主人说说话"(聊天3次)
-       -> 领取奖励: EXP +8
+       -> 领取奖励: EXP +8, 星币 +12
 
-12:00  午休，使用巴别鱼罐头(每日任务获得) -> hunger +45, mood +12
+12:00  午休，商城花 30 星币买巴别鱼罐头 -> hunger +45, mood +12
        -> 完成 medium 任务"美食鉴赏家"(喂食3次)
-       -> 领取奖励: EXP +15
+       -> 领取奖励: EXP +15, 星币 +25
 
 14:00  继续工作，长按宠物 -> 抚摸 -> mood +15 (固定值)
        -> 跟宠物夸了几句，LLM 连续识别为 praise
@@ -875,9 +967,11 @@ care-cooldowns.json    — { feed: timestamp, play: timestamp, ... }
 18:00  查看任务: 3/4 完成
        -> hard 任务"全能管家"(三项属性>60) 还差一点
        -> 再喂一次 -> 属性全部 > 60 -> 完成!
-       -> 领取: EXP +25, 高级罐头 x1
+       -> 领取: EXP +25, 星币 +45, 高级罐头 x1
 
-       今日总 EXP ~ 80-100, 约 1-2 天升一级(前期)
+       今日总 EXP ~ 80-100, 星币 ~120
+       -> 约 1-2 天升一级(前期)
+       -> 星币够买 2 罐巴别鱼罐头 + 1 个马文牌退烧贴
 
 23:00  关机，宠物离线
        -> 明天属性不会归零，继续养成
@@ -885,7 +979,7 @@ care-cooldowns.json    — { feed: timestamp, play: timestamp, ... }
 
 ---
 
-## 十三、与现有系统的兼容性
+## 十四、与现有系统的兼容性
 
 - **固定交互数值保留**: click/longpress/feed/file_drop/drag 的固定 mood/intimacy 奖励不变，LLM 评估是叠加层
 - **chat 交互调整**: 基础 mood+1 保留(固定层)，额外的 mood/intimacy 变化由 LLM 意图识别驱动(评估层)
