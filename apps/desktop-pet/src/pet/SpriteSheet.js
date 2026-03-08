@@ -56,15 +56,32 @@ export class SpriteSheet {
     return new Promise((resolve, reject) => {
       const img = new Image();
       img.onload = async () => {
-        // Chroma key: remove green background and make it transparent
-        const processed = this._removeGreenBackground(img);
-        // 转为 ImageBitmap 释放大 canvas 内存，GPU 友好
-        const bitmap = await createImageBitmap(processed);
+        // 检查是否需要绿幕去除：已处理的 RGBA PNG 跳过昂贵的像素遍历
+        let source = img;
+        if (this._hasGreenBackground(img)) {
+          source = this._removeGreenBackground(img);
+        }
+        const bitmap = await createImageBitmap(source);
         resolve(bitmap);
       };
       img.onerror = (e) => reject(new Error(`Failed to load spritesheet: ${src}`));
       img.src = src;
     });
+  }
+
+  _hasGreenBackground(img) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 4;
+    canvas.height = 4;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, 4, 4, 0, 0, 4, 4);
+    const data = ctx.getImageData(0, 0, 4, 4).data;
+    let greenCount = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      const r = data[i], g = data[i + 1], b = data[i + 2], a = data[i + 3];
+      if (a > 200 && g > 120 && g > r * 1.4 && g > b * 1.4) greenCount++;
+    }
+    return greenCount >= 8;
   }
 
   /**

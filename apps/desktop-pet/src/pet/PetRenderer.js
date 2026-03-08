@@ -59,6 +59,9 @@ export class PetRenderer {
     // 高清素材：启用平滑缩放
     this.ctx.imageSmoothingEnabled = true;
     this.ctx.imageSmoothingQuality = 'high';
+
+    // 脏标记：只在视觉状态变化时重绘，避免每帧都 clear+draw
+    this._dirty = true;
   }
 
   /**
@@ -112,6 +115,7 @@ export class PetRenderer {
         this.currentAnimation = next;
         this.currentFrame = 0;
         this.frameAccumulator = 0;
+        this._dirty = true;
       }
       this._idleVariantTimer = setTimeout(rotate, 8000 + Math.random() * 7000);
     };
@@ -130,7 +134,10 @@ export class PetRenderer {
    * @param {number} stage 0-3
    */
   setGrowthStage(stage) {
-    this._growthStage = stage;
+    if (this._growthStage !== stage) {
+      this._growthStage = stage;
+      this._dirty = true;
+    }
   }
 
   /** 添加 overlay 绘制回调 */
@@ -183,6 +190,7 @@ export class PetRenderer {
         return;
       }
       this.currentAnimation = variant;
+      this._dirty = true;
       if (resetFrame) {
         this.currentFrame = 0;
         this.frameAccumulator = 0;
@@ -201,6 +209,7 @@ export class PetRenderer {
     }
 
     this.currentAnimation = resolved;
+    this._dirty = true;
     if (resetFrame) {
       this.currentFrame = 0;
       this.frameAccumulator = 0;
@@ -214,25 +223,25 @@ export class PetRenderer {
     const sheet = this._getSheetForAnimation(compound.enter);
     const anim = sheet.getAnimation(compound.enter);
     if (!anim) {
-      // enter 动画不存在，直接播放 loop
       this.currentAnimation = compound.loop;
       this.currentFrame = 0;
       this.frameAccumulator = 0;
+      this._dirty = true;
       return;
     }
 
     this.currentAnimation = compound.enter;
     this.currentFrame = 0;
     this.frameAccumulator = 0;
+    this._dirty = true;
 
-    // 保存原来的回调，设置 enter→loop 衔接
     const prevCallback = this.onAnimationEnd;
     this.onAnimationEnd = (animName) => {
       if (animName === compound.enter) {
-        // enter 播完，切到 loop
         this.currentAnimation = compound.loop;
         this.currentFrame = 0;
         this.frameAccumulator = 0;
+        this._dirty = true;
         this.onAnimationEnd = prevCallback;
       }
     };
@@ -260,10 +269,10 @@ export class PetRenderer {
     const sheet = this._getSheetForAnimation(compound.exit);
     const anim = sheet.getAnimation(compound.exit);
     if (!anim) {
-      // exit 动画不存在，直接切到目标
       this.currentAnimation = targetAnimation;
       this.currentFrame = 0;
       this.frameAccumulator = 0;
+      this._dirty = true;
       return;
     }
 
@@ -271,15 +280,16 @@ export class PetRenderer {
     this.currentAnimation = compound.exit;
     this.currentFrame = 0;
     this.frameAccumulator = 0;
+    this._dirty = true;
 
     const prevCallback = this.onAnimationEnd;
     this.onAnimationEnd = (animName) => {
       if (animName === compound.exit) {
-        // exit 播完，切到目标动画
         this._exitTarget = null;
         this.currentAnimation = targetAnimation;
         this.currentFrame = 0;
         this.frameAccumulator = 0;
+        this._dirty = true;
         this.onAnimationEnd = prevCallback;
       }
     };
@@ -309,7 +319,10 @@ export class PetRenderer {
    * 设置水平翻转
    */
   setFlipX(flip) {
-    this.flipX = flip;
+    if (this.flipX !== flip) {
+      this.flipX = flip;
+      this._dirty = true;
+    }
   }
 
   /**
@@ -318,18 +331,38 @@ export class PetRenderer {
   start() {
     this.isPlaying = true;
     this._lastTime = performance.now();
+    this._dirty = true;
     this._loop(this._lastTime);
 
     // 保底定时器：Windows 上拖拽窗口时 rAF 会停滞，用 setInterval 兜底
+    // 200ms 间隔足以保证拖拽时动画不停，同时减少空闲开销
     this._fallbackTimer = setInterval(() => {
       const now = performance.now();
       const sinceLastRender = now - this._lastTime;
-      if (sinceLastRender > 80) { // rAF 超过 80ms 未触发
+      if (sinceLastRender > 150) { // rAF 停滞超过 150ms
         this._lastTime = now;
         this._updateFrame(sinceLastRender);
-        this._render();
+        if (this._dirty) {
+          this._render();
+          this._dirty = false;
+        }
       }
-    }, 50);
+    }, 200);
+
+    // 页面可见性：隐藏时暂停 rAF，可见时恢复
+    this._onVisibilityChange = () => {
+      if (document.hidden) {
+        if (this._animFrameId) {
+          cancelAnimationFrame(this._animFrameId);
+          this._animFrameId = null;
+        }
+      } else if (this.isPlaying && !this._animFrameId) {
+        this._lastTime = performance.now();
+        this._dirty = true;
+        this._loop(this._lastTime);
+      }
+    };
+    document.addEventListener('visibilitychange', this._onVisibilityChange);
   }
 
   /**
@@ -345,10 +378,14 @@ export class PetRenderer {
       clearInterval(this._fallbackTimer);
       this._fallbackTimer = null;
     }
+    if (this._onVisibilityChange) {
+      document.removeEventListener('visibilitychange', this._onVisibilityChange);
+      this._onVisibilityChange = null;
+    }
   }
 
   /**
-   * 渲染循环
+   * 渲染循环 — 只在帧变化或脏标记时重绘
    */
   _loop(timestamp) {
     if (!this.isPlaying) return;
@@ -357,13 +394,18 @@ export class PetRenderer {
     this._lastTime = timestamp;
 
     this._updateFrame(deltaMs);
-    this._render();
+
+    // 只在视觉状态变化时重绘（帧变化、overlay 激活等）
+    if (this._dirty || this._overlays.length > 0 || this.overlayDrawFn) {
+      this._render();
+      this._dirty = false;
+    }
 
     this._animFrameId = requestAnimationFrame((t) => this._loop(t));
   }
 
   /**
-   * 更新帧
+   * 更新帧 — 帧变化时设置 _dirty 标记
    */
   _updateFrame(deltaMs) {
     const sheet = this._getActiveSheet();
@@ -373,6 +415,7 @@ export class PetRenderer {
     if (!anim) return;
 
     this.frameAccumulator += deltaMs;
+    const prevFrame = this.currentFrame;
 
     while (this.frameAccumulator >= frameDuration) {
       this.frameAccumulator -= frameDuration;
@@ -383,12 +426,15 @@ export class PetRenderer {
           this.currentFrame = 0;
         } else {
           this.currentFrame = anim.frames.length - 1;
-          // 非循环动画播放完毕，触发回调
           if (this.onAnimationEnd) {
             this.onAnimationEnd(this.currentAnimation);
           }
         }
       }
+    }
+
+    if (this.currentFrame !== prevFrame) {
+      this._dirty = true;
     }
   }
 
@@ -401,8 +447,6 @@ export class PetRenderer {
 
     // 清除画布（透明）
     this.ctx.clearRect(0, 0, w, h);
-    this.ctx.imageSmoothingEnabled = true;
-    this.ctx.imageSmoothingQuality = 'high';
 
     // 根据成长阶段选择 spritesheet 和 CSS filter
     const sheet = this._getActiveSheet();
@@ -453,6 +497,7 @@ export class PetRenderer {
    * 手动渲染单帧（用于暂停状态下的更新）
    */
   renderOnce() {
+    this._dirty = true;
     this._render();
   }
 
