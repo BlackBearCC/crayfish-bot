@@ -31,7 +31,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   clearChatHistory: () => ipcRenderer.invoke('clear-chat-history'),
 
   // === 流式聊天（WebSocket RPC） ===
-  chatSend: (message, sessionKey) => ipcRenderer.invoke('chat-send', message, sessionKey),
+  chatSend: (message, sessionKey, runId) => ipcRenderer.invoke('chat-send', message, sessionKey, runId),
   chatAbort: (sessionKey, runId) => ipcRenderer.invoke('chat-abort', sessionKey, runId),
   chatHistory: (sessionKey, limit) => ipcRenderer.invoke('chat-history', sessionKey, limit),
 

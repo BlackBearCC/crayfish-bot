@@ -163,8 +163,10 @@ export class ChatPanel {
     // 尝试使用流式聊天，fallback 到旧接口
     if (this.electronAPI.chatSend) {
       try {
-        const result = await this.electronAPI.chatSend(sendText);
-        this.activeRunId = result.runId;
+        // runId 在发送前生成并设置，避免流式事件早于 invoke 返回时被丢弃
+        const runId = crypto.randomUUID();
+        this.activeRunId = runId;
+        await this.electronAPI.chatSend(sendText, undefined, runId);
         // 流式事件将通过 _setupStreamListener 处理
       } catch (e) {
         console.warn('Stream send failed, falling back:', e.message);

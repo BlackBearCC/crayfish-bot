@@ -176,8 +176,8 @@ function createWindow() {
   });
 
   // ===== IPC: 流式聊天 =====
-  ipcMain.handle('chat-send', async (event, message, sessionKey) => {
-    return await llmService.chatSend(message, sessionKey);
+  ipcMain.handle('chat-send', async (event, message, sessionKey, runId) => {
+    return await llmService.chatSend(message, sessionKey, runId);
   });
 
   ipcMain.handle('chat-abort', async (event, sessionKey, runId) => {

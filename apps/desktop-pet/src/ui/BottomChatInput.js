@@ -159,8 +159,10 @@ export class BottomChatInput {
 
     if (this.electronAPI?.chatSend) {
       try {
-        const result = await this.electronAPI.chatSend(text);
-        this.activeRunId = result.runId;
+        // runId 在发送前生成并设置，避免流式事件早于 invoke 返回时被丢弃
+        const runId = crypto.randomUUID();
+        this.activeRunId = runId;
+        await this.electronAPI.chatSend(text, undefined, runId);
       } catch (e) {
         // fallback 旧接口
         await this._sendLegacy(text);
