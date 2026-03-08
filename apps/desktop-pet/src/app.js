@@ -226,8 +226,8 @@ class OpenClawPet {
     this.renderer.registerSheet('idle_butterfly', this.idleButterflySheet);
     this.renderer.registerSheet('idle_ear_twitch', this.idleEarTwitchSheet);
     this.renderer.registerSheet('idle_yawn', this.idleYawnSheet);
-    this.renderer.registerIdleVariant('idle_breathing', this.idleBreathingSheet);
-    this.renderer.registerIdleVariant('idle_breathing_2', this.idleBreathing2Sheet);
+    this.renderer.registerSheet('idle', this.idleBreathingSheet);
+    this.renderer.registerSheet('idle_breathing_2', this.idleBreathing2Sheet);
     // sleep compound already registered via registerCompoundSheet above
     this.renderer.registerCompound('work', 'work_enter', 'work_loop', 'work_exit');
     this.renderer.registerCompound('swing', 'swing_enter', 'swing_loop', 'swing_exit');

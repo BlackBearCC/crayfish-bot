@@ -5,7 +5,7 @@
   "fps": 12,
   "type": "state",
   "sections": {
-    "idle_breathing": [
+    "idle": [
       0,
       59
     ]

@@ -160,12 +160,9 @@ class LLMService {
   // ===== Gateway 生命周期 =====
 
   async _startGateway() {
-    // Pet 拥有 Gateway 生命周期：启动前先杀掉已有的
-    if (await this._isGatewayAlive()) {
-      console.log('[llm] Killing existing Gateway on port', this.gatewayPort);
-      await this._killPort(this.gatewayPort);
-      await this._sleep(1000);
-    }
+    // Pet 拥有 Gateway 生命周期：启动前无条件清理端口残留进程（包括僵尸态）
+    this._killPortSync(this.gatewayPort);
+    await this._sleep(500);
 
     const clawBin = this._findOpenClawBin();
     if (!clawBin) {
