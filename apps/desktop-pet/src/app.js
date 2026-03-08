@@ -728,7 +728,7 @@ class OpenClawPet {
         const x = Math.floor((e.clientX - rect.left) * scaleX);
         const y = Math.floor((e.clientY - rect.top) * scaleY);
         if (x >= 0 && y >= 0 && x < this.canvas.width && y < this.canvas.height) {
-          const ctx = this.canvas.getContext('2d');
+          const ctx = this.canvas.getContext('2d', { willReadFrequently: true });
           const pixel = ctx.getImageData(x, y, 1, 1).data;
           this.electronAPI.setIgnoreMouse(pixel[3] < 10);
         }
@@ -1082,7 +1082,7 @@ class OpenClawPet {
   }
 
   _showFallback() {
-    const ctx = this.canvas.getContext('2d');
+    const ctx = this.canvas.getContext('2d', { willReadFrequently: true });
     ctx.fillStyle = '#FFB464';
     ctx.fillRect(30, 30, 68, 68);
     ctx.fillStyle = '#333';

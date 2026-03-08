@@ -65,7 +65,7 @@ export class MemoryGraphPanel {
     this.element.querySelector('.mg-close').onclick = () => this.close();
     this.element.querySelector('.mg-detail-back').onclick = () => this._closeDetail();
     this.canvas = this.element.querySelector('.mg-canvas');
-    this.ctx = this.canvas.getContext('2d');
+    this.ctx = this.canvas.getContext('2d', { willReadFrequently: true });
     this.tooltipEl = this.element.querySelector('.mg-tooltip');
     this.emptyEl = this.element.querySelector('.mg-empty');
     this.statsEl = this.element.querySelector('.mg-stats');

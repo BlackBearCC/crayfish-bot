@@ -66,7 +66,18 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
-    }
+    },
+    // 透明无框窗口需要禁用 CSP 安全警告（打包后自动消失）
+  });
+
+  // 设置 CSP（消除 Electron 安全警告）
+  mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': ["default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' ws://127.0.0.1:* https://cdn.jsdelivr.net"],
+      },
+    });
   });
 
   mainWindow.loadFile(path.join(__dirname, '..', 'src', 'index.html'));

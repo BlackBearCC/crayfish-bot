@@ -17,7 +17,7 @@ export class PetRenderer {
    */
   constructor(canvas, spriteSheetKitten, renderSize = 128) {
     this.canvas = canvas;
-    this.ctx = canvas.getContext('2d');
+    this.ctx = canvas.getContext('2d', { willReadFrequently: true });
     this.spriteSheetKitten = spriteSheetKitten;
     this.renderSize = renderSize;
     this._growthStage = 0;

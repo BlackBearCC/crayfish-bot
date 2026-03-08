@@ -86,7 +86,7 @@ export class SpriteSheet {
     const canvas = document.createElement('canvas');
     canvas.width = 4;
     canvas.height = 4;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
     ctx.drawImage(img, 0, 0, 4, 4, 0, 0, 4, 4);
     const data = ctx.getImageData(0, 0, 4, 4).data;
     let greenCount = 0;
@@ -106,7 +106,7 @@ export class SpriteSheet {
     const canvas = document.createElement('canvas');
     canvas.width = img.width;
     canvas.height = img.height;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
     ctx.drawImage(img, 0, 0);
 
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
