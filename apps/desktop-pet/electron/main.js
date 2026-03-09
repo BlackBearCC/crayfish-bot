@@ -47,7 +47,7 @@ function detectClipboardType(text) {
 // ===== 窗口尺寸（动态缩放：基础仅宠物区，展开含面板）=====
 const PET_BASE_W = 280;       // 基础宽度（宠物 + 气泡）
 const PET_EXPANDED_W = 596;   // 展开宽度（宠物 + 面板）
-const PET_BASE_H = 340;       // 基础高度（画布 256 + 气泡/状态条余量）
+const PET_BASE_H = 420;       // 基础高度（画布 256 + 气泡空间 142px）
 const PET_EXPANDED_H = 580;   // 展开高度（面板最高 520 + 边距）
 const PET_AREA_W = 256;       // 宠物区域 CSS 宽度
 
