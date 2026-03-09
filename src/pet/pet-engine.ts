@@ -263,6 +263,41 @@ export class PetEngine {
   }
 
   /**
+   * Build pet state context fragments for LLM system prompt injection.
+   * Only non-normal tiers produce fragments (zero-cost when all normal).
+   * Level + intimacy are always injected (1 line each, ~40 tokens baseline).
+   */
+  getPromptContext(): string {
+    const mood    = this.attributes.getValue("mood");
+    const hunger  = this.attributes.getValue("hunger");
+    const health  = this.attributes.getValue("health");
+    const level   = this.levels.getInfo().level;
+    const stage   = this.growth.stage;
+
+    const fragments: string[] = [];
+
+    // Level stage (always inject)
+    fragments.push(LEVEL_FRAGMENTS[_getLevelTier(level)]);
+
+    // Intimacy stage (always inject)
+    fragments.push(INTIMACY_FRAGMENTS[_getIntimacyTier(stage)]);
+
+    // Dynamic attributes — only non-normal tiers
+    const moodTier = _getTier(mood, 30, 70);
+    if (moodTier !== "normal") fragments.push(MOOD_FRAGMENTS[moodTier]);
+
+    const hungerTier = _getTier(hunger, 60, 200);
+    if (hungerTier !== "normal" && HUNGER_FRAGMENTS[hungerTier]) {
+      fragments.push(HUNGER_FRAGMENTS[hungerTier]);
+    }
+
+    const healthTier = _getTier(health, 40, 80);
+    if (healthTier === "low") fragments.push(HEALTH_FRAGMENTS.low);
+
+    return fragments.join("\n");
+  }
+
+  /**
    * Passive recovery rules (applied every 30s while online):
    *  - mood >= 78 (joyful): health +0.1/min
    *  - hunger >= 225 (full): mood +0.05/min
@@ -348,4 +383,54 @@ export interface PetState {
 
 export function createPetEngine(options: PetEngineOptions): PetEngine {
   return new PetEngine(options);
+}
+
+// ─── Pet State Prompt Builder ───
+
+const MOOD_FRAGMENTS: Record<string, string> = {
+  low:  "你现在心情很低落，说话简短消沉，不太想聊天，偶尔叹气。",
+  high: "你现在心情很好，语气活泼热情，偶尔开玩笑，愿意多聊。",
+};
+
+const HUNGER_FRAGMENTS: Record<string, string> = {
+  low:  "你很饿，注意力不集中，会时不时提到饿、想吃东西，回答可能敷衍。",
+  high: "你刚吃饱，满足惬意，说话慢悠悠的。",
+};
+
+const HEALTH_FRAGMENTS: Record<string, string> = {
+  low: "你身体不舒服，说话有气无力，希望主人关心你。",
+};
+
+const LEVEL_FRAGMENTS: Record<string, string> = {
+  baby:    "你现在还很小(Lv.1-5)，对什么都好奇，说话稚嫩，经常问为什么。",
+  growing: "你正在成长(Lv.6-15)，有自己的小脾气，开始有主见。",
+  mature:  "你已经很成熟了(Lv.16-25)，可靠稳重，和主人很默契。",
+  veteran: "你阅历丰富(Lv.26-30)，睿智从容，偶尔怀旧感慨。",
+};
+
+const INTIMACY_FRAGMENTS: Record<string, string> = {
+  stranger:  "你和主人还不太熟，保持礼貌但有距离感。",
+  familiar:  "你和主人已经混熟了，说话随意自然。",
+  close:     "你和主人关系很亲密，会撒娇、吐槽、分享心事。",
+  bonded:    "你和主人是最好的伙伴，彼此了解，默契十足。",
+};
+
+function _getTier(value: number, low: number, high: number): "low" | "normal" | "high" {
+  if (value < low) return "low";
+  if (value > high) return "high";
+  return "normal";
+}
+
+function _getLevelTier(level: number): string {
+  if (level <= 5) return "baby";
+  if (level <= 15) return "growing";
+  if (level <= 25) return "mature";
+  return "veteran";
+}
+
+function _getIntimacyTier(stage: number): string {
+  if (stage === 0) return "stranger";
+  if (stage === 1) return "familiar";
+  if (stage === 2) return "close";
+  return "bonded";
 }

@@ -49,6 +49,11 @@ import {
   inferDomainFromText,
 } from "../../pet/index.js";
 import { ErrorCodes, errorShape } from "../protocol/index.js";
+import {
+  registerInternalHook,
+  type AgentBootstrapHookContext,
+} from "../../hooks/internal-hooks.js";
+import type { WorkspaceBootstrapFile } from "../../agents/workspace.js";
 import type { GatewayRequestHandlers } from "./types.js";
 
 // ─── File-based persistence store ───
@@ -107,6 +112,7 @@ function getFsAccessSettings() {
 
 let engine: PetEngine | null = null;
 let tickInterval: ReturnType<typeof setInterval> | null = null;
+let bootstrapHookRegistered = false;
 
 function getEngine(): PetEngine {
   if (!engine) {
@@ -117,8 +123,49 @@ function getEngine(): PetEngine {
     tickInterval = setInterval(() => {
       engine?.tick(1000);
     }, 1000);
+
+    // Register the agent:bootstrap hook once to inject PET_STATE.md
+    if (!bootstrapHookRegistered) {
+      bootstrapHookRegistered = true;
+      registerInternalHook("agent:bootstrap", (event) => {
+        const ctx = event.context as AgentBootstrapHookContext;
+        if (!Array.isArray(ctx.bootstrapFiles)) return;
+
+        const eng = engine;
+        if (!eng) return;
+
+        const petContent = eng.getPromptContext();
+        if (!petContent.trim()) return;
+
+        // Insert PET_STATE.md right after SOUL.md (or append at end)
+        const soulIdx = ctx.bootstrapFiles.findIndex((f) => f.name === "SOUL.md");
+        const insertIdx = soulIdx >= 0 ? soulIdx + 1 : ctx.bootstrapFiles.length;
+        ctx.bootstrapFiles.splice(insertIdx, 0, {
+          name: "PET_STATE.md" as WorkspaceBootstrapFile["name"],
+          path: "PET_STATE.md",
+          content: petContent,
+          missing: false,
+        });
+      });
+    }
   }
   return engine;
+}
+
+/**
+ * Returns pet chat gate helpers for use by the chat.send handler.
+ * Returns null if the pet engine has not been initialized.
+ */
+export function getPetChatGate(): {
+  canChat: () => { ok: boolean; hunger: number; minRequired: number };
+  onMessage: (text: string) => void;
+} | null {
+  if (!engine) return null;
+  const eng = engine;
+  return {
+    canChat: () => eng.chatEval.canChat(),
+    onMessage: (text: string) => { eng.chatEval.onUserMessage(text); },
+  };
 }
 
 export function shutdownPetEngine(): void {
