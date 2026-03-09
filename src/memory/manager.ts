@@ -19,11 +19,12 @@ import {
 } from "./embeddings.js";
 import { isFileMissingError, statRegularFile } from "./fs-utils.js";
 import { bm25RankToScore, buildFtsQuery, mergeHybridResults } from "./hybrid.js";
-import { isMemoryPath, normalizeExtraMemoryPaths } from "./internal.js";
+import { hashText, isMemoryPath, normalizeExtraMemoryPaths } from "./internal.js";
 import { MemoryManagerEmbeddingOps } from "./manager-embedding-ops.js";
 import { searchKeyword, searchVector } from "./manager-search.js";
 import { extractKeywords } from "./query-expansion.js";
 import type {
+  MemoryClusterInput,
   MemoryEmbeddingProbeResult,
   MemoryProviderStatus,
   MemorySearchManager,
@@ -747,6 +748,70 @@ export class MemoryIndexManager extends MemoryManagerEmbeddingOps implements Mem
       const message = err instanceof Error ? err.message : String(err);
       return { ok: false, error: message };
     }
+  }
+
+  /**
+   * Index MemoryGraph cluster data into SQLite chunks + FTS.
+   * Each cluster becomes one chunk with source="clusters".
+   * Works without embedding provider (FTS-only mode).
+   */
+  indexClusters(clusters: MemoryClusterInput[]): void {
+    if (!clusters.length) return;
+
+    // Ensure "clusters" source is included in search filtering
+    this.sources.add("clusters");
+
+    const now = Date.now();
+
+    // Clear old cluster data
+    this.db.prepare(`DELETE FROM chunks WHERE source = 'clusters'`).run();
+    if (this.fts.enabled && this.fts.available) {
+      this.db.prepare(`DELETE FROM ${FTS_TABLE} WHERE source = 'clusters'`).run();
+    }
+
+    for (const cluster of clusters) {
+      // Build searchable text: theme + keywords + implicitKeywords + summary + fragments
+      const allKeywords = [
+        ...cluster.keywords,
+        ...(cluster.implicitKeywords ?? []),
+      ];
+      const fragmentTexts = cluster.fragments.map((f) => f.text).join("\n");
+      const text = [
+        cluster.theme,
+        allKeywords.join(" "),
+        cluster.summary,
+        fragmentTexts,
+      ]
+        .filter(Boolean)
+        .join("\n");
+
+      const path = `clusters/${cluster.id}`;
+      const hash = hashText(text);
+      const id = hashText(`clusters:${path}:${cluster.id}:${hash}`);
+
+      this.db
+        .prepare(
+          `INSERT INTO chunks (id, path, source, start_line, end_line, hash, model, text, embedding, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           ON CONFLICT(id) DO UPDATE SET
+             hash=excluded.hash,
+             text=excluded.text,
+             embedding=excluded.embedding,
+             updated_at=excluded.updated_at`,
+        )
+        .run(id, path, "clusters", 0, 0, hash, "clusters", text, "[]", now);
+
+      if (this.fts.enabled && this.fts.available) {
+        this.db
+          .prepare(
+            `INSERT INTO ${FTS_TABLE} (text, id, path, source, model, start_line, end_line)` +
+              ` VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          )
+          .run(text, id, path, "clusters", "clusters", 0, 0);
+      }
+    }
+
+    log.info(`Indexed ${clusters.length} memory clusters`);
   }
 
   async close(): Promise<void> {

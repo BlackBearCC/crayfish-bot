@@ -1,4 +1,4 @@
-export type MemorySource = "memory" | "sessions";
+export type MemorySource = "memory" | "sessions" | "clusters";
 
 export type MemorySearchResult = {
   path: string;
@@ -76,5 +76,18 @@ export interface MemorySearchManager {
   }): Promise<void>;
   probeEmbeddingAvailability(): Promise<MemoryEmbeddingProbeResult>;
   probeVectorAvailability(): Promise<boolean>;
+  indexClusters?(clusters: MemoryClusterInput[]): void;
   close?(): Promise<void>;
 }
+
+/** Input format for MemoryGraph cluster data to be indexed into memory search. */
+export type MemoryClusterInput = {
+  id: string;
+  theme: string;
+  keywords: string[];
+  implicitKeywords?: string[];
+  summary: string;
+  fragments: Array<{ text: string }>;
+  weight: number;
+  updatedAt: number;
+};

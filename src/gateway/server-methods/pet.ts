@@ -40,6 +40,7 @@
  *   pet.shop.list           — get shop items with purchase limits
  *   pet.shop.buy            — buy an item (deduct coins, check limits)
  *   pet.wallet.info         — get star-coin balance & stats
+ *   pet.memory.sync         — sync MemoryGraph clusters into memory search index
  */
 
 import {
@@ -63,6 +64,8 @@ import path from "node:path";
 import { resolveStateDir } from "../../config/paths.js";
 import { loadConfig, readConfigFileSnapshotForWrite, writeConfigFile } from "../../config/config.js";
 import { resolveAgentWorkspaceDir, resolveDefaultAgentId } from "../../agents/agent-scope.js";
+import { getMemorySearchManager } from "../../memory/index.js";
+import type { MemoryClusterInput } from "../../memory/types.js";
 
 function getPetStorePath(): string {
   const base = resolveStateDir();
@@ -565,4 +568,34 @@ export const petHandlers: GatewayRequestHandlers = {
   },
 
   "pet.wallet.info": safeHandler((e) => e.shop.getWallet()),
+
+  // ── Memory ──
+
+  "pet.memory.sync": async ({ params, respond }) => {
+    try {
+      const clusters = params?.clusters as MemoryClusterInput[] | undefined;
+      if (!Array.isArray(clusters) || clusters.length === 0) {
+        (respond as Function)(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, "missing or empty 'clusters' param"));
+        return;
+      }
+
+      const cfg = loadConfig();
+      const agentId = resolveDefaultAgentId(cfg);
+      const { manager, error } = await getMemorySearchManager({ cfg, agentId });
+      if (!manager) {
+        (respond as Function)(false, undefined, errorShape(ErrorCodes.UNAVAILABLE, error ?? "memory search unavailable"));
+        return;
+      }
+
+      if (!manager.indexClusters) {
+        (respond as Function)(false, undefined, errorShape(ErrorCodes.UNAVAILABLE, "indexClusters not supported by current memory backend"));
+        return;
+      }
+
+      manager.indexClusters(clusters);
+      (respond as Function)(true, { ok: true, indexed: clusters.length });
+    } catch (err) {
+      (respond as Function)(false, undefined, errorShape(ErrorCodes.UNAVAILABLE, String(err)));
+    }
+  },
 };

@@ -116,6 +116,9 @@ keywords=对话中直接出现的词；implicitKeywords=未直接出现但语义
       this._data.meta.lastExtractAt = Date.now();
       this._save();
 
+      // 同步簇数据到服务端 memory search 索引
+      this._syncToServer();
+
       // 定期写 OpenClaw 用户画像
       if (this._data.meta.extractCount % SNAPSHOT_EVERY === 0) {
         this._writeUserProfile();
@@ -313,6 +316,30 @@ keywords=对话中直接出现的词；implicitKeywords=未直接出现但语义
       `- ${r.cluster.theme}: ${r.cluster.summary}`
     );
     return `[记忆参考]\n${lines.join('\n')}\n---\n`;
+  }
+
+  // ─── 服务端同步：写入 memory search 索引 ───
+
+  _syncToServer() {
+    try {
+      const clusters = this.getClusters();
+      if (clusters.length === 0) return;
+
+      // 转换为服务端 MemoryClusterInput 格式
+      const payload = clusters.map(c => ({
+        id: c.id,
+        theme: c.theme,
+        keywords: c.keywords,
+        implicitKeywords: c.implicitKeywords || [],
+        summary: c.summary,
+        fragments: c.fragments.map(f => ({ text: f.text })),
+        weight: c.weight,
+        updatedAt: c.updatedAt,
+      }));
+
+      this.electronAPI.petRPC?.('pet.memory.sync', { clusters: payload })
+        .catch(e => console.warn('[MemoryGraph] sync to server failed:', e?.message));
+    } catch { /* fire-and-forget */ }
   }
 
   // ─── OpenClaw 联动：用户画像 ───

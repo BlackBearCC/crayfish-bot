@@ -8,7 +8,7 @@ import { resolveAgentConfig } from "./agent-scope.js";
 
 export type ResolvedMemorySearchConfig = {
   enabled: boolean;
-  sources: Array<"memory" | "sessions">;
+  sources: Array<"memory" | "sessions" | "clusters">;
   extraPaths: string[];
   provider: "openai" | "local" | "gemini" | "voyage" | "mistral" | "ollama" | "auto";
   remote?: {
@@ -100,13 +100,13 @@ const DEFAULT_MMR_LAMBDA = 0.7;
 const DEFAULT_TEMPORAL_DECAY_ENABLED = false;
 const DEFAULT_TEMPORAL_DECAY_HALF_LIFE_DAYS = 30;
 const DEFAULT_CACHE_ENABLED = true;
-const DEFAULT_SOURCES: Array<"memory" | "sessions"> = ["memory"];
+const DEFAULT_SOURCES: Array<"memory" | "sessions" | "clusters"> = ["memory"];
 
 function normalizeSources(
-  sources: Array<"memory" | "sessions"> | undefined,
+  sources: Array<"memory" | "sessions" | "clusters"> | undefined,
   sessionMemoryEnabled: boolean,
-): Array<"memory" | "sessions"> {
-  const normalized = new Set<"memory" | "sessions">();
+): Array<"memory" | "sessions" | "clusters"> {
+  const normalized = new Set<"memory" | "sessions" | "clusters">();
   const input = sources?.length ? sources : DEFAULT_SOURCES;
   for (const source of input) {
     if (source === "memory") {
@@ -114,6 +114,9 @@ function normalizeSources(
     }
     if (source === "sessions" && sessionMemoryEnabled) {
       normalized.add("sessions");
+    }
+    if (source === "clusters") {
+      normalized.add("clusters");
     }
   }
   if (normalized.size === 0) {
