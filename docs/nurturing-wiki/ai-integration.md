@@ -304,48 +304,69 @@ OpenClaw 支持 agent 工具调用，可以在桌宠端反映为动画：
 
 ---
 
-## 记忆系统
+## 记忆系统 (Done)
 
-AI 应该记住和用户的共同经历，强化"养成"的连续性。
+AI 通过记忆图谱记住用户的偏好、项目、习惯等长期信息，强化"养成"的连续性。
 
-### 已有基础
+### 架构
 
-- OpenClaw 有 session transcript (对话历史持久化)
-- PetEngine 有 memory graph extraction (`recordDomainFromText`)
-- 成就系统记录里程碑
+```
+对话完成
+  → MemoryGraph.extractAndMerge() — LLM 判断是否值得记忆，提取/合并簇
+  → _syncToServer() — petRPC('pet.memory.sync', {clusters})
+    → Gateway → getMemorySearchManager()
+      → manager.indexClusters(clusters)
+        → SQLite chunks + chunks_fts 表 (source='clusters')
+          → memory_search 统一 BM25/hybrid 检索
+```
 
-### 增强方向
+### 关键设计
 
-| 记忆类型 | 来源 | 用途 |
-|---------|------|------|
-| 用户偏好 | 多次对话提取 | "你上次说喜欢..." |
-| 共同经历 | 成就/升级/特殊事件 | "还记得你第一次喂我..." |
-| 情绪记忆 | ChatEval streak | "最近聊得很开心" |
-| 日常模式 | 登录时间/活跃时段 | "你今天来得比平时晚" |
+- **客户端仅提取与同步**: `MemoryGraph.js` 负责 LLM 驱动的簇提取/合并/剪枝，不做本地检索
+- **服务端统一检索**: 簇数据通过 `indexClusters()` 写入 SQLite FTS，与 memory/sessions 走同一套 BM25/hybrid 检索
+- **隐性关键词**: LLM 提取时生成 `implicitKeywords`（同义词、上位概念、口语说法），写入 FTS 索引提升召回率
+- **全量替换**: 每次同步 `DELETE FROM chunks WHERE source='clusters'` 后重新写入全部簇
+- **无 PET_MEMORY.md**: 不再通过 context file 注入记忆，由 memory_search 工具按需检索
 
-记忆注入同样走 context file 机制，作为 `PET_MEMORY.md` 注入。但这是 **P2 优先级**，核心循环先做好。
+### 簇数据格式
+
+```typescript
+type MemoryClusterInput = {
+  id: string;           // 簇 ID (e.g., "mc-lxyz1234")
+  theme: string;        // 主题 (e.g., "编程项目")
+  keywords: string[];   // 显式关键词
+  implicitKeywords?: string[];  // 隐性关键词
+  summary: string;      // 簇摘要
+  fragments: Array<{ text: string }>;  // 对话片段
+  weight: number;       // 权重 (提及次数)
+  updatedAt: number;    // 最后更新时间戳
+};
+```
 
 ---
 
 ## 实现优先级
 
-### P0 — 状态前缀注入
+### P0 — 状态前缀注入 ✅
 
 1. `PetEngine.getPromptContext()` — 构建挡位片段
-2. Gateway `chat.send` 注入 PET_STATE.md — SOUL.md 后追加 context file
+2. Gateway `agent:bootstrap` hook 注入 PET_STATE.md — SOUL.md 后追加 context file
 3. 接通 `pet.chat.canChat` — 客户端发消息前检查
 4. 接通 `pet.chat.onMessage` — 每条消息通知引擎
 
-→ 效果：AI 说话语气随宠物状态变化，饿了拒绝聊天
+### P0.5 — 记忆图谱 → memory_search ✅
+
+5. `MemoryGraph.js` LLM 提取 + 隐性关键词
+6. `pet.memory.sync` RPC → `indexClusters()` 写入 SQLite FTS
+7. 移除客户端本地召回，检索交由服务端 memory_search
 
 ### P1 — 评估 + 主动对话
 
-5. 接通 `ChatEvalSystem` — 注册 LLM 意图评估回调
-6. 气泡型主动对话 — 客户端本地固定文案
-7. 工具调用动画映射 — tool_event → 动画
+8. 接通 `ChatEvalSystem` — 注册 LLM 意图评估回调
+9. 气泡型主动对话 — 客户端本地固定文案
+10. 工具调用动画映射 — tool_event → 动画
 
 ### P2 — 深度集成
 
-8. AI 型主动对话 — LLM 生成的主动闲聊
-9. 记忆系统增强 — PET_MEMORY.md 注入
-10. 桌面感知 → AI 上下文 — 前台应用/用户活跃度
+11. AI 型主动对话 — LLM 生成的主动闲聊
+12. 桌面感知 → AI 上下文 — 前台应用/用户活跃度
