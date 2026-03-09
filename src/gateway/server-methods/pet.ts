@@ -202,6 +202,20 @@ function getEngine(): PetEngine {
         .catch(() => { /* best-effort indexing */ });
     });
 
+    // Wire up chat eval LLM callback
+    engine.chatEval.setLLMEval(async (prompt) => {
+      const raw = await petLLMComplete(prompt);
+      if (!raw) return { intent: "neutral" };
+      try {
+        const match = raw.match(/\{[\s\S]*\}/);
+        if (!match) return { intent: "neutral" };
+        const parsed = JSON.parse(match[0]) as { intent?: string };
+        return { intent: parsed.intent ?? "neutral" };
+      } catch {
+        return { intent: "neutral" };
+      }
+    });
+
     // Register the agent:bootstrap hook once to inject PET_STATE.md
     if (!bootstrapHookRegistered) {
       bootstrapHookRegistered = true;
