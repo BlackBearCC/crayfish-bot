@@ -312,7 +312,7 @@ ${statusLines.join("\n")}
         this._applySelfCare(parsed.careAction);
       }
 
-      // Deliver to callback
+      // Deliver to callback (broadcast to all clients)
       if (this._onSoulAction) {
         this._onSoulAction(parsed);
       }

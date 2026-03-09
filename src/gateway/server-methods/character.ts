@@ -57,7 +57,8 @@ import {
   type AgentBootstrapHookContext,
 } from "../../hooks/internal-hooks.js";
 import type { WorkspaceBootstrapFile } from "../../agents/workspace.js";
-import type { GatewayRequestHandlers } from "./types.js";
+import type { GatewayRequestHandlers, GatewayRequestHandlerOptions } from "./types.js";
+import type { GatewayBroadcastFn } from "../server-broadcast.js";
 
 // ─── File-based persistence store ───
 
@@ -196,6 +197,7 @@ const TOOL_DOMAIN_MAP: Record<string, string> = {
 let engine: CharacterEngine | null = null;
 let tickInterval: ReturnType<typeof setInterval> | null = null;
 let hooksRegistered = false;
+let _broadcast: GatewayBroadcastFn | null = null;
 
 /**
  * Per-session cache of the last user message, used to pair with
@@ -354,14 +356,19 @@ function getEngine(): CharacterEngine {
     engine.agentScheduler.setLLMComplete(characterLLMComplete);
     engine.agentScheduler.setOnSoulAction((action: SoulAction) => {
       console.log(`[character:soul-agent] action: ${action.type}`, action.text ?? "");
-      // Emit event so gateway/client can react (bubble, animation, etc.)
-      engine?.bus.emit("soul:action", {
+      const payload = {
         type: action.type,
         text: action.text,
         careAction: action.careAction,
         emotion: action.emotion,
         memory: action.memory,
-      });
+      };
+      // Broadcast to all connected clients (real-time push)
+      if (_broadcast) {
+        _broadcast("character", { kind: "soul-action", ...payload }, { dropIfSlow: true });
+      }
+      // Also emit on EventBus (for server-side listeners)
+      engine?.bus.emit("soul:action", payload);
     });
 
     // Register hooks once
@@ -402,8 +409,12 @@ export function shutdownCharacterEngine(): void {
 
 function safeHandler(
   fn: (engine: CharacterEngine, params: Record<string, unknown>) => unknown,
-): (opts: { params: Record<string, unknown>; respond: Function }) => void {
-  return ({ params, respond }) => {
+): (opts: GatewayRequestHandlerOptions) => void {
+  return ({ params, respond, context }) => {
+    // Capture broadcast reference on first handler call
+    if (!_broadcast && context?.broadcast) {
+      _broadcast = context.broadcast;
+    }
     try {
       const result = fn(getEngine(), params);
       (respond as Function)(true, result);
@@ -418,7 +429,9 @@ function safeHandler(
 export const characterHandlers: GatewayRequestHandlers = {
   // ── State ──
 
-  "character.state.get": safeHandler((e) => e.getState()),
+  "character.state.get": safeHandler((e) => {
+    return e.getState();
+  }),
 
   "character.interact": ({ params, respond }) => {
     const action = params?.action as string | undefined;

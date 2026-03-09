@@ -76,6 +76,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // === 流式回复事件 ===
   onChatStream: (callback) => ipcRenderer.on('chat-stream', (e, payload) => callback(payload)),
   onAgentEvent: (callback) => ipcRenderer.on('agent-event', (e, payload) => callback(payload)),
+  onCharacterEvent: (callback) => ipcRenderer.on('character-event', (e, payload) => callback(payload)),
 
   // === 情感互动事件 ===
   onFeedCharacter: (callback) => ipcRenderer.on('feed-character', () => callback()),

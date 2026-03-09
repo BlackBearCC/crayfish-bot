@@ -37,6 +37,7 @@ export class CharacterStateSync {
     // Callbacks
     this._onAttributeChange = []; // (key, level, value) => void
     this._onGrowthStageUp = [];   // (stage, stageName) => void
+    this._onSoulAction = [];      // (action: {type, text?, careAction?, emotion?}) => void
   }
 
   /**
@@ -118,6 +119,14 @@ export class CharacterStateSync {
    */
   onGrowthStageUp(callback) {
     this._onGrowthStageUp.push(callback);
+  }
+
+  /**
+   * Register callback for soul agent actions (proactive speech, emotion, self-care).
+   * @param {(action: {type: string, text?: string, careAction?: string, emotion?: string}) => void} callback
+   */
+  onSoulAction(callback) {
+    this._onSoulAction.push(callback);
   }
 
   // ── Polling ──

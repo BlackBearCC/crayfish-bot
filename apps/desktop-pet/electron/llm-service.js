@@ -115,6 +115,7 @@ class LLMService {
     // 聊天流式事件回调
     this._onChatEvent = null;
     this._onAgentEvent = null;
+    this._onCharacterEvent = null;
 
     // 当前活跃 run
     this.activeRunId = null;
@@ -390,6 +391,10 @@ class LLMService {
         this._onAgentEvent?.(frame.payload);
         return;
       }
+      if (frame.event === 'character') {
+        this._onCharacterEvent?.(frame.payload);
+        return;
+      }
       return;
     }
 
@@ -575,6 +580,7 @@ class LLMService {
 
   onChatEvent(callback) { this._onChatEvent = callback; }
   onAgentEvent(callback) { this._onAgentEvent = callback; }
+  onCharacterEvent(callback) { this._onCharacterEvent = callback; }
 
   // ===== Session management =====
 

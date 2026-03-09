@@ -205,6 +205,31 @@ class OpenClawPet {
       }
     });
 
+    // Soul Agent 主动行为 → 气泡 / 动画
+    this.charSync.onSoulAction((action) => {
+      console.log('[soul-agent] action:', action.type, action.text ?? '');
+      switch (action.type) {
+        case 'speak':
+          if (action.text) this.bubble.show(action.text, 6000);
+          break;
+        case 'express':
+          if (action.emotion === 'happy' || action.emotion === 'excited') {
+            this.stateMachine.transition('happy', { force: true, duration: 3000 });
+          } else if (action.emotion === 'sad') {
+            this.stateMachine.transition('sad', { force: true, duration: 3000 });
+          } else if (action.emotion === 'sleepy') {
+            this.stateMachine.transition('sleep', { force: true, duration: 5000 });
+          }
+          break;
+        case 'self_care':
+          // Server already applied the care action; just show a bubble
+          if (action.careAction === 'feed') this.bubble.show('自己找了点吃的~', 3000);
+          else if (action.careAction === 'rest') this.bubble.show('有点累了，休息一下...', 3000);
+          else if (action.careAction === 'play') this.bubble.show('自己玩一会儿~', 3000);
+          break;
+      }
+    });
+
     // 3. 初始化渲染器（传入幼猫 sheet）
     this.renderer = new CharacterRenderer(this.canvas, this.kittenSheet, 960);
     this.renderer.setGrowthStage(1); // TODO: 测试阶段强制 stage=1 使用新 idle 精灵图
@@ -953,6 +978,16 @@ class OpenClawPet {
             this.agentStatsTracker?.recordComplete(event.sessionKey);
           }
           this.achievementSystem?.check();
+        }
+      }
+    });
+
+    // Character Engine 广播事件（实时推送，不等 10s 轮询）
+    this.electronAPI.onCharacterEvent?.((payload) => {
+      if (payload?.kind === 'soul-action') {
+        // 复用 charSync.onSoulAction 已注册的回调
+        for (const cb of this.charSync._onSoulAction) {
+          try { cb(payload); } catch (e) { console.warn('[character-event] handler error:', e); }
         }
       }
     });

@@ -390,6 +390,12 @@ app.whenReady().then(async () => {
     }
   });
 
+  llmService.onCharacterEvent((payload) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('character-event', payload);
+    }
+  });
+
   // Win32 前台窗口轮询
   if (win32Monitor.available) {
     win32Monitor.startForegroundPolling((info) => {
