@@ -1,5 +1,7 @@
 # 自主行为系统
 
+> 更新: 2026-03-09
+
 [← 返回首页](index.md)
 
 ## 设计原则
@@ -227,3 +229,11 @@ grabbed, dizzy, thrown, crawl_back
 sleep, sleep_turn, eat, sick
 
 **总计约 30 种动画**，每种 4-12 帧。这是商业桌宠的标准量级。
+
+---
+
+## See also
+
+- [客户端交互](client-interaction.md) — 桌面感知、物理系统、拖拽反应
+- [核心循环](core-loop.md) — mood/hunger 数值驱动行为权重
+- [AI 系统](ai-system.md) — 主动对话触发条件

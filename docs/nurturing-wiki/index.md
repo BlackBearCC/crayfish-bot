@@ -1,6 +1,6 @@
 # 宠物养成系统 Wiki
 
-> 版本: v2.0 | 日期: 2026-03-09
+> 版本: v2.1 | 日期: 2026-03-09
 
 ## 现状问题
 
@@ -39,15 +39,11 @@
 |------|------|
 | [core-loop](core-loop.md) | 核心经济模型 + LLM 对话评估 + 数值平衡 |
 | [level-system](level-system.md) | 等级系统 + 成长阶段 |
-| [care-items](care-items.md) | 喂食 / 玩耍 / 休息 / 治疗 / 背包 / 道具定义 |
-| [shop-economy](shop-economy.md) | 商城 + 星币货币 + 经济平衡 |
+| [economy](economy.md) | 经济与道具 — 货币/喂食/玩耍/治疗/商城/背包 |
 | [daily-tasks](daily-tasks.md) | 每日任务系统 |
-| [ui-interaction](ui-interaction.md) | 交互入口 + 养成面板 + 状态气泡 |
-| [desktop-interaction](desktop-interaction.md) | 桌面物理交互 (窗口感知/鼠标/重力/拖拽) |
 | [autonomous-behavior](autonomous-behavior.md) | 自主行为系统 (状态机/时间感知/用户活动感知) |
-| [ai-integration](ai-integration.md) | AI 人格集成 (状态前缀注入/挡位分段/聊天反哺/主动对话) |
-| [openclaw-integration](openclaw-integration.md) | OpenClaw 深度集成 (Hook 自动化/记忆召回/Cron 主动对话/AI 自主工具) |
-| [tech-plan](tech-plan.md) | 技术实现规划 + RPC + 持久化 + 优先级 |
+| [client-interaction](client-interaction.md) | 客户端交互 — 桌面感知 + UI 面板 |
+| [ai-system](ai-system.md) | AI 系统 — 人格注入/记忆图谱/OpenClaw Hook/Cron/跨渠道/RPC 规格 |
 
 ## 实现优先级
 

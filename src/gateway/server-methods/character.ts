@@ -199,8 +199,29 @@ let hooksRegistered = false;
 /**
  * Per-session cache of the last user message, used to pair with
  * the subsequent message:sent hook for memory extraction.
+ * Entries are timestamped and evicted after 5 minutes to prevent leaks
+ * when a message:received is never followed by message:sent.
  */
-const lastUserMessageBySession = new Map<string, string>();
+const lastUserMessageBySession = new Map<string, { text: string; ts: number }>();
+const USER_MSG_TTL_MS = 5 * 60_000;
+
+function setLastUserMessage(sessionKey: string, text: string): void {
+  lastUserMessageBySession.set(sessionKey, { text, ts: Date.now() });
+  // Evict stale entries when map grows beyond reasonable size
+  if (lastUserMessageBySession.size > 200) {
+    const now = Date.now();
+    for (const [k, v] of lastUserMessageBySession) {
+      if (now - v.ts > USER_MSG_TTL_MS) lastUserMessageBySession.delete(k);
+    }
+  }
+}
+
+function consumeLastUserMessage(sessionKey: string): string {
+  const entry = lastUserMessageBySession.get(sessionKey);
+  lastUserMessageBySession.delete(sessionKey);
+  if (!entry || Date.now() - entry.ts > USER_MSG_TTL_MS) return "";
+  return entry.text;
+}
 
 /**
  * Register OpenClaw hooks for character engine integration.
@@ -230,7 +251,7 @@ function registerCharacterHooks(eng: CharacterEngine): void {
   registerInternalHook("message:received", (event) => {
     const ctx = event.context as { content?: string };
     if (ctx.content && event.sessionKey) {
-      lastUserMessageBySession.set(event.sessionKey, ctx.content);
+      setLastUserMessage(event.sessionKey, ctx.content);
     }
   });
 
@@ -239,9 +260,7 @@ function registerCharacterHooks(eng: CharacterEngine): void {
     const ctx = event.context as { content?: string; success?: boolean };
     if (!ctx.success || !ctx.content || !engine) return;
 
-    const userMsg = lastUserMessageBySession.get(event.sessionKey) ?? "";
-    lastUserMessageBySession.delete(event.sessionKey);
-
+    const userMsg = consumeLastUserMessage(event.sessionKey);
     if (userMsg || ctx.content) {
       engine.memoryGraph.enqueueExtraction(userMsg, ctx.content);
     }

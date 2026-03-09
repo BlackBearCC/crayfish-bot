@@ -1,5 +1,7 @@
 # 每日任务系统
 
+> 更新: 2026-03-09
+
 [← 返回首页](index.md)
 
 ## 核心原则
@@ -152,3 +154,12 @@ function checkTaskCompletion(task: DailyTask, counters: DailyCounters): boolean 
 ```
 
 完成 → status = "completed"，用户手动领取 → 发放奖励 → "claimed"。
+
+---
+
+## See also
+
+- [经济与道具](economy.md) — 任务奖励道具定义、星币获取来源
+- [等级系统](level-system.md) — 任务 EXP 对升级的贡献
+- [核心循环](core-loop.md) — 完整经济模型
+- [AI 系统](ai-system.md) — Cron 每日刷新机制

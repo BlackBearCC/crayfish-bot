@@ -299,6 +299,9 @@ export class CharacterEngine {
     const healthTier = _getTier(health, 40, 80);
     if (healthTier === "low") fragments.push(HEALTH_FRAGMENTS.low);
 
+    // Encourage agent to recall character memories during conversation
+    fragments.push("你可以用 memory_search 回忆和主人相关的事情，让对话更有连续感。");
+
     return fragments.join("\n");
   }
 

@@ -1,5 +1,7 @@
 # 核心经济模型 + LLM 评估 + 数值平衡
 
+> 更新: 2026-03-09
+
 [← 返回首页](index.md)
 
 ## Token 即饱腹
@@ -223,3 +225,12 @@ function triggerEval(): void {
   - hunger >= 225 (full): mood +0.05/min
   - health >= 70 + mood >= 52: 时间衰减 -20%
 ```
+
+---
+
+## See also
+
+- [经济与道具](economy.md) — 道具恢复量、商城价格、经济平衡
+- [等级系统](level-system.md) — 等级衰减系数来源
+- [AI 系统](ai-system.md) — 挡位片段注入 prompt 的完整架构
+- [每日任务](daily-tasks.md) — 任务奖励 EXP/星币
