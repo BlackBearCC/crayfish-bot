@@ -1017,4 +1017,121 @@ export const characterHandlers: GatewayRequestHandlers = {
     const result = e.todos.regenerateTodos();
     return { ok: true, ...result, stats: e.todos.getStats() };
   }),
+
+  // ── Adventure System ──
+
+  "character.adventure.start": ({ params, respond }) => {
+    const type = params?.type as string;
+    const location = params?.location as string;
+    const duration = params?.duration as number;
+    const risk = params?.risk as string;
+    const story = params?.story as string;
+    const choices = params?.choices as Array<{ id: string; text: string }>;
+
+    if (!type || !location || !duration || !risk) {
+      (respond as Function)(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, "missing required params"));
+      return;
+    }
+
+    try {
+      const e = getEngine();
+      const result = e.adventures.startAdventure({
+        type: type as "idle" | "interactive" | "explore",
+        location,
+        duration,
+        risk: risk as "safe" | "moderate" | "dangerous",
+        story,
+        choices,
+      });
+
+      if ("error" in result) {
+        (respond as Function)(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, result.error));
+      } else {
+        (respond as Function)(true, { ok: true, adventure: result });
+      }
+    } catch (err) {
+      (respond as Function)(false, undefined, errorShape(ErrorCodes.UNAVAILABLE, String(err)));
+    }
+  },
+
+  "character.adventure.choice": ({ params, respond }) => {
+    const adventureId = params?.adventureId as string;
+    const choiceId = params?.choiceId as string;
+
+    if (!adventureId || !choiceId) {
+      (respond as Function)(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, "missing required params"));
+      return;
+    }
+
+    try {
+      const e = getEngine();
+      const result = e.adventures.makeChoice(adventureId, choiceId);
+
+      if ("error" in result) {
+        (respond as Function)(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, result.error));
+      } else {
+        (respond as Function)(true, { ok: true, adventure: result });
+      }
+    } catch (err) {
+      (respond as Function)(false, undefined, errorShape(ErrorCodes.UNAVAILABLE, String(err)));
+    }
+  },
+
+  "character.adventure.complete": ({ params, respond }) => {
+    const adventureId = params?.adventureId as string;
+    const result = params?.result as { success: boolean; narrative: string; rewards: { exp: number; coins: number } };
+
+    if (!adventureId) {
+      (respond as Function)(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, "missing 'adventureId' param"));
+      return;
+    }
+
+    try {
+      const e = getEngine();
+      const advResult = e.adventures.completeAdventure(adventureId, result);
+
+      if ("error" in advResult) {
+        (respond as Function)(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, advResult.error));
+      } else {
+        // Award rewards
+        if (advResult.result?.rewards) {
+          if (advResult.result.rewards.exp) {
+            e.levels.gainExp(advResult.result.rewards.exp, "adventure");
+          }
+          if (advResult.result.rewards.coins) {
+            e.shop.earnCoins(advResult.result.rewards.coins, "adventure");
+          }
+        }
+        (respond as Function)(true, { ok: true, adventure: advResult });
+      }
+    } catch (err) {
+      (respond as Function)(false, undefined, errorShape(ErrorCodes.UNAVAILABLE, String(err)));
+    }
+  },
+
+  "character.adventure.cancel": ({ params, respond }) => {
+    const adventureId = params?.adventureId as string;
+    if (!adventureId) {
+      (respond as Function)(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, "missing 'adventureId' param"));
+      return;
+    }
+
+    try {
+      const e = getEngine();
+      const result = e.adventures.cancelAdventure(adventureId);
+      (respond as Function)(result.ok, { ...result, stats: e.adventures.getStats() });
+    } catch (err) {
+      (respond as Function)(false, undefined, errorShape(ErrorCodes.UNAVAILABLE, String(err)));
+    }
+  },
+
+  "character.adventure.active": safeHandler((e) => ({
+    adventure: e.adventures.getActiveAdventure(),
+    stats: e.adventures.getStats(),
+  })),
+
+  "character.adventure.history": safeHandler((e) => ({
+    history: e.adventures.getHistory(20),
+    stats: e.adventures.getStats(),
+  })),
 };
