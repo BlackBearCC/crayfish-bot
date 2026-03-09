@@ -131,6 +131,49 @@ Gateway (21 pet.* RPC handlers) → PetEngine (in-memory, file-persisted)
 - All mutations go through `petSync.interact(action, rewards)` → server RPC
 - UI reactions (bubbles, animations) triggered by `petSync.onAttributeChange()` / `onGrowthStageUp()` callbacks
 
+## AI Integration (P0 — Done)
+
+宠物状态驱动 LLM 语气，每次对话自动注入当前挡位片段：
+
+### 挡位系统
+| 属性 | 低挡阈值 | 高挡阈值 | 注入时机 |
+|------|---------|---------|---------|
+| mood | < 30 | > 70 | 非正常挡才注入 |
+| hunger | < 60 | > 200 | 非正常挡才注入 |
+| health | < 40 | — | 低挡才注入 |
+| level | 始终注入 | — | baby/growing/mature/veteran |
+| intimacy | 始终注入 | — | stranger/familiar/close/bonded |
+
+### 实现机制
+- **`PetEngine.getPromptContext()`** — 计算当前挡位，拼接片段字符串（`src/pet/pet-engine.ts:270`）
+- **`agent:bootstrap` 内部 Hook** — 在 `src/gateway/server-methods/pet.ts` 的 `getEngine()` 首次调用时注册，将 `PET_STATE.md` 注入到 bootstrapFiles 数组（SOUL.md 之后）
+- **`getPetChatGate()`** — 导出函数，供 `chat.send` 调用；engine 未初始化时返回 null（安全降级）
+- **Pet Chat Gate 在 `chat.ts`** — dedupe 检查之后、try 块之前：调用 `canChat()`（饥饿门控）+ `onMessage()`（消息计数）
+
+### P1 待实现
+- ChatEvalSystem LLM 意图评估回调
+- 气泡型主动对话（客户端固定文案触发）
+- 工具调用动画映射（tool_use → 特定动画帧）
+
+## Upstream Sync
+
+```bash
+git fetch upstream
+git merge upstream/main            # 正常合并（已建立 git 关系，v2026.3.8 后）
+```
+
+- `origin` → https://github.com/BlackBearCC/crayfish-bot.git
+- `upstream` → https://github.com/openclaw/openclaw.git
+
+> **注意**: 本项目最初是代码复制（非 git fork），v2026.3.8 同步时通过 cherry-pick 策略建立了正式 git 关系。
+> 后续直接 `git fetch upstream && git merge upstream/main` 即可。
+
+### v2026.3.8 上游新特性（已合并）
+- `BootstrapContextMode("full"/"lightweight")` + `BootstrapContextRunKind` — heartbeat/cron 按需减少 context 注入
+- `getOrLoadBootstrapFiles` — bootstrap 文件缓存，避免重复读盘
+- `TypingPolicy` 类型 — 更细粒度的打字指示器控制
+- `bootstrapContextMode` / `suppressTyping` / `isReasoning` 字段到 `GetReplyOptions` / `ReplyPayload`
+
 ## Key Conventions
 
 - Pet engine is TypeScript (`src/pet/`), desktop client is plain JS (`apps/desktop-pet/`)
@@ -138,3 +181,4 @@ Gateway (21 pet.* RPC handlers) → PetEngine (in-memory, file-persisted)
 - One generic `petRPC(method, params)` covers all `pet.*` methods — no specialized IPC per method
 - Keep upstream OpenClaw modules untouched when possible for easy sync
 - New pet features go in `src/pet/` + `src/gateway/server-methods/pet.ts`
+- AI 集成（宠物状态 → LLM 语气）通过 `agent:bootstrap` hook 无侵入注入，不改 OpenClaw 核心
