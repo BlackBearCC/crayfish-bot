@@ -146,44 +146,12 @@ function getEngine(): PetEngine {
           content: petContent,
           missing: false,
         });
-
-        // Inject PET_MEMORY.md (realized skills + skill levels) right after PET_STATE.md
-        const memoryContent = buildPetMemoryContent(eng);
-        if (memoryContent) {
-          const stateIdx = ctx.bootstrapFiles.findIndex((f) => f.name === "PET_STATE.md");
-          const memInsertIdx = stateIdx >= 0 ? stateIdx + 1 : ctx.bootstrapFiles.length;
-          ctx.bootstrapFiles.splice(memInsertIdx, 0, {
-            name: "PET_MEMORY.md" as WorkspaceBootstrapFile["name"],
-            path: "PET_MEMORY.md",
-            content: memoryContent,
-            missing: false,
-          });
-        }
       });
     }
   }
   return engine;
 }
 
-/**
- * Build PET_MEMORY.md content from MemoryGraph user-profile.
- * Reads ~/.openclaw/workspace/skills/user-profile/SKILL.md written by client-side MemoryGraph.js.
- * Returns empty string if file does not exist or has no content.
- */
-function buildPetMemoryContent(_eng: PetEngine): string {
-  try {
-    const profilePath = path.join(
-      resolveStateDir(), "workspace", "skills", "user-profile", "SKILL.md",
-    );
-    if (!fs.existsSync(profilePath)) return "";
-    const raw = fs.readFileSync(profilePath, "utf-8");
-    // Strip YAML frontmatter (---...---) — it's metadata for the skill system, not for the LLM
-    const stripped = raw.replace(/^---[\s\S]*?---\s*/m, "").trim();
-    return stripped;
-  } catch {
-    return "";
-  }
-}
 
 /**
  * Returns pet chat gate helpers for use by the chat.send handler.
