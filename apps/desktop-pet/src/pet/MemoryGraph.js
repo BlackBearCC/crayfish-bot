@@ -97,7 +97,8 @@ AI回复: ${aiReply.slice(0, 200)}
 如果值得记忆，决定归入已有簇还是新建簇。
 
 返回严格JSON（无代码块标记，无其他文字）：
-{"worth":true,"cluster":"已有簇主题或null","newTheme":"新簇主题或null","keywords":["关键词1","关键词2","关键词3"],"fragment":"这段对话的记忆摘要，一句话","summaryUpdate":"归入已有簇时更新后的簇摘要，新建时为初始摘要"}
+{"worth":true,"cluster":"已有簇主题或null","newTheme":"新簇主题或null","keywords":["显式关键词1","显式关键词2"],"implicitKeywords":["同义词","上位概念","关联术语","用户可能用的其他说法"],"fragment":"这段对话的记忆摘要，一句话","summaryUpdate":"归入已有簇时更新后的簇摘要，新建时为初始摘要"}
+keywords=对话中直接出现的词；implicitKeywords=未直接出现但语义相关的词（同义词、缩写、上位概念、口语说法），用于提升召回率。
 不值得记忆时返回：{"worth":false}`;
 
       const result = await this.electronAPI.petAIComplete(prompt);
@@ -131,7 +132,7 @@ AI回复: ${aiReply.slice(0, 200)}
   // ─── 合并逻辑 ───
 
   _merge(parsed, userMsg, aiReply) {
-    const { cluster, newTheme, keywords = [], fragment, summaryUpdate } = parsed;
+    const { cluster, newTheme, keywords = [], implicitKeywords = [], fragment, summaryUpdate } = parsed;
     const now = Date.now();
 
     const frag = {
@@ -158,6 +159,10 @@ AI回复: ${aiReply.slice(0, 200)}
         const kwSet = new Set(existing.keywords);
         for (const kw of keywords) kwSet.add(kw.toLowerCase());
         existing.keywords = [...kwSet].slice(0, 15);
+        // 合并隐性关键词
+        const ikwSet = new Set(existing.implicitKeywords || []);
+        for (const kw of implicitKeywords) ikwSet.add(kw.toLowerCase());
+        existing.implicitKeywords = [...ikwSet].slice(0, 20);
         return;
       }
       // 未找到已有簇，降级为新建
@@ -169,6 +174,7 @@ AI回复: ${aiReply.slice(0, 200)}
       id,
       theme: (newTheme || cluster || fragment || '').slice(0, 30),
       keywords: keywords.map(k => k.toLowerCase()).slice(0, 10),
+      implicitKeywords: implicitKeywords.map(k => k.toLowerCase()).slice(0, 15),
       summary: (summaryUpdate || fragment || '').slice(0, 200),
       fragments: [frag],
       relatedClusters: [],
@@ -258,7 +264,13 @@ AI回复: ${aiReply.slice(0, 200)}
         if (kwSet.has(t)) score += 3;
       }
 
-      // 3) fragment text 模糊匹配（低权重）
+      // 3) implicitKeywords 匹配（隐性关联）
+      const ikwSet = new Set(c.implicitKeywords || []);
+      for (const t of queryTokens) {
+        if (ikwSet.has(t)) score += 2;
+      }
+
+      // 4) fragment text 模糊匹配（低权重）
       for (const frag of c.fragments) {
         const fragLower = frag.text.toLowerCase();
         for (const t of queryTokens) {
@@ -266,7 +278,7 @@ AI回复: ${aiReply.slice(0, 200)}
         }
       }
 
-      // 4) summary 匹配
+      // 5) summary 匹配
       if (c.summary) {
         const summaryLower = c.summary.toLowerCase();
         for (const t of queryTokens) {
@@ -274,7 +286,7 @@ AI回复: ${aiReply.slice(0, 200)}
         }
       }
 
-      // 5) 时效衰减：最近更新的簇加分
+      // 6) 时效衰减：最近更新的簇加分
       const daysSinceUpdate = (Date.now() - c.updatedAt) / (1000 * 60 * 60 * 24);
       if (daysSinceUpdate < 1) score += 2;
       else if (daysSinceUpdate < 7) score += 1;
