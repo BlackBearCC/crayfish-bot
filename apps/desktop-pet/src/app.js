@@ -565,8 +565,6 @@ class OpenClawPet {
         { type: 'separator' },
         { icon: '📌', label: '置顶',       action: () => api.toggleAlwaysOnTop?.() },
         { type: 'separator' },
-        { icon: '🗑️', label: '清空对话',   action: () => { api.clearChatHistory?.(); this.bubble.show('对话已清空~ 重新开始吧！', 2000); } },
-        { icon: '🔧', label: '开发者工具', action: () => api.openDevTools?.() },
         { type: 'separator' },
         { icon: '❌', label: '退出',       action: () => api.appQuit?.() },
       ], () => ({
