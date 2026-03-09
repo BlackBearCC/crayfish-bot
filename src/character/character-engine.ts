@@ -262,13 +262,13 @@ export class CharacterEngine {
     };
   }
 
-  /** Convenience: feed the pet with free ration */
+  /** Convenience: feed the character with free ration */
   feed(): void {
     this.care.feed("ration_42");
   }
 
   /**
-   * Build pet state context fragments for LLM system prompt injection.
+   * Build character state context fragments for LLM system prompt injection.
    * Only non-normal tiers produce fragments (zero-cost when all normal).
    * Level + intimacy are always injected (1 line each, ~40 tokens baseline).
    */

@@ -6,13 +6,13 @@
  * - 定时触发随机行为（走动、坐下、打盹）
  * - 根据无互动时长调整行为（久不互动→打盹）
  * - 管理宠物在屏幕上的位置移动
- * - 与 StateMachine 和 PetRenderer 协调
+ * - 与 StateMachine 和 CharacterRenderer 协调
  */
 
 export class Behaviors {
   /**
    * @param {import('./StateMachine').StateMachine} stateMachine
-   * @param {import('./PetRenderer').PetRenderer} renderer
+   * @param {import('./CharacterRenderer').CharacterRenderer} renderer
    * @param {object} options
    */
   constructor(stateMachine, renderer, options = {}) {

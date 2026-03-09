@@ -30,9 +30,9 @@ const ACHIEVEMENTS = [
 export { ACHIEVEMENTS };
 
 export class AchievementSystem {
-  constructor(skillSystem, petSync) {
+  constructor(skillSystem, charSync) {
     this.skillSystem = skillSystem;
-    this._petSync = petSync;
+    this._charSync = charSync;
     this._miniCatSystem = null;
     this._agentStatsTracker = null;
     this._unlocked = this._load();
@@ -88,7 +88,7 @@ export class AchievementSystem {
 
     const totalToolUses = entries.reduce((sum, [, info]) => sum + info.count, 0);
     const uniqueToolCount = entries.length;
-    const intimacyStage = this._petSync.getGrowthStage();
+    const intimacyStage = this._charSync.getGrowthStage();
     const activeMiniCatCount = this._miniCatSystem?.miniCats?.size ?? 0;
 
     // 是否在深夜使用过工具

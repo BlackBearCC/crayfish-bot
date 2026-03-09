@@ -1,45 +1,45 @@
 /**
- * app.js — OpenClaw Pet 入口
+ * app.js — OpenClaw Character 入口
  *
  * 架构：
  * - 宠物动画 + 交互
  * - 聊天面板（双击打开，直接和内嵌 LLM 对话）
  * - 设置面板（右键 → 设置）
- * - PetStateSync：宠物状态通过 pet.* RPC 与 Gateway Pet Engine 同步
+ * - CharacterStateSync：宠物状态通过 character.* RPC 与 Gateway Character Engine 同步
  *   服务端为权威状态源
  */
 
-import { SpriteSheet } from './pet/SpriteSheet.js';
-import { PetRenderer } from './pet/PetRenderer.js';
-import { StateMachine } from './pet/StateMachine.js';
-import { Behaviors } from './pet/Behaviors.js';
+import { SpriteSheet } from './character/SpriteSheet.js';
+import { CharacterRenderer } from './character/CharacterRenderer.js';
+import { StateMachine } from './character/StateMachine.js';
+import { Behaviors } from './character/Behaviors.js';
 import { DragHandler } from './interaction/DragHandler.js';
 import { ClickHandler } from './interaction/ClickHandler.js';
 import { ContextMenu } from './interaction/ContextMenu.js';
-import { FeedingAnimator } from './pet/FeedingAnimator.js';
+import { FeedingAnimator } from './character/FeedingAnimator.js';
 import { Bubble } from './ui/Bubble.js';
 import { ChatPanel } from './ui/ChatPanel.js';
 import { SettingsPanel } from './ui/SettingsPanel.js';
 import { FileDropHandler } from './interaction/FileDropHandler.js';
 import { ToolStatusBar } from './ui/ToolStatusBar.js';
-import { MiniCatSystem } from './pet/MiniCatSystem.js';
+import { MiniCatSystem } from './character/MiniCatSystem.js';
 import { SkillPanel } from './ui/SkillPanel.js';
-import { WorkspaceWatcher } from './pet/WorkspaceWatcher.js';
+import { WorkspaceWatcher } from './character/WorkspaceWatcher.js';
 import { AgentConnections } from './ui/AgentConnections.js';
-import { AgentStatsTracker } from './pet/AgentStatsTracker.js';
-import { AchievementSystem } from './pet/AchievementSystem.js';
+import { AgentStatsTracker } from './character/AgentStatsTracker.js';
+import { AchievementSystem } from './character/AchievementSystem.js';
 import { StreamingBubble } from './ui/StreamingBubble.js';
 import { BottomChatInput } from './ui/BottomChatInput.js';
 import { MarkdownPanel } from './ui/MarkdownPanel.js';
-import { SkillSystem } from './pet/SkillSystem.js';
-import { PetAI } from './pet/PetAI.js';
-import { LearningSystem } from './pet/LearningSystem.js';
-import { CourseGenerator } from './pet/CourseGenerator.js';
+import { SkillSystem } from './character/SkillSystem.js';
+import { CharacterAI } from './character/CharacterAI.js';
+import { LearningSystem } from './character/LearningSystem.js';
+import { CourseGenerator } from './character/CourseGenerator.js';
 import { LearningStatusBar } from './ui/LearningStatusBar.js';
-import { LearningEventScheduler } from './pet/LearningEventScheduler.js';
+import { LearningEventScheduler } from './character/LearningEventScheduler.js';
 import { LearningChoiceUI } from './ui/LearningChoiceUI.js';
 import { MemoryGraphPanel } from './ui/MemoryGraphPanel.js';
-import { PetStateSync } from './pet/PetStateSync.js';
+import { CharacterStateSync } from './character/CharacterStateSync.js';
 import { NurturingPanel } from './ui/NurturingPanel.js';
 
 class OpenClawPet {
@@ -70,7 +70,7 @@ class OpenClawPet {
     this.chaseButterflySheet = new SpriteSheet();
     this.stateMachine = new StateMachine();
     this.skillSystem = new SkillSystem();
-    this.petAI = null; // 初始化在 init() 后（需要 electronAPI）
+    this.charAI = null; // 初始化在 init() 后（需要 electronAPI）
     this.renderer = null;
     this.behaviors = null;
     this.bubble = null;
@@ -94,7 +94,7 @@ class OpenClawPet {
     this.bottomChatInput = null;
     this.learningSystem = null;
     this.courseGenerator = null;
-    this.petSync = null; // PetStateSync — server state bridge
+    this.charSync = null; // CharacterStateSync — server state bridge
 
     this._lastTime = 0;
     this._chatCompletionCount = 0;
@@ -157,12 +157,12 @@ class OpenClawPet {
       return;
     }
 
-    // 2. Pet Engine 服务端状态同步
-    this.petSync = new PetStateSync(this.electronAPI);
-    await this.petSync.init();
+    // 2. Character Engine 服务端状态同步
+    this.charSync = new CharacterStateSync(this.electronAPI);
+    await this.charSync.init();
 
     // 属性等级变化 → UI 反应（气泡 + 动画）
-    this.petSync.onAttributeChange((key, level) => {
+    this.charSync.onAttributeChange((key, level) => {
       if (key === 'mood') {
         if (level === 'sad') {
           this.bubble.show('主人...你不陪我吗 ?', 4000);
@@ -192,7 +192,7 @@ class OpenClawPet {
     });
 
     // 成长阶段提升 → 里程碑
-    this.petSync.onGrowthStageUp((stage) => {
+    this.charSync.onGrowthStageUp((stage) => {
       this.renderer.setGrowthStage(stage);
       const msgs = {
         1: '我们成为朋友啦！谢谢你陪伴我~',
@@ -206,7 +206,7 @@ class OpenClawPet {
     });
 
     // 3. 初始化渲染器（传入幼猫 sheet）
-    this.renderer = new PetRenderer(this.canvas, this.kittenSheet, 960);
+    this.renderer = new CharacterRenderer(this.canvas, this.kittenSheet, 960);
     this.renderer.setGrowthStage(1); // TODO: 测试阶段强制 stage=1 使用新 idle 精灵图
 
     // 3a. 注册额外 spritesheet 和复合动画
@@ -260,11 +260,11 @@ class OpenClawPet {
     this.chatPanel = new ChatPanel(this.electronAPI, this.stateMachine, this.bubble);
     this.settingsPanel = new SettingsPanel(this.electronAPI);
     this.nurturingPanel = new NurturingPanel(
-      (method, params) => this.electronAPI.petRPC(method, params),
+      (method, params) => this.electronAPI.characterRPC(method, params),
       {
         onBubble: (msg) => this.bubble.show(msg, 3000),
         onAnimation: (anim) => this.stateMachine.transition(anim, { force: true, duration: 3000 }),
-        isConnected: () => this.petSync?.connected ?? false,
+        isConnected: () => this.charSync?.connected ?? false,
       }
     );
 
@@ -277,7 +277,7 @@ class OpenClawPet {
     // 6b. 文件拖拽分析（需在 bubble/chatPanel 初始化之后）
     this.fileDropHandler = new FileDropHandler(
       this.canvas, this.electronAPI, this.stateMachine, this.bubble,
-      this.chatPanel, this.petSync
+      this.chatPanel, this.charSync
     );
 
     // 6d. 边缘反应
@@ -302,7 +302,7 @@ class OpenClawPet {
       }
     });
 
-    // 6e2. 养成系统行为联动 — 由 petSync.onAttributeChange 处理
+    // 6e2. 养成系统行为联动 — 由 charSync.onAttributeChange 处理
 
     // 6f. 头顶状态条
     this.toolStatusBar = new ToolStatusBar(document.getElementById('pet-area'));
@@ -321,7 +321,7 @@ class OpenClawPet {
     // 6h. 技能系统（工具熟练度 + 领悟积累）
     this.skillSystem.onUnlock(({ toolName, stars, isNew }) => {
       const gain = isNew ? 5 : stars === 3 ? 15 : 8;
-      this.petSync.interact('skill_unlock', { intimacy: gain });
+      this.charSync.interact('skill_unlock', { intimacy: gain });
       const msgs = isNew
         ? [`解锁了新技能：${toolName}！✨`, `喵！${toolName} 好厉害！`]
         : [`${toolName} 越用越熟练了！${'★'.repeat(stars)}`, `${toolName} 升星啦！喵～`];
@@ -340,11 +340,11 @@ class OpenClawPet {
     this.agentStatsTracker = new AgentStatsTracker();
 
     // 6h3. 成就系统
-    this.achievementSystem = new AchievementSystem(this.skillSystem, this.petSync);
+    this.achievementSystem = new AchievementSystem(this.skillSystem, this.charSync);
     this.achievementSystem.onUnlock((ach) => {
       this.bubble.show(`🏆 成就解锁：${ach.name}！${ach.icon}`, 4000);
       this.stateMachine.transition('happy', { force: true, duration: 3000 });
-      if (ach.intimacyBonus > 0) this.petSync.interact('achievement', { intimacy: ach.intimacyBonus });
+      if (ach.intimacyBonus > 0) this.charSync.interact('achievement', { intimacy: ach.intimacyBonus });
     });
     this.achievementSystem.setContext({
       miniCatSystem: this.miniCatSystem,
@@ -358,7 +358,7 @@ class OpenClawPet {
     );
 
     // 6h5. 学习系统
-    this.learningSystem = new LearningSystem(this.petSync);
+    this.learningSystem = new LearningSystem(this.charSync);
     this.courseGenerator = new CourseGenerator(this.electronAPI);
 
     // 注入到 SkillPanel
@@ -371,11 +371,11 @@ class OpenClawPet {
     // 6h6. 学习互动事件
     this.learningChoiceUI = new LearningChoiceUI(petArea);
     this.learningEventScheduler = new LearningEventScheduler({
-      petAI: this.petAI,
+      charAI: this.charAI,
       bubble: this.bubble,
       markdownPanel: this.markdownPanel,
       stateMachine: this.stateMachine,
-      petSync: this.petSync,
+      charSync: this.charSync,
       electronAPI: this.electronAPI,
       choiceUI: this.learningChoiceUI,
     });
@@ -388,8 +388,8 @@ class OpenClawPet {
       this.stateMachine.transition('happy', { force: true, duration: 3000 });
       // 课程完成 → 领域活动（权重 3，高于普通对话的 1）
       this.skillSystem.recordDomainActivity(result.categoryName, result.courseTitle, 3);
-      this.petSync.recordDomain(result.categoryName, result.courseTitle, 3);
-      this.petSync.interact('chat'); // intimacy +3 via server
+      this.charSync.recordDomain(result.categoryName, result.courseTitle, 3);
+      this.charSync.interact('chat'); // intimacy +3 via server
 
       // 写入 OpenClaw 记忆
       const completeEvent = `[event:learning-complete] 宠物完成了「${result.courseTitle}」一节学习（${result.categoryName}领域），经验 +${result.xpGained}`;
@@ -398,16 +398,16 @@ class OpenClawPet {
         this.electronAPI?.appendAgentMemory?.(completeEvent),
       ]).catch(() => {});
 
-      // 立即显示结果气泡，PetAI 返回后再补一条反应
+      // 立即显示结果气泡，CharacterAI 返回后再补一条反应
       const fragMsg = result.gotFragment
         ? `获得了技能碎片！(${result.fragmentProgress})`
         : `没有获得碎片...继续加油！(${result.fragmentProgress})`;
       this.bubble.show(`学完了！经验 +${result.xpGained} ${fragMsg}`, 5000);
-      if (this.petAI && !this.petAI.isBusy) {
-        this.petAI.generateLearningReaction('complete', result.courseTitle, result.categoryName).then(text => {
+      if (this.charAI && !this.charAI.isBusy) {
+        this.charAI.generateLearningReaction('complete', result.courseTitle, result.categoryName).then(text => {
           if (!text) return;
           setTimeout(() => this.bubble.show(text, 5000), 5200);
-          const reactionEvent = `[pet:reaction] ${text}`;
+          const reactionEvent = `[character:reaction] ${text}`;
           Promise.all([
             this.electronAPI?.appendAgentSession?.(reactionEvent),
             this.electronAPI?.appendAgentMemory?.(reactionEvent),
@@ -417,11 +417,11 @@ class OpenClawPet {
     });
 
     this.learningSystem.onCourseComplete((course) => {
-      this.petSync.interact('chat', { intimacy: 15 });
+      this.charSync.interact('chat', { intimacy: 15 });
       this.bubble.show(`恭喜！「${course.title}」毕业了！🎓`, 6000);
       this.stateMachine.transition('happy', { force: true, duration: 4000 });
 
-      // 生成 SKILL.md（如果 PetAI 可用）
+      // 生成 SKILL.md（如果 CharacterAI 可用）
       if (this.electronAPI?.writeSkillFile && course.skillContent) {
         const skillName = `learned-${course.title.replace(/\s+/g, '-')}`;
         const skillMd = `# ${course.title}\n\n${course.description || ''}\n\n${course.skillContent}`;
@@ -464,9 +464,9 @@ class OpenClawPet {
     // 恢复 chat 计数
     this._chatCompletionCount = parseInt(localStorage.getItem('pet-chat-count') || '0');
 
-    // 6k. PetAI + 领悟系统
+    // 6k. CharacterAI + 领悟系统
     if (this.electronAPI) {
-      this.petAI = new PetAI(this.electronAPI);
+      this.charAI = new CharacterAI(this.electronAPI);
       this.skillSystem.onEpiphany(({ domainName, recentTopics }) => {
         this._handleEpiphany(domainName, recentTopics);
       });
@@ -515,8 +515,8 @@ class OpenClawPet {
     this.clickHandler = new ClickHandler(
       this.canvas, this.stateMachine, this.behaviors, {
         onSingleClick: () => {
-          this.petSync.interact('click');
-          const level = this.petSync.getMoodLevel();
+          this.charSync.interact('click');
+          const level = this.charSync.getMoodLevel();
           const greets = level === 'sad'
             ? ['...喵', '(T_T)', '嗯...', '理我一下嘛']
             : ['喵~ ❤️', '嗯？', '摸摸~', '(=^・ω・^=)', '在呢~'];
@@ -530,7 +530,7 @@ class OpenClawPet {
         },
         onLongPress: () => {
           // 摸头！
-          this.petSync.interact('longpress');
+          this.charSync.interact('longpress');
           this.behaviors.recordInteraction();
           const purrs = ['咕噜噜~ 😻', '好舒服喵~', '再摸摸！(=^ω^=)', '呼噜呼噜...', '主人真好~ ❤️', '喵呜~'];
           this.bubble.show(purrs[Math.floor(Math.random() * purrs.length)], 3000);
@@ -553,10 +553,10 @@ class OpenClawPet {
         { icon: '🐾', label: '养成',       action: () => { _closeOtherPanels(this.nurturingPanel); this.nurturingPanel.toggle(); } },
         { icon: '🧠', label: '记忆图谱',   action: () => { _closeOtherPanels(this.memoryGraphPanel); this.memoryGraphPanel?.toggle(); } },
         { type: 'separator' },
-        { icon: _ic('action','action_feed'), label: '喂零食',   action: async () => { if (!this.feedingAnimator.isPlaying) { this.behaviors.recordInteraction(); this.feedingAnimator.play(async () => { try { const r = await api.petRPC('character.care.feed', { itemId: 'ration_42' }); this.bubble.show(r?.ok ? ['好吃！~ 😋','喵呜~ 谢谢主人！','啊好香！还有吗！'][Math.floor(Math.random()*3)] : (r?.reason || '吃不下了...'), 3000); } catch { this.petSync.interact('feed'); this.bubble.show('好吃！~ 😋', 3000); } }); } } },
-        { icon: _ic('action','action_play'), label: '玩耍',     action: async () => { this.behaviors.recordInteraction(); try { const r = await api.petRPC('character.care.play', { actionId: 'pet_stroke' }); this.bubble.show(r?.ok ? ['好好玩！🎉','再来一次！','嘿嘿~ 开心！'][Math.floor(Math.random()*3)] : (r?.reason || '不想玩...'), 3000); } catch { this.petSync.interact('play'); } this.stateMachine.transition('happy', { force: true, duration: 3000 }); } },
+        { icon: _ic('action','action_feed'), label: '喂零食',   action: async () => { if (!this.feedingAnimator.isPlaying) { this.behaviors.recordInteraction(); this.feedingAnimator.play(async () => { try { const r = await api.characterRPC('character.care.feed', { itemId: 'ration_42' }); this.bubble.show(r?.ok ? ['好吃！~ 😋','喵呜~ 谢谢主人！','啊好香！还有吗！'][Math.floor(Math.random()*3)] : (r?.reason || '吃不下了...'), 3000); } catch { this.charSync.interact('feed'); this.bubble.show('好吃！~ 😋', 3000); } }); } } },
+        { icon: _ic('action','action_play'), label: '玩耍',     action: async () => { this.behaviors.recordInteraction(); try { const r = await api.characterRPC('character.care.play', { actionId: 'pet_stroke' }); this.bubble.show(r?.ok ? ['好好玩！🎉','再来一次！','嘿嘿~ 开心！'][Math.floor(Math.random()*3)] : (r?.reason || '不想玩...'), 3000); } catch { this.charSync.interact('play'); } this.stateMachine.transition('happy', { force: true, duration: 3000 }); } },
         { icon: _ic('action','action_heal'), label: '治疗',     action: () => { _closeOtherPanels(this.nurturingPanel); this.nurturingPanel.open().then(() => this.nurturingPanel._switchTab('care')); } },
-        { icon: _ic('action','action_rest'), label: '休息',     action: async () => { this.behaviors.recordInteraction(); try { const r = await api.petRPC('character.care.rest', { typeId: 'nap' }); this.bubble.show(r?.ok ? ['困了...zzZ','晚安~','让我眯一会儿...'][Math.floor(Math.random()*3)] : (r?.reason || '不困...'), 3000); } catch { this.petSync.interact('rest'); } this.stateMachine.transition('sleep', { force: true }); } },
+        { icon: _ic('action','action_rest'), label: '休息',     action: async () => { this.behaviors.recordInteraction(); try { const r = await api.characterRPC('character.care.rest', { typeId: 'nap' }); this.bubble.show(r?.ok ? ['困了...zzZ','晚安~','让我眯一会儿...'][Math.floor(Math.random()*3)] : (r?.reason || '不困...'), 3000); } catch { this.charSync.interact('rest'); } this.stateMachine.transition('sleep', { force: true }); } },
         { icon: '📚', label: '去学习',     action: () => { _closeOtherPanels(this.skillPanel); this.skillPanel.openToLearning(); } },
         { type: 'separator' },
         { icon: '📌', label: '置顶',       action: () => api.toggleAlwaysOnTop?.() },
@@ -564,9 +564,9 @@ class OpenClawPet {
         { type: 'separator' },
         { icon: '❌', label: '退出',       action: () => api.appQuit?.() },
       ], () => ({
-        hunger: this.petSync.getHunger(),
-        mood:   this.petSync.getMood(),
-        health: this.petSync.getHealth(),
+        hunger: this.charSync.getHunger(),
+        mood:   this.charSync.getMood(),
+        health: this.charSync.getHealth(),
       }), {
         onOpen:  () => this.electronAPI?.setIgnoreMouse(false),
         onClose: () => this._updateMousePassthrough(),
@@ -576,10 +576,10 @@ class OpenClawPet {
     // 7. 鼠标穿透
     this._setupMousePassthrough();
 
-    // 8. 心情值变化响应 — 由 petSync.onAttributeChange 处理
+    // 8. 心情值变化响应 — 由 charSync.onAttributeChange 处理
 
 
-    // 9. 亲密度里程碑 — 由 petSync.onGrowthStageUp 处理
+    // 9. 亲密度里程碑 — 由 charSync.onGrowthStageUp 处理
 
     // 10. 监听主进程事件
     this._setupMainProcessEvents();
@@ -609,7 +609,7 @@ class OpenClawPet {
     const hoursSince = (now - lastLaunch) / 3600000;
     localStorage.setItem('pet-last-launch', String(now));
 
-    const stage = this.petSync.getGrowthStage();
+    const stage = this.charSync.getGrowthStage();
 
     // 阶段 0：幼猫
     if (stage === 0) {
@@ -821,9 +821,9 @@ class OpenClawPet {
 
         // 服务端：chat 交互 + 按回复长度补饱腹
         const hungerBonus = Math.min(20, Math.max(5, msg.length / 80));
-        this.petSync.interact('chat', { hunger: hungerBonus });
+        this.charSync.interact('chat', { hunger: hungerBonus });
         // 领域活动也走服务端
-        this.petSync.recordDomainFromText(msg.slice(0, 200));
+        this.charSync.recordDomainFromText(msg.slice(0, 200));
 
         this._chatCompletionCount++;
         localStorage.setItem('pet-chat-count', String(this._chatCompletionCount));
@@ -832,18 +832,18 @@ class OpenClawPet {
         // 记忆提取 — 通知服务端 MemoryGraphSystem
         const userMsg = this.chatPanel?.getLastUserMessage?.() || '';
         if (userMsg || msg) {
-          this.electronAPI.petRPC?.('character.memory.extract', { userMsg, aiReply: msg });
+          this.electronAPI.characterRPC?.('character.memory.extract', { userMsg, aiReply: msg });
         }
       }
     });
 
     // 喂零食 — 完整 4 阶段动画
-    this.electronAPI.onFeedPet?.(() => {
+    this.electronAPI.onFeedCharacter?.(() => {
       if (this.feedingAnimator.isPlaying) return; // 防止动画叠加
       this.behaviors.recordInteraction();
       this.feedingAnimator.play(() => {
         // 动画结束后：加心情 + 加饱腹 + 加亲密度 + 显示气泡
-        this.petSync.interact('feed');
+        this.charSync.interact('feed');
         const foods = ['好吃！~ 😋', '喵呜~ 谢谢主人！', '啊好香！还有吗！', '(=^・ω・^=) 满足了~', '最喜欢主人了！❤️'];
         this.bubble.show(foods[Math.floor(Math.random() * foods.length)], 3000);
       });
@@ -923,7 +923,7 @@ class OpenClawPet {
         if (event.data?.phase === 'start' || event.data?.status === 'running') {
           this.toolStatusBar.show(toolName);
           this.skillSystem.recordTool(toolName);
-          this.petSync.recordTool(toolName);
+          this.charSync.recordTool(toolName);
 
           // 子 session 工具追踪
           const isSubSession = event.sessionKey && !event.sessionKey.endsWith(':main');
@@ -974,16 +974,16 @@ class OpenClawPet {
   }
 
   /**
-   * 领悟事件处理：发呆 → PetAI 生成 → 写入 Agent 记录 → 冒泡 → 技能图鉴
+   * 领悟事件处理：发呆 → CharacterAI 生成 → 写入 Agent 记录 → 冒泡 → 技能图鉴
    */
   async _handleEpiphany(domainName, recentTopics) {
-    if (!this.petAI || this.petAI.isBusy) return;
+    if (!this.charAI || this.charAI.isBusy) return;
 
     // 进入发呆动画
     this.stateMachine.transition('idle', { force: true });
 
-    // 调用 PetAI 生成领悟内容
-    const result = await this.petAI.generateEpiphany(domainName, recentTopics);
+    // 调用 CharacterAI 生成领悟内容
+    const result = await this.charAI.generateEpiphany(domainName, recentTopics);
     if (!result) return;
 
     const { bubble, skillName, skillTitle, skillDesc, skillContent, summary } = result;
@@ -1001,7 +1001,7 @@ class OpenClawPet {
 
     // 存入技能图鉴（本地 + 服务端）
     this.skillSystem.addRealized({ skillName, skillTitle, skillDesc, skillContent, summary, domainName, realizedAt: Date.now() });
-    this.petSync._rpcSafe('character.skill.addRealized', { skillName, skillTitle, skillDesc, skillContent, domainName });
+    this.charSync._rpcSafe('character.skill.addRealized', { skillName, skillTitle, skillDesc, skillContent, domainName });
 
     // 渲染冒泡（使用模板）
     const bubbleText = SkillSystem.renderBubble(bubble);
@@ -1045,13 +1045,13 @@ class OpenClawPet {
       this.electronAPI?.appendAgentMemory?.(startEvent),
     ]).catch(() => {});
 
-    // 立即显示占位气泡，PetAI 返回后再补一条反应
+    // 立即显示占位气泡，CharacterAI 返回后再补一条反应
     this.bubble.show(`开始学习「${courseTitle}」了~ 📚`, 3000);
-    if (this.petAI && !this.petAI.isBusy) {
-      this.petAI.generateLearningReaction('start', courseTitle, categoryName).then(text => {
+    if (this.charAI && !this.charAI.isBusy) {
+      this.charAI.generateLearningReaction('start', courseTitle, categoryName).then(text => {
         if (!text) return;
         setTimeout(() => this.bubble.show(text, 5000), 3200);
-        const reactionEvent = `[pet:reaction] ${text}`;
+        const reactionEvent = `[character:reaction] ${text}`;
         Promise.all([
           this.electronAPI?.appendAgentSession?.(reactionEvent),
           this.electronAPI?.appendAgentMemory?.(reactionEvent),
@@ -1080,7 +1080,7 @@ class OpenClawPet {
 
       this.stateMachine.update(deltaMs);
       this.behaviors.update(deltaMs);
-      // 属性衰减由服务端 PetEngine tick 处理，客户端不再本地 tick
+      // 属性衰减由服务端 CharacterEngine tick 处理，客户端不再本地 tick
       this.learningSystem?.update(deltaMs);
 
       // 每 ~30 帧更新一次图标/朝向（避免每帧查询）
@@ -1148,8 +1148,8 @@ class OpenClawPet {
     this.miniCatSystem?.destroy();
     this.skillPanel?.destroy();
     this.agentConnections?.destroy();
-    this.petSync?.destroy();
-    this.petSync = null;
+    this.charSync?.destroy();
+    this.charSync = null;
     this.workspaceWatcher = null;
     this.skillSystem = null;
     this.agentStatsTracker = null;

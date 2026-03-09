@@ -1,5 +1,5 @@
 /**
- * Pet Engine — LearningSystem
+ * Character Engine — LearningSystem
  *
  * Course-based learning with timer, XP, fragments, and level progression.
  * Replaces the renderer-side LearningSystem.js.

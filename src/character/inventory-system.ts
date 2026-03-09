@@ -1,7 +1,7 @@
 /**
- * Pet Engine — InventorySystem
+ * Character Engine — InventorySystem
  *
- * Manages the pet's item inventory (backpack).
+ * Manages the character's item inventory (backpack).
  * Items have effects, cooldowns, and quantity limits.
  */
 

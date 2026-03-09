@@ -1,13 +1,13 @@
 /**
- * PetStateSync.js
- * Server-side Pet Engine state synchronization bridge.
+ * CharacterStateSync.js
+ * Server-side Character Engine state synchronization bridge.
  *
  * Replaces direct client-side mood/hunger/health/intimacy management
  * with server-authoritative state via character.* RPC calls.
  *
  * When connected:
- *   - Interactions route to server (pet.interact)
- *   - State polled from server every 10s (pet.state.get)
+ *   - Interactions route to server (character.interact)
+ *   - State polled from server every 10s (character.state.get)
  *   - Server handles decay, persistence, cross-session continuity
  *
  * When disconnected (fallback):
@@ -17,7 +17,7 @@
 
 const POLL_INTERVAL = 10000; // 10s
 
-export class PetStateSync {
+export class CharacterStateSync {
   constructor(electronAPI) {
     this._api = electronAPI;
     this._connected = false;
@@ -49,13 +49,13 @@ export class PetStateSync {
         this._applyState(state);
         this._connected = true;
         this._startPolling();
-        console.log('[pet-sync] Connected to server, state synced');
+        console.log('[char-sync] Connected to server, state synced');
         return true;
       }
     } catch (e) {
-      console.warn('[pet-sync] Init failed:', e.message || e);
+      console.warn('[char-sync] Init failed:', e.message || e);
     }
-    console.log('[pet-sync] Server unavailable, running in offline mode');
+    console.log('[char-sync] Server unavailable, running in offline mode');
     return false;
   }
 
@@ -140,11 +140,11 @@ export class PetStateSync {
       this._applyState(state);
       if (!this._connected) {
         this._connected = true;
-        console.log('[pet-sync] Reconnected to server');
+        console.log('[char-sync] Reconnected to server');
       }
     } else if (this._connected) {
       this._connected = false;
-      console.warn('[pet-sync] Server connection lost, switching to offline mode');
+      console.warn('[char-sync] Server connection lost, switching to offline mode');
     }
   }
 
@@ -169,7 +169,7 @@ export class PetStateSync {
       if (prevLevel && prevLevel !== attr.level) {
         for (const cb of this._onAttributeChange) {
           try { cb(key, attr.level, attr.value); } catch (e) {
-            console.warn('[pet-sync] onAttributeChange error:', e);
+            console.warn('[char-sync] onAttributeChange error:', e);
           }
         }
       }
@@ -184,7 +184,7 @@ export class PetStateSync {
       if (state.growth.stage > prevStage && prevStage !== 0) {
         for (const cb of this._onGrowthStageUp) {
           try { cb(state.growth.stage, state.growth.stageName); } catch (e) {
-            console.warn('[pet-sync] onGrowthStageUp error:', e);
+            console.warn('[char-sync] onGrowthStageUp error:', e);
           }
         }
       }
@@ -198,20 +198,20 @@ export class PetStateSync {
   }
 
   async _rpc(method, params = {}) {
-    if (!this._api?.petRPC) return null;
-    return await this._api.petRPC(method, params);
+    if (!this._api?.characterRPC) return null;
+    return await this._api.characterRPC(method, params);
   }
 
   async _rpcSafe(method, params = {}) {
     try {
       const result = await this._rpc(method, params);
       if (result?._error) {
-        console.warn(`[pet-sync] ${method} error:`, result._error);
+        console.warn(`[char-sync] ${method} error:`, result._error);
         return null;
       }
       return result;
     } catch (e) {
-      console.warn(`[pet-sync] ${method} failed:`, e.message || e);
+      console.warn(`[char-sync] ${method} failed:`, e.message || e);
       return null;
     }
   }

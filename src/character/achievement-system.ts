@@ -1,5 +1,5 @@
 /**
- * Pet Engine — AchievementSystem
+ * Character Engine — AchievementSystem
  *
  * 12 achievement badges with auto-detection conditions.
  * Replaces the renderer-side AchievementSystem.js.

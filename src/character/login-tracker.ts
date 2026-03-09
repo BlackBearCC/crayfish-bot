@@ -1,5 +1,5 @@
 /**
- * Pet Engine — LoginTracker
+ * Character Engine — LoginTracker
  *
  * Tracks consecutive login days and online time per day.
  * Awards streak bonuses: +5 x N EXP (capped at +50).

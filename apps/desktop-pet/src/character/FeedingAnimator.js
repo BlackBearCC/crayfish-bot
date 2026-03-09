@@ -71,7 +71,7 @@ export class FeedingAnimator {
   }
 
   /**
-   * overlay 绘制回调 — 每帧由 PetRenderer 调用
+   * overlay 绘制回调 — 每帧由 CharacterRenderer 调用
    */
   _drawOverlay(ctx, w, h) {
     if (!this._playing) return;

@@ -1,10 +1,10 @@
 /**
- * Pet Engine — ChatEvalSystem
+ * Character Engine — ChatEvalSystem
  *
  * Two-layer system for chat-driven state changes:
  *
  * Layer 1: Fixed program values (per-interaction, immediate)
- *   - click, longpress, feed, chat etc. handled by PetEngine.interact()
+ *   - click, longpress, feed, chat etc. handled by CharacterEngine.interact()
  *
  * Layer 2: LLM intent extraction (every 5 user messages, min 5min interval)
  *   - LLM analyzes recent conversation → outputs intent label
@@ -145,7 +145,7 @@ export class ChatEvalSystem {
     this._llmEval = callback;
   }
 
-  /** Check if pet has enough hunger to chat */
+  /** Check if character has enough hunger to chat */
   canChat(): { ok: boolean; hunger: number; minRequired: number } {
     const hunger = this._attributes.getValue("hunger");
     return {

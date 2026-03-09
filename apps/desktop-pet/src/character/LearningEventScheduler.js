@@ -17,20 +17,20 @@ const WEIGHTS = { murmur: 50, quiz: 30, story: 20 };
 export class LearningEventScheduler {
   /**
    * @param {object} deps
-   * @param {import('./PetAI').PetAI} deps.petAI
+   * @param {import('./CharacterAI').CharacterAI} deps.charAI
    * @param {import('../ui/Bubble').Bubble} deps.bubble
    * @param {import('../ui/MarkdownPanel').MarkdownPanel} deps.markdownPanel
    * @param {import('./StateMachine').StateMachine} deps.stateMachine
-   * @param {import('./PetStateSync').PetStateSync} deps.petSync
+   * @param {import('./CharacterStateSync').CharacterStateSync} deps.charSync
    * @param {object} deps.electronAPI
    * @param {import('../ui/LearningChoiceUI').LearningChoiceUI} deps.choiceUI
    */
-  constructor({ petAI, bubble, markdownPanel, stateMachine, petSync, electronAPI, choiceUI }) {
-    this._petAI = petAI;
+  constructor({ charAI, bubble, markdownPanel, stateMachine, charSync, electronAPI, choiceUI }) {
+    this._charAI = charAI;
     this._bubble = bubble;
     this._mdPanel = markdownPanel;
     this._sm = stateMachine;
-    this._petSync = petSync;
+    this._charSync = charSync;
     this._api = electronAPI;
     this._choiceUI = choiceUI;
 
@@ -73,8 +73,8 @@ export class LearningEventScheduler {
   async _fire() {
     if (!this._active) return;
 
-    // PetAI 忙或气泡正在显示 → 延迟 10s 重试
-    if (this._petAI?.isBusy || this._bubble?.isVisible()) {
+    // CharacterAI 忙或气泡正在显示 → 延迟 10s 重试
+    if (this._charAI?.isBusy || this._bubble?.isVisible()) {
       this._timer = setTimeout(() => this._fire(), 10000);
       return;
     }
@@ -106,21 +106,21 @@ export class LearningEventScheduler {
 
   async _doMurmur() {
     const { courseTitle, categoryName, duration, getElapsed } = this._lesson;
-    const text = await this._petAI.generateMurmur(courseTitle, categoryName, getElapsed(), duration);
+    const text = await this._charAI.generateMurmur(courseTitle, categoryName, getElapsed(), duration);
     if (!text || !this._active) return;
 
     this._sm.transition('talk', { force: true, duration: 2000 });
     this._bubble.show(text, 4000);
     setTimeout(() => this._restoreWork(), 2200);
 
-    this._log(`[pet:murmur] ${text}`);
+    this._log(`[character:murmur] ${text}`);
   }
 
   // ─── B: 互动问答 ───
 
   async _doQuiz() {
     const { courseTitle, categoryName, duration, getElapsed } = this._lesson;
-    const data = await this._petAI.generateQuizQuestion(courseTitle, categoryName, getElapsed(), duration);
+    const data = await this._charAI.generateQuizQuestion(courseTitle, categoryName, getElapsed(), duration);
     if (!data?.question || !data?.choices?.length || !this._active) return;
 
     this._sm.transition('talk', { force: true, duration: 3000 });
@@ -135,7 +135,7 @@ export class LearningEventScheduler {
       const rewards = {};
       if (choice.mood)     rewards.mood = Math.abs(choice.mood);
       if (choice.intimacy) rewards.intimacy = choice.intimacy;
-      if (Object.keys(rewards).length) this._petSync.interact('quiz_reward', rewards);
+      if (Object.keys(rewards).length) this._charSync.interact('quiz_reward', rewards);
 
       // 反应
       this._bubble.hide();
@@ -144,7 +144,7 @@ export class LearningEventScheduler {
       this._bubble.show(reaction, 3000);
       setTimeout(() => this._restoreWork(), 2200);
 
-      this._log(`[pet:quiz] Q:${data.question} A:${choice.text} mood+${choice.mood} intimacy+${choice.intimacy}`);
+      this._log(`[character:quiz] Q:${data.question} A:${choice.text} mood+${choice.mood} intimacy+${choice.intimacy}`);
     }, 15000);
   }
 
@@ -152,7 +152,7 @@ export class LearningEventScheduler {
 
   async _doStory() {
     const { courseTitle, categoryName } = this._lesson;
-    const text = await this._petAI.generateFunFact(courseTitle, categoryName);
+    const text = await this._charAI.generateFunFact(courseTitle, categoryName);
     if (!text || !this._active) return;
 
     this._sm.transition('talk', { force: true, duration: 3000 });
@@ -164,7 +164,7 @@ export class LearningEventScheduler {
       this._restoreWork();
     }, 2200);
 
-    this._log(`[pet:fun-fact] ${text.slice(0, 60)}...`);
+    this._log(`[character:fun-fact] ${text.slice(0, 60)}...`);
   }
 
   // ─── 工具 ───

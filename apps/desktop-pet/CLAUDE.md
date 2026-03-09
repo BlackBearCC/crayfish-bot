@@ -23,7 +23,7 @@ npm start
 
 ## Architecture
 
-OpenClaw Pet is a frameless, transparent, always-on-top Electron desktop pet. The app is split into two isolated processes:
+OpenClaw Desktop Character is a frameless, transparent, always-on-top Electron desktop companion. The app is split into two isolated processes:
 
 **Main process** (`electron/main.js`):
 - Creates 280×580px window positioned bottom-right
@@ -38,14 +38,14 @@ OpenClaw Pet is a frameless, transparent, always-on-top Electron desktop pet. Th
 
 **IPC bridge** (`electron/preload.js`):
 - All renderer→main calls go through `window.electronAPI`
-- Main→renderer events: `toggle-chat`, `chat-stream`, `agent-event`, `clipboard-changed`, `feed-pet`, `dock-target-update`, etc.
+- Main→renderer events: `toggle-chat`, `chat-stream`, `agent-event`, `clipboard-changed`, `feed-character`, `dock-target-update`, etc.
 - Renderer→main: `chatSend(text, sessionKey)` → streaming; `chatWithAI(text)` → one-shot legacy; `expandWindow(bool)`, `setIgnoreMouse(bool)`, etc.
-- **Generic RPC**: `petRPC(method, params)` — single IPC channel covering all 21 `pet.*` gateway methods. No per-method specialized IPC.
+- **Generic RPC**: `characterRPC(method, params)` — single IPC channel covering all `character.*` gateway methods. No per-method specialized IPC.
 
-**Server-authoritative state** (`src/pet/PetStateSync.js`):
-- All pet state (mood/hunger/health/growth/skills) managed by server-side Pet Engine
-- `PetStateSync` polls `pet.state.get` every 10s, caches values for synchronous UI reads
-- All mutations route through `petSync.interact(action, rewards)` → server RPC
+**Server-authoritative state** (`src/character/CharacterStateSync.js`):
+- All character state (mood/hunger/health/growth/skills) managed by server-side Character Engine
+- `CharacterStateSync` polls `character.state.get` every 10s, caches values for synchronous UI reads
+- All mutations route through `charSync.interact(action, rewards)` → server RPC
 - No local MoodSystem/HungerSystem/HealthSystem/IntimacySystem — removed entirely
 - UI reactions (bubbles, animations) triggered by `onAttributeChange()` / `onGrowthStageUp()` callbacks
 
@@ -53,36 +53,36 @@ OpenClaw Pet is a frameless, transparent, always-on-top Electron desktop pet. Th
 
 ```
 src/app.js (OpenClawPet)
-├── pet/PetStateSync.js           Server state bridge (petRPC, 10s polling, callbacks)
-├── pet/PetRenderer.js            Canvas 2D renderer; wraps SpriteSheet + StateMachine
-├── pet/StateMachine.js           Animation state transitions (idle/walk/sit/sleep/work/eat/…)
-├── pet/Behaviors.js              Autonomous behavior scheduler (random movement, idle actions)
-├── pet/FeedingAnimator.js        4-phase feeding sequence
-├── pet/DomainSystem.js           7 life domains + 5 attributes + weight matrix (static defs)
-├── pet/SkillSystem.js            Domain activity tracking + epiphany trigger + attribute XP
-├── pet/PetAI.js                  Pet inner-voice LLM (persona-aware, structured prompts)
-├── pet/LearningSystem.js         Course timer, XP, fragments, reads state from petSync
-├── pet/CourseGenerator.js        LLM-generated courses (persona-aware)
-├── pet/LearningEventScheduler.js Learning session interactive events (murmur/quiz/story)
-├── pet/AchievementSystem.js      12 achievement badges, reads stage from petSync
-├── pet/MiniCatSystem.js          Sub-agent mini-cat companions (≤4)
-├── pet/AgentStatsTracker.js      Sub-session tool stats
-├── pet/WorkspaceWatcher.js       Foreground window title parsing
-├── ui/ChatPanel.js               Full chat UI with streaming support
-├── ui/StreamingBubble.js         Stacked speech bubbles (up to 8)
-├── ui/BottomChatInput.js         Quick-input bar below the pet
-├── ui/MarkdownPanel.js           Markdown rendering panel (left side)
-├── ui/SkillPanel.js              4-tab almanac (tools/skills/agents/achievements)
-├── ui/ToolStatusBar.js           Tool execution status above pet
-├── ui/LearningStatusBar.js       Bottom learning progress bar
-├── ui/LearningChoiceUI.js        Interactive Q&A choice buttons during learning
-├── ui/SettingsPanel.js           Config UI (model, personality, etc.)
-├── ui/MemoryGraphPanel.js        Memory graph visualization (reads from server RPC)
-├── ui/AgentConnections.js        SVG connection lines visualization
-├── interaction/DragHandler.js    Window drag via moveWindow IPC
-├── interaction/ClickHandler.js   Single / double / long-press detection
-├── interaction/FileDropHandler.js File drop → AI analysis, mutations via petSync
-└── interaction/ContextMenu.js    Right-click menu with stat bars from petSync
+├── character/CharacterStateSync.js   Server state bridge (characterRPC, 10s polling, callbacks)
+├── character/CharacterRenderer.js    Canvas 2D renderer; wraps SpriteSheet + StateMachine
+├── character/StateMachine.js         Animation state transitions (idle/walk/sit/sleep/work/eat/…)
+├── character/Behaviors.js            Autonomous behavior scheduler (random movement, idle actions)
+├── character/FeedingAnimator.js      4-phase feeding sequence
+├── character/DomainSystem.js         7 life domains + 5 attributes + weight matrix (static defs)
+├── character/SkillSystem.js          Domain activity tracking + epiphany trigger + attribute XP
+├── character/CharacterAI.js          Character inner-voice LLM (persona-aware, structured prompts)
+├── character/LearningSystem.js       Course timer, XP, fragments, reads state from charSync
+├── character/CourseGenerator.js      LLM-generated courses (persona-aware)
+├── character/LearningEventScheduler.js Learning session interactive events (murmur/quiz/story)
+├── character/AchievementSystem.js    12 achievement badges, reads stage from charSync
+├── character/MiniCatSystem.js        Sub-agent mini-cat companions (≤4)
+├── character/AgentStatsTracker.js    Sub-session tool stats
+├── character/WorkspaceWatcher.js     Foreground window title parsing
+├── ui/ChatPanel.js                   Full chat UI with streaming support
+├── ui/StreamingBubble.js             Stacked speech bubbles (up to 8)
+├── ui/BottomChatInput.js             Quick-input bar below the character
+├── ui/MarkdownPanel.js               Markdown rendering panel (left side)
+├── ui/SkillPanel.js                  4-tab almanac (tools/skills/agents/achievements)
+├── ui/ToolStatusBar.js               Tool execution status above character
+├── ui/LearningStatusBar.js           Bottom learning progress bar
+├── ui/LearningChoiceUI.js            Interactive Q&A choice buttons during learning
+├── ui/SettingsPanel.js               Config UI (model, personality, etc.)
+├── ui/MemoryGraphPanel.js            Memory graph visualization (reads from server RPC)
+├── ui/AgentConnections.js            SVG connection lines visualization
+├── interaction/DragHandler.js        Window drag via moveWindow IPC
+├── interaction/ClickHandler.js       Single / double / long-press detection
+├── interaction/FileDropHandler.js    File drop → AI analysis, mutations via charSync
+└── interaction/ContextMenu.js        Right-click menu with stat bars from charSync
 ```
 
 ## Sprite System
@@ -100,34 +100,34 @@ Regenerate all sprites: `npm run generate-placeholder` (calls `scripts/generate-
 | 2 | 350 | 亲密伙伴 | adult | none |
 | 3 | 800 | 心灵契合 | adult | saturate(1.25) brightness(0.92) |
 
-Persisted server-side in `~/.openclaw/store/pet/intimacy.json`. Client reads via `petSync.getGrowthStage()`.
+Persisted server-side in `~/.openclaw/store/character/intimacy.json`. Client reads via `charSync.getGrowthStage()`.
 
-## PetAI & Prompt Engineering
+## CharacterAI & Prompt Engineering
 
-`PetAI.js` handles all pet-internal LLM calls (not through OpenClaw Gateway). Key conventions:
+`CharacterAI.js` handles all character-internal LLM calls (not through OpenClaw Gateway). Key conventions:
 
 - **Persona from config**: All prompts load persona via `_getPersona()` which reads `systemPrompt` from user settings. Default: `'你是一只可爱的桌面宠物猫'`. Never hardcode a specific character in prompts.
 - **Structured prompts**: Use `_buildPrompt(persona, context, task)` → `[角色] + [情景] + [任务]` three-section format.
 - **Role-neutral language**: Use "角色人设的口吻" not "猫咪口吻". Constraints (word limits, format) go in `[任务]` section.
 - **`resetPersona()`**: Call when settings change to clear cached persona.
-- **LLM config** (`electron/main.js` `pet-ai-complete`): `enable_thinking: false` (百炼 provider), `max_tokens: 1024`, `stream: false`.
+- **LLM config** (`electron/main.js` `character-ai-complete`): `enable_thinking: false` (百炼 provider), `max_tokens: 1024`, `stream: false`.
 
 ## Learning System
 
 - **Online-only**: Learning must complete while app is running. App exit = lesson interrupted, no XP.
 - **LearningEventScheduler**: During learning sessions (30-60 min), triggers interactive events every 2-3 min (first at 30-60s):
-  - Murmur (50%): 8-char bubble via PetAI
+  - Murmur (50%): 8-char bubble via CharacterAI
   - Quiz (30%): Choice buttons → mood/intimacy rewards
   - Story (20%): Fun fact via MarkdownPanel
-- **Event sync**: All learning events + PetAI reactions written to OpenClaw via `appendAgentSession` + `appendAgentMemory`.
+- **Event sync**: All learning events + CharacterAI reactions written to OpenClaw via `appendAgentSession` + `appendAgentMemory`.
 - **StateMachine note**: Transitioning from `work` to `talk`/`happy` returns to `idle` (not `work`). Must manually `transition('work', { force: true })` after temporary animations.
 
 ## Key Conventions
 
 - **No bundler**: Do not introduce webpack/vite. Keep renderer as plain ES module imports.
 - **IPC only**: Renderer must never use Node.js APIs directly. All system access goes through `window.electronAPI`.
-- **Canvas rendering**: Pet animation runs via `requestAnimationFrame` in `PetRenderer`. Do not manipulate the canvas outside this class.
+- **Canvas rendering**: Character animation runs via `requestAnimationFrame` in `CharacterRenderer`. Do not manipulate the canvas outside this class.
 - **Streaming chat**: Use `electronAPI.chatSend()` + `onChatStream()` for new AI calls. `chatWithAI()` is legacy (one-shot, used only for quick bubble responses when chat panel is closed).
-- **Server-authoritative state**: All pet state (mood, hunger, health, growth) managed by server Pet Engine via `petSync`. No local state systems. Client-side `localStorage` only for UI preferences (settings cache, chat count).
-- **Generic RPC**: Use `petRPC(method, params)` for all `pet.*` calls. Do not create specialized IPC handlers per method.
+- **Server-authoritative state**: All character state (mood, hunger, health, growth) managed by server Character Engine via `charSync`. No local state systems. Client-side `localStorage` only for UI preferences (settings cache, chat count).
+- **Generic RPC**: Use `characterRPC(method, params)` for all `character.*` calls. Do not create specialized IPC handlers per method.
 - **Mouse passthrough**: Interactive UI elements must be added to the `isOverPanel` check in `_setupMousePassthrough()` to receive clicks.

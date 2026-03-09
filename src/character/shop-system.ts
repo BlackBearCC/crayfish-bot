@@ -1,5 +1,5 @@
 /**
- * Pet Engine — ShopSystem
+ * Character Engine — ShopSystem
  *
  * Manages the star-coin (星币) wallet and in-game shop.
  * Coins are earned through gameplay only (tasks, login, level-up, achievements).
@@ -20,7 +20,7 @@ export interface ShopItemDef {
   price: number;         // star-coin cost
   dailyLimit: number;    // max purchases per day (0 = unlimited)
   weeklyLimit?: number;  // max purchases per week (optional)
-  unlockLevel?: number;  // minimum pet level to buy (default 1)
+  unlockLevel?: number;  // minimum character level to buy (default 1)
 }
 
 export interface WalletInfo {

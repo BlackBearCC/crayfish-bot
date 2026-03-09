@@ -1,5 +1,5 @@
 /**
- * Pet Engine — GrowthSystem
+ * Character Engine — GrowthSystem
  *
  * Manages growth stages (evolution) based on accumulated points.
  * Replaces IntimacySystem's stage logic with a more general system.

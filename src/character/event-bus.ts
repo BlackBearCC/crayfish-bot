@@ -16,9 +16,9 @@ export type CharacterEventMap = {
   'skill:attr-level-up': { key: string; name: string; level: number };
   /** Tick completed */
   'tick': { deltaMs: number };
-  /** Pet interaction received */
+  /** Character interaction received */
   'interact': { action: string; payload?: Record<string, unknown> };
-  /** Pet leveled up */
+  /** Character leveled up */
   'level:up': { level: number; prevLevel: number; title: string };
   /** EXP gained */
   'level:exp-gain': { amount: number; source: string; totalExp: number };
@@ -65,7 +65,7 @@ export class EventBus {
       try {
         handler(data);
       } catch (e) {
-        console.error(`[pet:event-bus] handler error for "${event}":`, e);
+        console.error(`[character:event-bus] handler error for "${event}":`, e);
       }
     }
   }

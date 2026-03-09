@@ -1,5 +1,5 @@
 /**
- * Pet Engine — DailyTaskSystem
+ * Character Engine — DailyTaskSystem
  *
  * Generates daily tasks with 3 difficulty tiers.
  * Backend controls conditions & rewards; LLM only generates names/descriptions.

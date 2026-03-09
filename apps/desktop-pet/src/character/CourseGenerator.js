@@ -3,7 +3,7 @@
  * 课程生成器 — 根据近期活动调用 LLM 生成学习课程
  *
  * 分析该类别下最近的工具使用记录，生成课程标题、描述、复杂度。
- * 依赖 PetAI 的 electronAPI.petAIComplete 通道。
+ * 依赖 CharacterAI 的 electronAPI.characterAIComplete 通道。
  */
 
 const DEFAULT_PERSONA = '你是一只可爱的桌面宠物猫';
@@ -38,7 +38,7 @@ export class CourseGenerator {
    */
   async generate(categoryName, recentTools = []) {
     if (this._busy) return null;
-    if (!this.electronAPI?.petAIComplete) return null;
+    if (!this.electronAPI?.characterAIComplete) return null;
 
     this._busy = true;
     try {
@@ -52,7 +52,7 @@ export class CourseGenerator {
 返回严格JSON（无代码块标记，无其他文字）：
 {"title":"课程名称，3到8字，如：编写单元测试","description":"课程简介，20到40字","complexity":数字1到5表示需要几节课学完,"skillContent":"学完后作为技能的具体指导内容，100到200字"}`;
 
-      const text = await this.electronAPI.petAIComplete(prompt);
+      const text = await this.electronAPI.characterAIComplete(prompt);
       if (!text) return null;
 
       const jsonMatch = text.match(/\{[\s\S]*\}/);

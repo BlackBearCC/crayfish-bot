@@ -1,5 +1,5 @@
 /**
- * Pet Engine — MemoryGraphSystem
+ * Character Engine — MemoryGraphSystem
  *
  * Server-side memory cluster management:
  * - Receives userMsg + aiReply after each chat completion
@@ -7,7 +7,7 @@
  * - Manages clusters (merge, prune, keyword inference)
  * - Indexes clusters into memory_search (SQLite FTS) via callback
  *
- * Persistence: file-based JSON via PersistenceStore (same as other pet subsystems).
+ * Persistence: file-based JSON via PersistenceStore (same as other character subsystems).
  * LLM calls: injected callback (set by gateway).
  */
 
@@ -109,7 +109,7 @@ export class MemoryGraphSystem {
 
   /**
    * Enqueue extraction with debounce (3s).
-   * Called after each chat completion via pet.memory.extract RPC.
+   * Called after each chat completion via character.memory.extract RPC.
    */
   enqueueExtraction(userMsg: string, aiReply: string): void {
     if ((!userMsg && !aiReply) || (userMsg + aiReply).length < 10) return;

@@ -140,7 +140,7 @@ class LLMService {
   // ===== 初始化 =====
 
   async init() {
-    this.configPath = path.join(app.getPath('userData'), 'openclaw-pet-config.json');
+    this.configPath = path.join(app.getPath('userData'), 'openclaw-character-config.json');
     this._loadConfig();
     // 自动同步 AI 配置到 OpenClaw Gateway 配置
     if (this.config.aiProvider && this.config.aiApiKey) {
@@ -160,7 +160,7 @@ class LLMService {
   // ===== Gateway 生命周期 =====
 
   async _startGateway() {
-    // Pet 拥有 Gateway 生命周期：启动前无条件清理端口残留进程（包括僵尸态）
+    // Character Engine 拥有 Gateway 生命周期：启动前无条件清理端口残留进程（包括僵尸态）
     this._killPortSync(this.gatewayPort);
     await this._sleep(500);
 
@@ -427,7 +427,7 @@ class LLMService {
       maxProtocol: 3,
       client: {
         id: clientId,
-        displayName: 'OpenClaw Pet',
+        displayName: 'OpenClaw Character',
         version: app.getVersion?.() || '0.2.0',
         platform: process.platform,
         mode: clientMode,
@@ -438,7 +438,7 @@ class LLMService {
       scopes,
     };
 
-    // Pet token 认证
+    // Character token 认证
     const token = this.gatewayToken || undefined;
     if (token) {
       params.auth = { token };
@@ -529,9 +529,9 @@ class LLMService {
     }
   }
 
-  // ===== 通用 RPC（覆盖所有 pet.* / 其他 gateway 方法） =====
+  // ===== 通用 RPC（覆盖所有 character.* / 其他 gateway 方法） =====
 
-  async petRPC(method, params = {}) {
+  async characterRPC(method, params = {}) {
     await this._ensureConnected();
     return await this._sendRequest(method, params);
   }
@@ -742,17 +742,17 @@ class LLMService {
       console.warn('[llm] Failed to load config:', e.message);
     }
 
-    // Pet 主场：确保 gateway token 由 pet 控制
-    this.gatewayToken = this._ensurePetToken();
+    // Character 主场：确保 gateway token 由 character engine 控制
+    this.gatewayToken = this._ensureCharacterToken();
 
-    // 如果 pet 配置里没有 AI 设置，尝试从 ~/.openclaw/openclaw.json 自动填充
+    // 如果配置里没有 AI 设置，尝试从 ~/.openclaw/openclaw.json 自动填充
     if (!this.config.aiProvider || !this.config.aiApiKey) {
       this._autoPopulateFromOpenClaw();
     }
   }
 
   /**
-   * 从 ~/.openclaw/openclaw.json 读取已有的 AI 配置，自动填充到 pet 配置
+   * 从 ~/.openclaw/openclaw.json 读取已有的 AI 配置，自动填充到本地配置
    */
   _autoPopulateFromOpenClaw() {
     const ocConfig = this._readOpenClawConfig();
@@ -779,7 +779,7 @@ class LLMService {
 
             console.log(`[llm] Auto-populated AI config from openclaw: ${providerKey}/${modelName}`);
 
-            // 保存到 pet 配置文件，下次不用再读
+            // 保存到本地配置文件，下次不用再读
             try {
               fs.writeFileSync(this.configPath, JSON.stringify(this.config, null, 2), 'utf-8');
               console.log('[llm] Auto-populated config saved');
@@ -859,25 +859,33 @@ class LLMService {
     }
   }
 
-  // ===== Pet Token =====
+  // ===== Character Token =====
 
-  _ensurePetToken() {
+  _ensureCharacterToken() {
     const configDir = path.join(os.homedir(), '.openclaw');
     const configFile = path.join(configDir, 'openclaw.json');
-    const petTokenFile = path.join(configDir, 'pet-token');
+    const tokenFile = path.join(configDir, 'character-token');
 
-    // 读取或生成 pet token
-    let petToken;
+    // 读取或生成 character token（兼容旧 pet-token 文件）
+    let charToken;
     try {
-      if (fs.existsSync(petTokenFile)) petToken = fs.readFileSync(petTokenFile, 'utf-8').trim();
+      if (fs.existsSync(tokenFile)) {
+        charToken = fs.readFileSync(tokenFile, 'utf-8').trim();
+      } else {
+        const legacyTokenFile = path.join(configDir, 'pet-token');
+        if (fs.existsSync(legacyTokenFile)) {
+          charToken = fs.readFileSync(legacyTokenFile, 'utf-8').trim();
+          fs.writeFileSync(tokenFile, charToken, 'utf-8');
+        }
+      }
     } catch {}
-    if (!petToken) {
-      petToken = 'pet-' + crypto.randomBytes(24).toString('hex');
+    if (!charToken) {
+      charToken = 'char-' + crypto.randomBytes(24).toString('hex');
       try {
         if (!fs.existsSync(configDir)) fs.mkdirSync(configDir, { recursive: true });
-        fs.writeFileSync(petTokenFile, petToken, 'utf-8');
-        console.log('[llm] Generated new pet token');
-      } catch (e) { console.warn('[llm] Failed to save pet token:', e.message); }
+        fs.writeFileSync(tokenFile, charToken, 'utf-8');
+        console.log('[llm] Generated new character token');
+      } catch (e) { console.warn('[llm] Failed to save character token:', e.message); }
     }
 
     // 写入 openclaw.json，Gateway 启动时读取
@@ -888,16 +896,16 @@ class LLMService {
       }
       if (!config.gateway) config.gateway = {};
       if (!config.gateway.auth) config.gateway.auth = {};
-      if (config.gateway.auth.token !== petToken) {
+      if (config.gateway.auth.token !== charToken) {
         config.gateway.auth.mode = 'token';
-        config.gateway.auth.token = petToken;
+        config.gateway.auth.token = charToken;
         fs.writeFileSync(configFile, JSON.stringify(config, null, 2), 'utf-8');
-        console.log('[llm] Synced pet token to openclaw.json');
+        console.log('[llm] Synced character token to openclaw.json');
       }
-    } catch (e) { console.warn('[llm] Failed to sync pet token:', e.message); }
+    } catch (e) { console.warn('[llm] Failed to sync character token:', e.message); }
 
-    console.log('[llm] Pet token ready');
-    return petToken;
+    console.log('[llm] Character token ready');
+    return charToken;
   }
 
   // ===== OpenClaw config file (~/.openclaw/openclaw.json) =====

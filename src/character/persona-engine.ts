@@ -1,5 +1,5 @@
 /**
- * Pet Engine — PersonaEngine
+ * Character Engine — PersonaEngine
  *
  * Manages character persona for LLM prompt construction.
  * Replaces PetAI's persona caching with a centralized engine.

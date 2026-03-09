@@ -148,10 +148,10 @@ function createWindow() {
   // 窗口始终保持展开尺寸，不再动态 setBounds（避免透明窗口重绘闪烁）
   ipcMain.on('expand-window', () => { /* no-op */ });
 
-  // ===== IPC: Pet Engine RPC =====
-  ipcMain.handle('pet-rpc', async (event, method, params) => {
+  // ===== IPC: Character Engine RPC =====
+  ipcMain.handle('character-rpc', async (event, method, params) => {
     try {
-      return await llmService.petRPC(method, params);
+      return await llmService.characterRPC(method, params);
     } catch (e) {
       return { _error: e.message };
     }
@@ -226,13 +226,13 @@ function createWindow() {
     return AI_PROVIDERS;
   });
 
-  // ===== IPC: Pet 配置（gateway RPC） =====
-  ipcMain.handle('pet-config-get', async () => {
-    return await llmService.petConfigGet();
+  // ===== IPC: Character 配置（gateway RPC） =====
+  ipcMain.handle('character-config-get', async () => {
+    return await llmService.characterConfigGet();
   });
 
-  ipcMain.handle('pet-config-set', async (event, params) => {
-    return await llmService.petConfigSet(params);
+  ipcMain.handle('character-config-set', async (event, params) => {
+    return await llmService.characterConfigSet(params);
   });
 
   ipcMain.handle('clear-chat-history', () => {
@@ -240,11 +240,11 @@ function createWindow() {
     return true;
   });
 
-  // ===== IPC: PetAI — 宠物内心 LLM 直接调用（不过 gateway）=====
-  ipcMain.handle('pet-ai-complete', async (event, prompt) => {
+  // ===== IPC: CharacterAI — 角色内心 LLM 直接调用（不过 gateway）=====
+  ipcMain.handle('character-ai-complete', async (event, prompt) => {
     const cfg = llmService.config;
     if (!cfg.aiBaseUrl || !cfg.aiApiKey || !cfg.aiModel) {
-      console.warn('[pet-ai] No LLM config available');
+      console.warn('[character-ai] No LLM config available');
       return null;
     }
     try {
@@ -263,11 +263,11 @@ function createWindow() {
           enable_thinking: false,
         }),
       });
-      if (!res.ok) { console.warn('[pet-ai] LLM error:', res.status); return null; }
+      if (!res.ok) { console.warn('[character-ai] LLM error:', res.status); return null; }
       const data = await res.json();
       return data.choices?.[0]?.message?.content?.trim() || null;
     } catch (e) {
-      console.warn('[pet-ai] fetch failed:', e.message);
+      console.warn('[character-ai] fetch failed:', e.message);
       return null;
     }
   });
@@ -278,10 +278,10 @@ function createWindow() {
       const skillDir = path.join(os.homedir(), '.openclaw', 'workspace', 'skills', skillName);
       fs.mkdirSync(skillDir, { recursive: true });
       fs.writeFileSync(path.join(skillDir, 'SKILL.md'), content, 'utf-8');
-      console.log(`[pet-ai] Skill written: ${skillName}`);
+      console.log(`[character-ai] Skill written: ${skillName}`);
       return true;
     } catch (e) {
-      console.warn('[pet-ai] write-skill-file failed:', e.message);
+      console.warn('[character-ai] write-skill-file failed:', e.message);
       return false;
     }
   });
@@ -319,10 +319,10 @@ function createWindow() {
         },
       });
       fs.appendFileSync(sessionFile, '\n' + entry, 'utf-8');
-      console.log('[pet-ai] Session event appended');
+      console.log('[character-ai] Session event appended');
       return true;
     } catch (e) {
-      console.warn('[pet-ai] append-agent-session failed:', e.message);
+      console.warn('[character-ai] append-agent-session failed:', e.message);
       return false;
     }
   });
@@ -334,12 +334,12 @@ function createWindow() {
       const memoryDir = path.join(os.homedir(), '.openclaw', 'workspace', 'memory');
       fs.mkdirSync(memoryDir, { recursive: true });
       const memoryFile = path.join(memoryDir, `${today}.md`);
-      const line = `\n- [pet-event] ${text}`;
+      const line = `\n- [character-event] ${text}`;
       fs.appendFileSync(memoryFile, line, 'utf-8');
-      console.log('[pet-ai] Memory appended');
+      console.log('[character-ai] Memory appended');
       return true;
     } catch (e) {
-      console.warn('[pet-ai] append-agent-memory failed:', e.message);
+      console.warn('[character-ai] append-agent-memory failed:', e.message);
       return false;
     }
   });

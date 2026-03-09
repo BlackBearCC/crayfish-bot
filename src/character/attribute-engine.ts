@@ -1,5 +1,5 @@
 /**
- * Pet Engine — AttributeEngine
+ * Character Engine — AttributeEngine
  *
  * Generic attribute system that replaces MoodSystem, HungerSystem,
  * HealthSystem, and IntimacySystem with a single configurable engine.
@@ -97,7 +97,7 @@ export class AttributeEngine {
     this._store = store;
   }
 
-  /** Set a global decay multiplier (driven by pet level) */
+  /** Set a global decay multiplier (driven by character level) */
   setDecayMultiplier(multiplier: number): void {
     this._decayMultiplier = multiplier;
   }
@@ -106,7 +106,7 @@ export class AttributeEngine {
     return this._decayMultiplier;
   }
 
-  /** Override max offline hours for all attributes (driven by pet level) */
+  /** Override max offline hours for all attributes (driven by character level) */
   setMaxOfflineHours(hours: number): void {
     this._maxOfflineHoursOverride = hours;
   }

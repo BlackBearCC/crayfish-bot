@@ -53,9 +53,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getGatewayHealth: () => ipcRenderer.invoke('get-gateway-health'),
   getAIProviders: () => ipcRenderer.invoke('get-ai-providers'),
 
-  // === Pet 配置（gateway pet.config.get/set） ===
-  petConfigGet: () => ipcRenderer.invoke('pet-config-get'),
-  petConfigSet: (params) => ipcRenderer.invoke('pet-config-set', params),
+  // === Character 配置（gateway character.config.get/set） ===
+  characterConfigGet: () => ipcRenderer.invoke('character-config-get'),
+  characterConfigSet: (params) => ipcRenderer.invoke('character-config-set', params),
 
   // === 绝对窗口定位 ===
   setWindowPosition: (x, y) => ipcRenderer.send('set-window-position', x, y),
@@ -78,7 +78,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onAgentEvent: (callback) => ipcRenderer.on('agent-event', (e, payload) => callback(payload)),
 
   // === 情感互动事件 ===
-  onFeedPet: (callback) => ipcRenderer.on('feed-pet', () => callback()),
+  onFeedCharacter: (callback) => ipcRenderer.on('feed-character', () => callback()),
   onClipboardChange: (callback) => ipcRenderer.on('clipboard-changed', (e, data) => callback(data)),
 
   // === Win32 窗口感知事件 ===
@@ -86,11 +86,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onDockTargetUpdate: (callback) => ipcRenderer.on('dock-target-update', (e, data) => callback(data)),
   onToggleDocking: (callback) => ipcRenderer.on('toggle-docking', (e, enabled) => callback(enabled)),
 
-  // === Pet Engine RPC（状态同步，走 gateway） ===
-  petRPC: (method, params) => ipcRenderer.invoke('pet-rpc', method, params),
+  // === Character Engine RPC（状态同步，走 gateway） ===
+  characterRPC: (method, params) => ipcRenderer.invoke('character-rpc', method, params),
 
-  // === PetAI — 宠物内心活动，直接调 LLM，不过 gateway ===
-  petAIComplete: (prompt) => ipcRenderer.invoke('pet-ai-complete', prompt),
+  // === CharacterAI — 角色内心活动，直接调 LLM，不过 gateway ===
+  characterAIComplete: (prompt) => ipcRenderer.invoke('character-ai-complete', prompt),
 
   // === Agent 记忆写入 ===
   writeSkillFile: (skillName, content) => ipcRenderer.invoke('write-skill-file', skillName, content),

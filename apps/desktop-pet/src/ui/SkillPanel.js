@@ -8,8 +8,8 @@
  * - 成就图鉴：12 个徽章成就
  */
 
-import { LEVEL_THRESHOLDS } from '../pet/LearningSystem.js';
-import { DOMAINS } from '../pet/DomainSystem.js';
+import { LEVEL_THRESHOLDS } from '../character/LearningSystem.js';
+import { DOMAINS } from '../character/DomainSystem.js';
 
 export class SkillPanel {
   constructor(electronAPI, skillSystem = null, agentStatsTracker = null, achievementSystem = null) {

@@ -1,8 +1,8 @@
 /**
- * Pet Engine — Default Presets
+ * Character Engine — Default Presets
  *
  * Standard attribute and growth definitions that replicate
- * the original desktop pet's MoodSystem, HungerSystem, HealthSystem,
+ * the original desktop character's MoodSystem, HungerSystem, HealthSystem,
  * and IntimacySystem behavior.
  *
  * Clients can use these defaults or define their own.

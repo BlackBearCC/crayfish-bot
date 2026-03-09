@@ -1,5 +1,5 @@
 /**
- * Pet Engine — CareSystem
+ * Character Engine — CareSystem
  *
  * Manages care actions: feed, play, rest, heal.
  * Delegates item consumption to InventorySystem,

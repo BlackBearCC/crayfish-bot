@@ -1,5 +1,5 @@
 /**
- * PetRenderer.js
+ * CharacterRenderer.js
  * Canvas 帧动画渲染器
  *
  * 职责：
@@ -9,7 +9,7 @@
  * - 透明背景渲染
  */
 
-export class PetRenderer {
+export class CharacterRenderer {
   /**
    * @param {HTMLCanvasElement} canvas
    * @param {import('./SpriteSheet').SpriteSheet} spriteSheetKitten - 幼猫 spritesheet（stage 0 使用）

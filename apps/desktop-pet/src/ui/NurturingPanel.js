@@ -2,7 +2,7 @@
  * NurturingPanel.js
  * 养成面板 — 背包 / 每日任务 / 养护 / 商城
  *
- * 通过 petRPC 调用服务端:
+ * 通过 characterRPC 调用服务端:
  *   character.inventory.list / character.inventory.use
  *   character.daily.tasks / character.daily.claim / character.daily.streak
  *   character.care.feed / character.care.play / character.care.heal / character.care.rest
@@ -40,13 +40,13 @@ const ACTION_ICONS = {
 
 export class NurturingPanel {
   /**
-   * @param {Function} petRPC - (method, params) => Promise
+   * @param {Function} characterRPC - (method, params) => Promise (character.* gateway RPC)
    * @param {object} opts
    * @param {Function} [opts.isConnected] - () => boolean, 检查服务端是否在线
    */
-  constructor(petRPC, { onBubble, onAnimation, isConnected } = {}) {
+  constructor(characterRPC, { onBubble, onAnimation, isConnected } = {}) {
     /** @type {(method: string, params?: object) => Promise<any>} */
-    this._rawRpc = petRPC;
+    this._rawRpc = characterRPC;
     this._onBubble = onBubble || (() => {});
     this._onAnimation = onAnimation || (() => {});
     this._isConnected = isConnected || (() => true);

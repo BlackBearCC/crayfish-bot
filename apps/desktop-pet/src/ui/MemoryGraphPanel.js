@@ -6,7 +6,7 @@
  * 边 = relatedClusters 关联
  * 点击节点 → 展开 fragment 列表
  *
- * 数据来源: petRPC('character.memory.clusters') — 服务端 MemoryGraphSystem
+ * 数据来源: characterRPC('character.memory.clusters') — 服务端 MemoryGraphSystem
  */
 
 const CLUSTER_COLORS = [
@@ -114,7 +114,7 @@ export class MemoryGraphPanel {
 
   async _loadFromServer() {
     try {
-      const result = await this.electronAPI.petRPC('character.memory.clusters');
+      const result = await this.electronAPI.characterRPC('character.memory.clusters');
       if (result?.clusters) {
         this._clusters = result.clusters;
         this._clusterMap = {};

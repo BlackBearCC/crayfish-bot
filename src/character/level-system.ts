@@ -1,7 +1,7 @@
 /**
- * Pet Engine — LevelSystem
+ * Character Engine — LevelSystem
  *
- * Manages pet level (Lv.1-30) driven by EXP from various sources:
+ * Manages character level (Lv.1-30) driven by EXP from various sources:
  * chat, feeding, playing, learning, daily tasks, achievements, login streaks.
  *
  * Level affects decay multiplier, unlock content, and persona enrichment.

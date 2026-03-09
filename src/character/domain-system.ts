@@ -1,7 +1,7 @@
 /**
- * Pet Engine — DomainSystem
+ * Character Engine — DomainSystem
  *
- * Static definitions for life domains, pet attributes, and the
+ * Static definitions for life domains, character attributes, and the
  * domain→attribute weight matrix. Also includes keyword-based
  * domain inference from text.
  *
@@ -29,7 +29,7 @@ export const DOMAINS: DomainDef[] = [
   { name: "情感", icon: "💙", desc: "心情、压力、内心感受" },
 ];
 
-// ─── 5 Pet Skill Attributes ───
+// ─── 5 Character Skill Attributes ───
 
 export interface SkillAttributeDef {
   key: string;

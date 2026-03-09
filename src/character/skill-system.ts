@@ -1,8 +1,8 @@
 /**
- * Pet Engine — SkillSystem
+ * Character Engine — SkillSystem
  *
  * Tracks domain activity, triggers epiphany events, and manages
- * pet skill attribute XP growth.
+ * character skill attribute XP growth.
  *
  * Replaces the renderer-side SkillSystem.js with a server-side engine module.
  */
