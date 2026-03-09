@@ -45,19 +45,20 @@ function detectClipboardType(text) {
 }
 
 // ===== 窗口尺寸（动态缩放：基础仅宠物区，展开含面板）=====
-const PET_BASE_W = 280;     // 基础宽度（宠物 + 气泡）
-const PET_EXPANDED_W = 596; // 展开宽度（宠物 + 面板）
-const PET_H = 580;
-const PET_AREA_W = 256;     // 宠物区域 CSS 宽度
+const PET_BASE_W = 280;       // 基础宽度（宠物 + 气泡）
+const PET_EXPANDED_W = 596;   // 展开宽度（宠物 + 面板）
+const PET_BASE_H = 340;       // 基础高度（画布 256 + 气泡/状态条余量）
+const PET_EXPANDED_H = 580;   // 展开高度（面板最高 520 + 边距）
+const PET_AREA_W = 256;       // 宠物区域 CSS 宽度
 
 function createWindow() {
   const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
 
   mainWindow = new BrowserWindow({
     width: PET_BASE_W,
-    height: PET_H,
+    height: PET_BASE_H,
     x: screenWidth - PET_BASE_W - 50,
-    y: screenHeight - PET_H - 20,
+    y: screenHeight - PET_BASE_H - 20,
     transparent: true,
     frame: false,
     alwaysOnTop: true,
@@ -146,19 +147,22 @@ function createWindow() {
     if (!mainWindow) return;
     const [curW, curH] = mainWindow.getSize();
     const targetW = expand ? PET_EXPANDED_W : PET_BASE_W;
-    if (curW === targetW) return;
+    const targetH = expand ? PET_EXPANDED_H : PET_BASE_H;
+    if (curW === targetW && curH === targetH) return;
 
     const [x, y] = mainWindow.getPosition();
+    // --- 水平方向 ---
     let newX;
     if (side === 'right') {
-      // 面板在右侧：flex-end↔flex-start 切换补偿
       const layoutShift = PET_BASE_W - PET_AREA_W; // 24px
       newX = expand ? x + layoutShift : x - layoutShift;
     } else {
-      // 面板在左侧（默认）：窗口向左/右伸缩，宠物不动
       newX = x + (curW - targetW);
     }
-    mainWindow.setBounds({ x: newX, y, width: targetW, height: curH });
+    // --- 垂直方向：向上展开，保持底边不动 ---
+    let newY = y + (curH - targetH);
+    if (newY < 0) newY = 0;
+    mainWindow.setBounds({ x: newX, y: newY, width: targetW, height: targetH });
   });
 
   // ===== IPC: Pet Engine RPC =====
