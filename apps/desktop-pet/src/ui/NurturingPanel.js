@@ -195,20 +195,21 @@ export class NurturingPanel {
       }
 
       const cards = items.map(item => {
-        const icon = ITEM_ICONS[item.id] || '';
+        const icon = ITEM_ICONS[item.itemId] || '';
         const cdLeft = this._cooldownLeft(item);
         const disabled = !item.canUse;
+        const def = item.def || {};
         return `
-          <div class="nur-item-card ${disabled ? 'nur-disabled' : ''}" data-item-id="${item.id}">
+          <div class="nur-item-card ${disabled ? 'nur-disabled' : ''}" data-item-id="${item.itemId}">
             <div class="nur-item-icon">
-              ${icon ? `<img src="${icon}" alt="${this._esc(item.name)}">` : `<span>${item.icon || '📦'}</span>`}
+              ${icon ? `<img src="${icon}" alt="${this._esc(def.name)}">` : `<span>${def.icon || '📦'}</span>`}
             </div>
             <div class="nur-item-info">
-              <div class="nur-item-name">${this._esc(item.name)}</div>
-              <div class="nur-item-desc">${this._esc(item.description || '')}</div>
+              <div class="nur-item-name">${this._esc(def.name || item.itemId)}</div>
+              <div class="nur-item-desc">${this._esc(def.description || '')}</div>
               ${cdLeft ? `<div class="nur-item-cd">⏳ ${cdLeft}</div>` : ''}
             </div>
-            <div class="nur-item-qty">${item.permanent ? '∞' : `×${item.quantity}`}</div>
+            <div class="nur-item-qty">${def.permanent ? '∞' : `×${item.quantity}`}</div>
           </div>
         `;
       }).join('');
@@ -244,8 +245,7 @@ export class NurturingPanel {
   }
 
   _cooldownLeft(item) {
-    if (!item.lastUsedAt || !item.cooldownMs) return '';
-    const remain = (item.lastUsedAt + item.cooldownMs) - Date.now();
+    const remain = item.cooldownRemaining || 0;
     if (remain <= 0) return '';
     if (remain < 60000) return `${Math.ceil(remain / 1000)}秒`;
     if (remain < 3600000) return `${Math.ceil(remain / 60000)}分钟`;
@@ -366,7 +366,7 @@ export class NurturingPanel {
     let inventoryItems = [];
     try {
       const inv = await this._rpc('character.inventory.list');
-      inventoryItems = (inv?.items || []).filter(i => i.category === 'medicine' && i.canUse);
+      inventoryItems = (inv?.items || []).filter(i => i.def?.category === 'medicine' && i.canUse);
     } catch { /* ignore */ }
 
     const cards = careActions.map(a => {
@@ -378,9 +378,9 @@ export class NurturingPanel {
       } else if (a.needsItem) {
         if (inventoryItems.length > 0) {
           optionsHtml = `<div class="nur-care-options">${inventoryItems.map(i => {
-            const icon = ITEM_ICONS[i.id] || '';
-            return `<button class="nur-care-opt nur-care-item-opt" data-method="${a.method}" data-param="${i.id}">
-              ${icon ? `<img src="${icon}" class="nur-opt-icon">` : ''} ${this._esc(i.name)}
+            const icon = ITEM_ICONS[i.itemId] || '';
+            return `<button class="nur-care-opt nur-care-item-opt" data-method="${a.method}" data-param="${i.itemId}">
+              ${icon ? `<img src="${icon}" class="nur-opt-icon">` : ''} ${this._esc(i.def?.name || i.itemId)}
             </button>`;
           }).join('')}</div>`;
         } else {
