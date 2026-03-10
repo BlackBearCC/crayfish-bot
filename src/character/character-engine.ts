@@ -327,6 +327,25 @@ export class CharacterEngine {
   }
 
   /**
+   * Build a compact memory summary from top-weighted clusters.
+   * Used to give sub-agents conversational context without full session history.
+   */
+  getMemorySummary(topN = 1): string {
+    const clusters = this.memoryGraph.getClusters();
+    if (clusters.length === 0) return "";
+
+    const sorted = [...clusters].sort((a, b) => b.weight - a.weight).slice(0, topN);
+    const lines: string[] = [];
+    for (const c of sorted) {
+      const recentFrag = c.fragments.length > 0
+        ? c.fragments[c.fragments.length - 1].text
+        : "";
+      lines.push(`[${c.theme}] ${c.summary}${recentFrag ? ` — 最近: "${recentFrag}"` : ""}`);
+    }
+    return lines.join("\n");
+  }
+
+  /**
    * Passive recovery rules (applied every 30s while online):
    *  - mood >= 78 (joyful): health +0.1/min
    *  - hunger >= 225 (full): mood +0.05/min

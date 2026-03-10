@@ -452,6 +452,20 @@ export function getCharacterChatGate(): {
   };
 }
 
+/**
+ * Returns the singleton CharacterEngine instance (if initialized).
+ * Used by the smart queue router to build sub-agent context snapshots.
+ */
+export function getCharacterEngine(): CharacterEngine | null {
+  return engine;
+}
+
+/**
+ * Expose the lightweight LLM completion for use outside this module
+ * (e.g., smart queue classifier).
+ */
+export { characterLLMComplete };
+
 // ─── Character Agent Cron Messages ───
 
 const WORLD_AGENT_MESSAGE = `你是角色养成系统的世界事件生成器。
