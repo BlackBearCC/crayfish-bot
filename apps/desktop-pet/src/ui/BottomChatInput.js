@@ -23,6 +23,9 @@ export class BottomChatInput {
     this.streamingBubble = streamingBubble;
     this.markdownPanel = markdownPanel || null;
 
+    /** @type {import('./ChatPanel').ChatPanel|null} 外部设置，用于同步消息到聊天面板 */
+    this.chatPanel = null;
+
     this.isOpen = false;
     this.isSending = false;
     this.activeRunId = null;
@@ -125,6 +128,8 @@ export class BottomChatInput {
           this.streamingBubble.appendText(finalText);
           this.streamingBubble.finalize();
         }
+        // 同步 AI 回复到聊天面板
+        this.chatPanel?.appendExternal('assistant', finalText);
         this._finishSending(finalText);
       }
 
@@ -152,6 +157,9 @@ export class BottomChatInput {
     this.isSending = true;
     this.sendBtn.disabled = true;
     this.streamedText = '';
+
+    // 同步用户消息到聊天面板
+    this.chatPanel?.appendExternal('user', text);
 
     // 启动流式气泡
     this.streamingBubble.start();
@@ -183,6 +191,7 @@ export class BottomChatInput {
         this.streamingBubble.appendText(replyText);
         this.streamingBubble.finalize();
       }
+      this.chatPanel?.appendExternal('assistant', replyText);
       this._finishSending(resp.text);
     } catch (e) {
       this.streamingBubble.appendText(`出错了: ${e.message}`);

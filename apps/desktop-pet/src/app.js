@@ -298,6 +298,7 @@ class OpenClawPet {
       petArea,
       this.electronAPI, this.stateMachine, this.streamingBubble, this.markdownPanel
     );
+    this.bottomChatInput.chatPanel = this.chatPanel;
 
     // 6b. 文件拖拽分析（需在 bubble/chatPanel 初始化之后）
     this.fileDropHandler = new FileDropHandler(

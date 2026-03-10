@@ -31,6 +31,10 @@ export class ChatPanel {
 
     this._lastUserMessage = '';
 
+    // 历史加载状态：脏标记 + 防并发锁
+    this._historyStale = true;
+    this._historyLoading = false;
+
     this._createDOM();
     this._setupStreamListener();
   }
@@ -220,9 +224,10 @@ export class ChatPanel {
    * @param {string} role - 'user' | 'assistant'
    * @param {string} text
    * @param {boolean} [renderMarkdown=true]
+   * @param {number} [timestamp] - 历史消息时间戳（ms），不传则取当前时间
    * @returns {string} id
    */
-  _addMessage(role, text, renderMarkdown = true) {
+  _addMessage(role, text, renderMarkdown = true, timestamp) {
     const id = 'msg-' + Date.now() + Math.random().toString(36).slice(2, 6);
     this._rawTextMap[id] = text;
 
@@ -257,7 +262,7 @@ export class ChatPanel {
     // 时间戳
     const timeEl = document.createElement('span');
     timeEl.className = 'msg-time';
-    timeEl.textContent = this._formatTime();
+    timeEl.textContent = this._formatTime(timestamp);
 
     div.appendChild(copyBtn);
     div.appendChild(contentEl);
@@ -312,11 +317,14 @@ export class ChatPanel {
 
   /**
    * 从 chat 事件 message 中提取文本
+   * 支持: string | { content } | { text } | [{ type:'text', text }]
    */
   _extractText(message) {
     if (!message) return '';
+    if (typeof message === 'string') return message.trim();
     let content = message;
     if (typeof message === 'object' && message.content !== undefined) content = message.content;
+    else if (typeof message === 'object' && typeof message.text === 'string') return message.text.trim();
     if (typeof content === 'string') return content.trim();
     if (Array.isArray(content)) {
       return content
@@ -328,16 +336,75 @@ export class ChatPanel {
     return '';
   }
 
+  /**
+   * 清空消息区域（保留 scrollBtn）
+   */
+  _clearMessages() {
+    const msgs = this.messagesEl.querySelectorAll('.chat-msg');
+    msgs.forEach(el => el.remove());
+    this._rawTextMap = {};
+  }
+
+  /**
+   * 从服务端加载聊天历史并渲染（仅在脏标记时触发，防并发）
+   */
+  async _loadHistory() {
+    if (!this.electronAPI?.chatHistory) return;
+    if (!this._historyStale) return;
+    if (this._historyLoading) return;
+    // 正在发送时不重新加载，避免丢掉流式占位符
+    if (this.isSending) return;
+
+    this._historyLoading = true;
+    try {
+      const res = await this.electronAPI.chatHistory(undefined, 50);
+      const messages = res?.messages;
+      if (!Array.isArray(messages) || messages.length === 0) {
+        this._historyStale = false;
+        return;
+      }
+
+      this._clearMessages();
+
+      for (const msg of messages) {
+        if (!msg || typeof msg !== 'object') continue;
+        const role = msg.role === 'assistant' ? 'assistant' : 'user';
+        const text = this._extractText(msg);
+        if (!text) continue;
+        this._addMessage(role, text, role === 'assistant', msg.timestamp);
+      }
+      this._historyStale = false;
+    } catch (e) {
+      console.warn('[ChatPanel] Failed to load history:', e.message);
+    } finally {
+      this._historyLoading = false;
+    }
+  }
+
+  /**
+   * 外部组件追加消息（供 BottomChatInput 等调用）
+   * 面板打开时实时追加；关闭时仅标记脏位，下次打开时拉取
+   * @param {'user'|'assistant'} role
+   * @param {string} text
+   */
+  appendExternal(role, text) {
+    if (!this.isOpen) {
+      this._historyStale = true;
+      return;
+    }
+    this._addMessage(role, text, role === 'assistant');
+  }
+
   _detectSentiment(text) {
     if (/[❤️😊🎉✨😄开心高兴棒好赞喜欢]/.test(text)) return 'positive';
     if (/[😢😭💔难过伤心抱歉对不起错误失败呜]/.test(text)) return 'negative';
     return 'neutral';
   }
 
-  _formatTime() {
-    const now = new Date();
-    const h = String(now.getHours()).padStart(2, '0');
-    const m = String(now.getMinutes()).padStart(2, '0');
+  _formatTime(timestamp) {
+    const d = timestamp ? new Date(timestamp) : new Date();
+    const h = String(d.getHours()).padStart(2, '0');
+    const m = String(d.getMinutes()).padStart(2, '0');
     return `${h}:${m}`;
   }
 
@@ -365,6 +432,7 @@ export class ChatPanel {
     this.isOpen = true;
     this.element.classList.add('open');
     this.onStateChange?.();
+    this._loadHistory();
     setTimeout(() => this.inputEl.focus(), 100);
   }
 
