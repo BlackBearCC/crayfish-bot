@@ -473,10 +473,28 @@ class OpenClawPet {
       this.bubble.show(`${categoryName} 升到 Lv.${level} 了！📈`, 4000);
     });
 
-    // 离线检查：学习必须在线完成，退出即中断
+    // 离线检查：5分钟内重启可续接学习，否则中断
     const offlineCheck = this.learningSystem.checkOfflineLesson();
-    if (offlineCheck.resumed && offlineCheck.interrupted) {
-      this.bubble.show(`「${offlineCheck.lesson.courseTitle}」学习中断了，下次要坚持到底喵~ 😿`, 5000);
+    if (offlineCheck.resumed) {
+      if (offlineCheck.interrupted) {
+        this.bubble.show(`「${offlineCheck.lesson.courseTitle}」学习中断了，下次要坚持到底喵~ 😿`, 5000);
+      } else {
+        // 续接学习：恢复 idle 动画 + 进度条 + 事件调度
+        this.behaviors.stop();
+        const lesson = offlineCheck.lesson;
+        this.learningStatusBar.show(
+          lesson.courseTitle,
+          () => this.learningSystem.getActiveLesson()?.remaining || 0,
+          lesson.duration
+        );
+        this.learningEventScheduler?.start({
+          courseTitle: lesson.courseTitle,
+          categoryName: lesson.categoryName,
+          duration: lesson.duration,
+          getElapsed: () => this.learningSystem.getActiveLesson()?.elapsed || 0,
+        });
+        this.bubble.show(`继续学习「${lesson.courseTitle}」~ 📚`, 3000);
+      }
     }
 
     // 6i. 多 Agent 协作可视化
@@ -1052,8 +1070,8 @@ class OpenClawPet {
       this.bubble.show(result.reason, 3000);
       return;
     }
-    // 进入工作动画 + 锁定行为
-    this.stateMachine.transition('work', { force: true });
+    // 进入 idle 动画占位 + 锁定行为
+    this.stateMachine.transition('idle', { force: true });
     this.behaviors.stop();
     this.behaviors.recordInteraction();
 

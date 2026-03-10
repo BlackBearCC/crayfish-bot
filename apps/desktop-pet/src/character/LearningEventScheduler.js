@@ -3,7 +3,7 @@
  * 学习期间互动事件调度器 — 碎碎念 / 互动问答 / 小故事
  *
  * 在 LearningSystem 活跃期间运行，按随机间隔触发三类事件。
- * 事件完成后自动恢复 work 动画。
+ * 事件完成后自动恢复 idle 动画。
  */
 
 const MIN_INTERVAL = 2 * 60 * 1000;   // 2 分钟
@@ -111,7 +111,7 @@ export class LearningEventScheduler {
 
     this._sm.transition('talk', { force: true, duration: 2000 });
     this._bubble.show(text, 4000);
-    setTimeout(() => this._restoreWork(), 2200);
+    setTimeout(() => this._restoreIdle(), 2200);
 
     this._log(`[character:murmur] ${text}`);
   }
@@ -142,7 +142,7 @@ export class LearningEventScheduler {
       const anim = (choice.mood || 0) >= 0 ? 'happy' : 'talk';
       this._sm.transition(anim, { force: true, duration: 2000 });
       this._bubble.show(reaction, 3000);
-      setTimeout(() => this._restoreWork(), 2200);
+      setTimeout(() => this._restoreIdle(), 2200);
 
       this._log(`[character:quiz] Q:${data.question} A:${choice.text} mood+${choice.mood} intimacy+${choice.intimacy}`);
     }, 15000);
@@ -161,7 +161,7 @@ export class LearningEventScheduler {
     setTimeout(() => {
       if (!this._active) return;
       this._mdPanel?.show(text, 20000);
-      this._restoreWork();
+      this._restoreIdle();
     }, 2200);
 
     this._log(`[character:fun-fact] ${text.slice(0, 60)}...`);
@@ -169,10 +169,10 @@ export class LearningEventScheduler {
 
   // ─── 工具 ───
 
-  _restoreWork() {
+  _restoreIdle() {
     if (!this._active) return;
-    if (this._sm.getState?.() !== 'work' && this._sm.currentState !== 'work') {
-      this._sm.transition('work', { force: true });
+    if (!this._sm.isIdle?.()) {
+      this._sm.transition('idle', { force: true });
     }
   }
 

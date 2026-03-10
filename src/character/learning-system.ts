@@ -5,7 +5,7 @@
  * Replaces the renderer-side LearningSystem.js.
  *
  * Learning must complete while engine is running (online-only).
- * Engine exit = lesson interrupted, no XP.
+ * Engine exit → if restarted within 5 min the lesson resumes; otherwise interrupted, no XP.
  */
 
 import type { EventBus } from "./event-bus.js";
@@ -66,9 +66,13 @@ interface LearningPersistence {
   progress: Record<string, LessonProgress>;
   active: ActiveLesson | null;
   history: Course[];
+  updatedAt?: number;
 }
 
 // ─── LearningSystem ───
+
+/** Grace period: resume active lesson if engine restarts within this window */
+const RESUME_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
 
 export class LearningSystem {
   private _bus: EventBus;
@@ -79,6 +83,7 @@ export class LearningSystem {
   private _progress: Record<string, LessonProgress> = {};
   private _active: ActiveLesson | null = null;
   private _history: Course[] = [];
+  private _lastSavedAt: number = 0;
 
   constructor(bus: EventBus, store: PersistenceStore, attributes: AttributeEngine) {
     this._bus = bus;
@@ -87,10 +92,16 @@ export class LearningSystem {
     this._load();
     this._cleanExpired();
 
-    // If there was an active lesson from a previous session, it's interrupted
+    // Resume active lesson if engine was offline for less than 5 minutes;
+    // otherwise treat it as interrupted (no XP).
     if (this._active) {
-      this._active = null;
-      this._save();
+      const offlineMs = this._lastSavedAt ? Date.now() - this._lastSavedAt : Infinity;
+      if (offlineMs < RESUME_WINDOW_MS) {
+        // Keep _active as-is — lesson resumes from where it left off
+      } else {
+        this._active = null;
+        this._save();
+      }
     }
   }
 
@@ -271,6 +282,7 @@ export class LearningSystem {
       if (data.progress) this._progress = data.progress;
       if (data.active) this._active = data.active;
       if (data.history) this._history = data.history;
+      if (data.updatedAt) this._lastSavedAt = data.updatedAt;
     } catch {
       // ignore
     }

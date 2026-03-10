@@ -165,16 +165,25 @@ export class LearningSystem {
 
   /**
    * 启动时检查是否有未完成的学习
-   * @returns {{ resumed: boolean, completed: boolean, lesson? }}
+   * 5分钟内重启可续接，否则中断
+   * @returns {{ resumed: boolean, completed: boolean, interrupted?: boolean, lesson? }}
    */
   checkOfflineLesson() {
     if (!this._active) return { resumed: false, completed: false };
 
-    // 学习必须在线完成，退出即中断，进度清零
+    const RESUME_WINDOW_MS = 5 * 60 * 1000;
+    const lastActiveAt = this._active.startedAt + this._active.elapsed;
+    const offlineMs = Date.now() - lastActiveAt;
+
+    if (offlineMs < RESUME_WINDOW_MS) {
+      // Resume — lesson continues from where it left off
+      return { resumed: true, completed: false, interrupted: false, lesson: this._active };
+    }
+
+    // Too long offline — interrupt
     const lesson = this._active;
     this._active = null;
     this._saveActive();
-
     return { resumed: true, completed: false, interrupted: true, lesson };
   }
 
