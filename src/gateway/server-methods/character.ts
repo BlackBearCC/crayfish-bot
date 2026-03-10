@@ -1015,7 +1015,7 @@ export const characterHandlers: GatewayRequestHandlers = {
 
   "character.todo.regenerate": safeHandler((e) => {
     const result = e.todos.regenerateTodos();
-    return { ok: true, ...result, stats: e.todos.getStats() };
+    return { ...result, stats: e.todos.getStats() };
   }),
 
   // ── Adventure System ──

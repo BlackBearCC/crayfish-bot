@@ -8,7 +8,6 @@
  */
 
 import { Type } from "@sinclair/typebox";
-import { getEngine } from "../../gateway/server-methods/character.js";
 import type { AnyAgentTool } from "./common.js";
 import { jsonResult, readStringParam } from "./common.js";
 
@@ -65,6 +64,15 @@ export function resetCharacterToolRateLimit(sessionKey: string): void {
 
 export function createCharacterSelfCareTool(options?: {
   broadcast?: (channel: string, payload: unknown) => void;
+  engine?: {
+    care: {
+      feed: (id: string) => { ok: boolean; reason?: string };
+      rest: (type: string) => { ok: boolean; reason?: string };
+      play: (type: string) => { ok: boolean; reason?: string };
+    };
+    getState: () => unknown;
+    bus: { emit: (event: string, data: unknown) => void };
+  };
 }): AnyAgentTool {
   return {
     label: "Character Self Care",
@@ -76,13 +84,10 @@ export function createCharacterSelfCareTool(options?: {
       const action = readStringParam(params, "action", { required: true }) as "feed" | "rest" | "play";
       const reason = readStringParam(params, "reason", { required: true });
 
-      const engine = getEngine();
+      const engine = options?.engine;
       if (!engine) {
         return jsonResult({ ok: false, error: "Character engine not initialized" });
       }
-
-      // Rate limit check would be done at session level
-      // For now, we just execute the action
 
       try {
         let result: { ok: boolean; reason?: string };
@@ -100,7 +105,6 @@ export function createCharacterSelfCareTool(options?: {
         }
 
         if (result.ok) {
-          // Broadcast to client
           options?.broadcast?.("character", {
             kind: "self-care",
             action,
@@ -112,7 +116,6 @@ export function createCharacterSelfCareTool(options?: {
           ok: result.ok,
           action,
           reason: result.ok ? `Successfully ${action}ed` : result.reason,
-          state: engine.getState(),
         });
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
@@ -122,7 +125,13 @@ export function createCharacterSelfCareTool(options?: {
   };
 }
 
-export function createCharacterRememberTool(): AnyAgentTool {
+export function createCharacterRememberTool(options?: {
+  engine?: {
+    memoryGraph: {
+      enqueueExtraction: (userMsg: string, aiReply: string) => void;
+    };
+  };
+}): AnyAgentTool {
   return {
     label: "Character Remember",
     name: "character_remember",
@@ -137,31 +146,17 @@ export function createCharacterRememberTool(): AnyAgentTool {
         | "habit"
         | "relationship";
 
-      const engine = getEngine();
+      const engine = options?.engine;
       if (!engine) {
         return jsonResult({ ok: false, error: "Character engine not initialized" });
       }
 
       try {
-        // Create a memory cluster from the fact
-        const cluster = {
-          id: `user-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-          theme: `${category}: ${fact.slice(0, 50)}${fact.length > 50 ? "..." : ""}`,
-          keywords: [category, ...fact.split(/\s+/).slice(0, 5)],
-          implicitKeywords: [],
-          summary: fact,
-          fragments: [{ text: fact }],
-          weight: 1.0,
-          updatedAt: Date.now(),
-        };
-
-        // Add to memory graph
         engine.memoryGraph.enqueueExtraction(fact, "");
 
         return jsonResult({
           ok: true,
           remembered: { fact, category },
-          clusterId: cluster.id,
         });
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
@@ -173,6 +168,9 @@ export function createCharacterRememberTool(): AnyAgentTool {
 
 export function createCharacterExpressMoodTool(options?: {
   broadcast?: (channel: string, payload: unknown) => void;
+  engine?: {
+    bus: { emit: (event: string, data: unknown) => void };
+  };
 }): AnyAgentTool {
   return {
     label: "Character Express Mood",
@@ -188,13 +186,12 @@ export function createCharacterExpressMoodTool(options?: {
         | "sleepy"
         | "curious";
 
-      const engine = getEngine();
+      const engine = options?.engine;
       if (!engine) {
         return jsonResult({ ok: false, error: "Character engine not initialized" });
       }
 
       try {
-        // Broadcast mood expression to client
         const payload = {
           kind: "mood-expression",
           emotion,
@@ -202,8 +199,6 @@ export function createCharacterExpressMoodTool(options?: {
         };
 
         options?.broadcast?.("character", payload);
-
-        // Also emit on event bus for internal listeners
         engine.bus.emit("character:mood-expressed", { emotion });
 
         return jsonResult({
@@ -223,10 +218,22 @@ export function createCharacterExpressMoodTool(options?: {
 
 export function createCharacterTools(options?: {
   broadcast?: (channel: string, payload: unknown) => void;
+  engine?: {
+    care: {
+      feed: (id: string) => { ok: boolean; reason?: string };
+      rest: (type: string) => { ok: boolean; reason?: string };
+      play: (type: string) => { ok: boolean; reason?: string };
+    };
+    memoryGraph: {
+      enqueueExtraction: (userMsg: string, aiReply: string) => void;
+    };
+    bus: { emit: (event: string, data: unknown) => void };
+    getState: () => unknown;
+  };
 }): AnyAgentTool[] {
   return [
     createCharacterSelfCareTool(options),
-    createCharacterRememberTool(),
+    createCharacterRememberTool(options),
     createCharacterExpressMoodTool(options),
   ];
 }
