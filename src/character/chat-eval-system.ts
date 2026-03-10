@@ -180,6 +180,7 @@ export class ChatEvalSystem {
 
     // Check eval trigger (dual condition)
     if (this._msgCount % EVAL_INTERVAL_MESSAGES === 0) {
+      this._bus.emit("chat:interval", { count: this._msgCount, interval: EVAL_INTERVAL_MESSAGES });
       if (Date.now() - this._lastEvalAt >= EVAL_MIN_INTERVAL_MS) {
         this._triggerEval();
       }

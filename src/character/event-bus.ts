@@ -42,6 +42,8 @@ export type CharacterEventMap = {
   'shop:coin-earn': { amount: number; source: string; balance: number };
   /** Item purchased from shop */
   'shop:buy': { itemId: string; qty: number; totalCost: number; balance: number };
+  /** Chat message count hit a round interval (every N messages) */
+  'chat:interval': { count: number; interval: number };
   /** Soul Agent decided on an action */
   'soul:action': { type: string; text?: string; careAction?: string; emotion?: string; memory?: { fact: string; category: string } };
   /** World Agent generated an event */

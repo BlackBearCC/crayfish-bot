@@ -396,6 +396,17 @@ function getEngine(): CharacterEngine {
       void registerCharacterCronJobs(_cron);
     }
 
+    // Event-driven Soul Agent: trigger on every chat interval (every 5 messages)
+    engine.bus.on("chat:interval", () => {
+      if (!_cron) return;
+      void _cron.list().then((jobs) => {
+        const soulJob = jobs.find((j: { name?: string; id?: string }) => j.name === "Character Soul Agent");
+        if (soulJob?.id) {
+          void _cron!.run(soulJob.id, "force").catch(() => {});
+        }
+      }).catch(() => {});
+    });
+
     // Register hooks once
     if (!hooksRegistered) {
       hooksRegistered = true;
