@@ -5,8 +5,8 @@
   "description": "Desktop Pet - Electron client for crayfish-bot AI engine",
   "main": "electron/main.js",
   "scripts": {
-    "start": "electron .",
-    "dev": "electron . --dev",
+    "start": "chcp 65001 >nul 2>&1 && electron .",
+    "dev": "chcp 65001 >nul 2>&1 && electron . --dev",
     "generate-placeholder": "node scripts/generate-placeholder.js",
     "pack": "electron-builder --dir",
     "dist": "electron-builder",

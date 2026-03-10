@@ -193,7 +193,7 @@ class LLMService {
       stdio: ['ignore', 'pipe', 'pipe'],
       detached: false,
       env: { ...process.env },
-      shell: process.platform === 'win32',
+      shell: isGatewayCmd, // .cmd files need shell; direct node/mjs execution does not (avoids GBK codepage via cmd.exe)
     });
 
     this.gatewayProcess.stdout.on('data', (data) => {
