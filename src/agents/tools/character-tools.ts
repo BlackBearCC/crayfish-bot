@@ -102,6 +102,12 @@ export function createCharacterSelfCareTool(options?: {
           case "play":
             result = engine.care.play("ball");
             break;
+          default:
+            return jsonResult({ ok: false, error: `Unknown action: ${action}` });
+        }
+
+        if (!result) {
+          return jsonResult({ ok: false, error: "No result returned" });
         }
 
         if (result.ok) {
