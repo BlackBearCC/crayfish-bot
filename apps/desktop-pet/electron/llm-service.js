@@ -751,10 +751,8 @@ class LLMService {
     // Character 主场：确保 gateway token 由 character engine 控制
     this.gatewayToken = this._ensureCharacterToken();
 
-    // 如果配置里没有 AI 设置，尝试从 ~/.openclaw/openclaw.json 自动填充
-    if (!this.config.aiProvider || !this.config.aiApiKey) {
-      this._autoPopulateFromOpenClaw();
-    }
+    // 每次启动都从 ~/.openclaw/openclaw.json 同步最新 primary model 配置
+    this._autoPopulateFromOpenClaw();
   }
 
   /**

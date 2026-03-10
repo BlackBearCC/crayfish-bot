@@ -244,11 +244,11 @@ function createWindow() {
 
   // ===== IPC: Character 配置（gateway RPC） =====
   ipcMain.handle('character-config-get', async () => {
-    return await llmService.characterConfigGet();
+    return await llmService.characterRPC('character.config.get');
   });
 
   ipcMain.handle('character-config-set', async (event, params) => {
-    return await llmService.characterConfigSet(params);
+    return await llmService.characterRPC('character.config.set', params);
   });
 
   ipcMain.handle('clear-chat-history', () => {
