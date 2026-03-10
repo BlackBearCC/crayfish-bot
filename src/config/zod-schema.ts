@@ -875,6 +875,19 @@ export const OpenClawSchema = z
       })
       .strict()
       .optional(),
+    character: z
+      .object({
+        classifier: z
+          .object({
+            baseUrl: z.string().optional(),
+            apiKey: z.string().optional(),
+            model: z.string().optional(),
+          })
+          .strict()
+          .optional(),
+      })
+      .strict()
+      .optional(),
   })
   .strict()
   .superRefine((cfg, ctx) => {

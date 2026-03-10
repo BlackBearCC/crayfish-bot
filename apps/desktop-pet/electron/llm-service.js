@@ -165,31 +165,36 @@ class LLMService {
     this._killPortSync(this.gatewayPort);
     await this._sleep(500);
 
-    const clawBin = this._findPetClawBin();
-    if (!clawBin) {
-      console.warn('[llm] openclaw binary not found');
+    const gateway = this._resolveGateway();
+    if (!gateway) {
+      console.warn('[llm] petclaw gateway not found');
       return;
     }
 
-    // 自动构建：如果 dist 不存在（新环境首次运行），先 build
-    await this._ensureBuilt();
+    // 开发模式：如果 dist 不存在，先 build
+    if (!app.isPackaged) await this._ensureBuilt();
 
-    console.log(`[llm] Starting Gateway via: ${clawBin}`);
+    console.log(`[llm] Starting Gateway via: ${gateway.cmd} ${gateway.args.join(' ')}`);
 
-    // token 已在 _ensurePetToken() 中写入 openclaw.json，Gateway 启动时会读取
-    const isCmd = /\.(cmd|bat)$/i.test(clawBin);
-    const spawnArgs = [
+    const gatewayArgs = [
+      ...gateway.args,
       'gateway',
       '--port', String(this.gatewayPort),
       '--bind', 'loopback',
       '--allow-unconfigured',
     ];
 
-    this.gatewayProcess = spawn(clawBin, spawnArgs, {
+    // cwd 必须指向 petclaw 项目根目录，Gateway dist 用 import.meta.url 相对路径查找 docs/reference/templates/
+    const gatewayCwd = app.isPackaged
+      ? path.join(process.resourcesPath, 'gateway')
+      : path.resolve(__dirname, '..', 'node_modules', 'petclaw');
+
+    this.gatewayProcess = spawn(gateway.cmd, gatewayArgs, {
       stdio: ['ignore', 'pipe', 'pipe'],
       detached: false,
+      cwd: gatewayCwd,
       env: { ...process.env, OPENCLAW_STATE_DIR: path.join(os.homedir(), '.petclaw') },
-      shell: isCmd, // .cmd files need shell on Windows
+      shell: gateway.shell,
     });
 
     this.gatewayProcess.stdout.on('data', (data) => {
@@ -215,30 +220,37 @@ class LLMService {
     await this._waitForGateway(15000);
   }
 
-  _findPetClawBin() {
+  /**
+   * 解析 Gateway 启动方式，返回 { cmd, args, shell }。
+   * 打包模式：用 node 直接跑 resources/gateway/openclaw.mjs
+   * 开发模式：用 node_modules/.bin/ 下的 CLI shim
+   */
+  _resolveGateway() {
+    // 1. 打包后：resources/gateway/openclaw.mjs（extraResources 复制）
+    if (app.isPackaged) {
+      const mjs = path.join(process.resourcesPath, 'gateway', 'openclaw.mjs');
+      if (fs.existsSync(mjs)) {
+        return { cmd: process.execPath, args: [mjs], shell: false };
+      }
+    }
+
+    // 2. 开发模式：node_modules/.bin/ 下的 CLI shim
     const isWin = process.platform === 'win32';
     const ext = isWin ? '.cmd' : '';
-    // 优先找 petclaw，兜底 openclaw（上游兼容）
     const names = [`petclaw${ext}`, `openclaw${ext}`];
 
     for (const binName of names) {
-      // 1. 打包后 resources 目录
-      const resourcesBin = path.join(process.resourcesPath || '', 'bin', binName);
-      if (fs.existsSync(resourcesBin)) return resourcesBin;
-
-      // 2. 本地 node_modules（开发模式）
       const localBin = path.join(app.getAppPath(), 'node_modules', '.bin', binName);
-      if (fs.existsSync(localBin)) return localBin;
+      if (fs.existsSync(localBin)) return { cmd: localBin, args: [], shell: isWin };
 
-      // 3. 相对于 electron/main.js（asar 路径兜底）
       const relativeBin = path.join(__dirname, '..', 'node_modules', '.bin', binName);
-      if (fs.existsSync(relativeBin)) return relativeBin;
+      if (fs.existsSync(relativeBin)) return { cmd: relativeBin, args: [], shell: isWin };
 
-      // 4. pnpm workspace：向上查找根 node_modules/.bin/
+      // pnpm workspace：向上查找根 node_modules/.bin/
       let dir = path.resolve(__dirname, '..');
       for (let i = 0; i < 5; i++) {
         const candidate = path.join(dir, 'node_modules', '.bin', binName);
-        if (fs.existsSync(candidate)) return candidate;
+        if (fs.existsSync(candidate)) return { cmd: candidate, args: [], shell: isWin };
         const parent = path.dirname(dir);
         if (parent === dir) break;
         dir = parent;

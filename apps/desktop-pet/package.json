@@ -18,11 +18,12 @@
     "ai-assistant"
   ],
   "license": "MIT",
+  "author": "PetClaw",
   "dependencies": {
-    "ws": "^8.19.0",
-    "petclaw": "workspace:*"
+    "ws": "^8.19.0"
   },
   "devDependencies": {
+    "petclaw": "workspace:*",
     "electron": "^33.4.11",
     "electron-builder": "^25.0.0",
     "jest": "^29.7.0"
@@ -35,13 +36,28 @@
       "src/**/*",
       "assets/**/*"
     ],
+    "extraResources": [
+      {
+        "from": "../../dist",
+        "to": "gateway/dist",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "../../openclaw.mjs",
+        "to": "gateway/openclaw.mjs"
+      },
+      {
+        "from": "../../docs/reference/templates",
+        "to": "gateway/docs/reference/templates",
+        "filter": ["*.md"]
+      }
+    ],
     "win": {
-      "target": "nsis",
-      "icon": "assets/icon.ico"
+      "target": "portable",
+      "signAndEditExecutable": false
     },
     "mac": {
-      "target": "dmg",
-      "icon": "assets/icon.icns"
+      "target": "dmg"
     },
     "linux": {
       "target": "AppImage"
