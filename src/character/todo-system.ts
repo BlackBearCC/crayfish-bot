@@ -102,6 +102,7 @@ export class TodoSystem {
         .sort((a, b) => a.createdAt - b.createdAt)[0];
       if (oldest) {
         this.todos.delete(oldest.id);
+        this.bus.emit("todo:deleted", { todo: oldest });
       }
     }
 

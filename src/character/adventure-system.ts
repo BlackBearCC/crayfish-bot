@@ -304,7 +304,7 @@ export class AdventureSystem {
   /**
    * Tick - called periodically to check adventure completion
    */
-  tick(deltaMs: number): void {
+  tick(_deltaMs: number): void {
     if (!this.activeAdventureId) return;
 
     const adventure = this.adventures.get(this.activeAdventureId);
