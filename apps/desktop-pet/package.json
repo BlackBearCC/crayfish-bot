@@ -20,7 +20,7 @@
   "license": "MIT",
   "dependencies": {
     "ws": "^8.19.0",
-    "openclaw": "workspace:*"
+    "petclaw": "workspace:*"
   },
   "devDependencies": {
     "electron": "^33.4.11",

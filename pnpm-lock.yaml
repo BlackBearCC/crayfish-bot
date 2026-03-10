@@ -253,7 +253,7 @@ importers:
 
   apps/desktop-pet:
     dependencies:
-      openclaw:
+      petclaw:
         specifier: workspace:*
         version: link:../..
       ws:
@@ -528,13 +528,13 @@ importers:
 
   packages/clawdbot:
     dependencies:
-      openclaw:
+      petclaw:
         specifier: workspace:*
         version: link:../..
 
   packages/moltbot:
     dependencies:
-      openclaw:
+      petclaw:
         specifier: workspace:*
         version: link:../..
 

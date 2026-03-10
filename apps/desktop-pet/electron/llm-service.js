@@ -1058,8 +1058,8 @@ class LLMService {
     try {
       const { execSync } = require('child_process');
 
-      // node_modules/openclaw 是唯一来源
-      const projectRoot = path.join(app.getAppPath(), 'node_modules', 'openclaw');
+      // node_modules/petclaw 是唯一来源
+      const projectRoot = path.join(app.getAppPath(), 'node_modules', 'petclaw');
       if (!fs.existsSync(projectRoot)) return;
 
       const distIndex = path.join(projectRoot, 'dist', 'index.js');
