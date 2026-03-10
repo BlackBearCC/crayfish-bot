@@ -303,12 +303,28 @@ class LLMService {
     try {
       const { execSync } = require('child_process');
       if (process.platform === 'win32') {
-        const out = execSync(`netstat -ano | findstr :${port} | findstr LISTENING`, { encoding: 'utf-8', timeout: 5000 }).trim();
-        const pids = [...new Set(out.split('\n').map(l => l.trim().split(/\s+/).pop()).filter(Boolean))];
-        for (const pid of pids) {
-          console.log(`[llm] Killing PID ${pid} on port ${port}`);
-          try { execSync(`taskkill /F /T /PID ${pid}`, { timeout: 5000 }); } catch {}
-        }
+        // 1. 杀端口上的监听进程（含整棵进程树）
+        try {
+          const out = execSync(`netstat -ano | findstr :${port} | findstr LISTENING`, { encoding: 'utf-8', timeout: 5000 }).trim();
+          const pids = [...new Set(out.split('\n').map(l => l.trim().split(/\s+/).pop()).filter(Boolean))];
+          for (const pid of pids) {
+            console.log(`[llm] Killing PID ${pid} on port ${port}`);
+            try { execSync(`taskkill /F /T /PID ${pid}`, { timeout: 5000 }); } catch {}
+          }
+        } catch {}
+        // 2. 兜底：杀所有 openclaw gateway 相关的孤儿 node 进程
+        try {
+          const wmicOut = execSync('wmic process where "name=\'node.exe\'" get ProcessId,CommandLine /FORMAT:CSV', { encoding: 'utf-8', timeout: 5000 });
+          const lines = wmicOut.split('\n').filter(l => l.includes('openclaw') && l.includes('gateway'));
+          for (const line of lines) {
+            const match = line.match(/,(\d+)\s*$/);
+            if (match) {
+              const pid = match[1];
+              console.log(`[llm] Killing orphan gateway node PID ${pid}`);
+              try { execSync(`taskkill /F /T /PID ${pid}`, { timeout: 5000 }); } catch {}
+            }
+          }
+        } catch {}
       } else {
         try { execSync(`fuser -k ${port}/tcp`, { timeout: 5000 }); } catch {}
       }
@@ -753,6 +769,13 @@ class LLMService {
 
     // 每次启动都从 ~/.openclaw/openclaw.json 同步最新 primary model 配置
     this._autoPopulateFromOpenClaw();
+
+    // SOUL.md 作为人设唯一来源 — 启动时同步到 systemPrompt
+    const soul = this._loadSoulFile();
+    if (soul) {
+      this.config.systemPrompt = soul;
+      console.log('[llm] systemPrompt loaded from SOUL.md');
+    }
   }
 
   /**
@@ -985,6 +1008,11 @@ class LLMService {
       if (!result.ok) return { ok: false, error: result.error };
     }
 
+    // Sync systemPrompt → SOUL.md so gateway uses the same persona
+    if (newConfig.systemPrompt) {
+      this._syncSoulFile(newConfig.systemPrompt);
+    }
+
     // Reconnect to pick up new config
     if (this.wsConnected) {
       try { await this._connectWebSocket(); } catch {}
@@ -996,6 +1024,39 @@ class LLMService {
     }
 
     return { ok: true };
+  }
+
+  // ===== SOUL.md sync =====
+
+  _getSoulPath() {
+    const ocConfig = this._readOpenClawConfig();
+    const workspace = ocConfig?.agents?.defaults?.workspace || path.join(os.homedir(), 'clawd');
+    return path.join(workspace, 'SOUL.md');
+  }
+
+  _syncSoulFile(systemPrompt) {
+    const soulPath = this._getSoulPath();
+    try {
+      const dir = path.dirname(soulPath);
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(soulPath, systemPrompt, 'utf-8');
+      console.log('[llm] SOUL.md synced:', soulPath);
+    } catch (e) {
+      console.warn('[llm] Failed to sync SOUL.md:', e.message);
+    }
+  }
+
+  _loadSoulFile() {
+    const soulPath = this._getSoulPath();
+    try {
+      if (fs.existsSync(soulPath)) {
+        const content = fs.readFileSync(soulPath, 'utf-8').trim();
+        if (content) return content;
+      }
+    } catch (e) {
+      console.warn('[llm] Failed to read SOUL.md:', e.message);
+    }
+    return null;
   }
 
   // ===== Helpers =====
