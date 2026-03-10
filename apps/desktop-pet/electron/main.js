@@ -30,6 +30,10 @@ const fs = require('fs');
 const os = require('os');
 const { LLMService, AI_PROVIDERS } = require('./llm-service');
 const { Win32Monitor } = require('./win32-monitor');
+const { logger, installGlobalLogger } = require('./logger');
+
+// 劫持 console → 同时写入 ~/.petclaw/logs/
+installGlobalLogger();
 
 // ===== 单实例锁 =====
 const gotSingleInstanceLock = app.requestSingleInstanceLock();
@@ -166,9 +170,20 @@ function createWindow() {
 
   // ===== IPC: Character Engine RPC =====
   ipcMain.handle('character-rpc', async (event, method, params) => {
+    logger.rpc(method, params);
     try {
-      return await llmService.characterRPC(method, params);
+      const result = await llmService.characterRPC(method, params);
+      // 记忆图谱操作详细记录
+      if (method === 'character.memory.extract') {
+        logger.memory('extract', JSON.stringify(params).slice(0, 500));
+      } else if (method === 'character.memory.search') {
+        logger.memory('search', JSON.stringify(params));
+      } else if (method === 'character.memory.clusters') {
+        logger.memory('clusters', `returned ${Array.isArray(result?.clusters) ? result.clusters.length : '?'} clusters`);
+      }
+      return result;
     } catch (e) {
+      logger.rpcErr(method, e.message);
       return { _error: e.message };
     }
   });
@@ -180,14 +195,17 @@ function createWindow() {
 
   // ===== IPC: 流式聊天 =====
   ipcMain.handle('chat-send', async (event, message, sessionKey, runId) => {
+    logger.chat('user→gateway', message, { sessionKey, runId });
     return await llmService.chatSend(message, sessionKey, runId);
   });
 
   ipcMain.handle('chat-abort', async (event, sessionKey, runId) => {
+    logger.chat('abort', '', { sessionKey, runId });
     return await llmService.chatAbort(sessionKey, runId);
   });
 
   ipcMain.handle('chat-history', async (event, sessionKey, limit) => {
+    logger.info('chat', `history request: session=${sessionKey} limit=${limit}`);
     return await llmService.chatHistory(sessionKey, limit);
   });
 
@@ -395,18 +413,21 @@ app.whenReady().then(async () => {
 
   // 注册流式聊天事件转发到渲染进程
   llmService.onChatEvent((payload) => {
+    logger.chatStream(payload?.state, payload);
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('chat-stream', payload);
     }
   });
 
   llmService.onAgentEvent((payload) => {
+    logger.agent(payload);
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('agent-event', payload);
     }
   });
 
   llmService.onCharacterEvent((payload) => {
+    logger.character(payload);
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('character-event', payload);
     }

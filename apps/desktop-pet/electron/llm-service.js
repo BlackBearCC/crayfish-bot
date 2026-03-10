@@ -19,6 +19,7 @@ const crypto = require('crypto');
 const { randomUUID } = crypto;
 const WebSocket = require('ws');
 const os = require('os');
+const { logger } = require('./logger');
 
 // ===== Device Identity Helpers =====
 const ED25519_SPKI_PREFIX = Buffer.from('302a300506032b6570032100', 'hex');
@@ -174,6 +175,7 @@ class LLMService {
     // 开发模式：如果 dist 不存在，先 build
     if (!app.isPackaged) await this._ensureBuilt();
 
+    logger.gateway(`Starting via: ${gateway.cmd} ${gateway.args.join(' ')} (packaged=${app.isPackaged})`);
     console.log(`[llm] Starting Gateway via: ${gateway.cmd} ${gateway.args.join(' ')}`);
 
     const gatewayArgs = [
@@ -212,6 +214,7 @@ class LLMService {
     });
 
     this.gatewayProcess.on('exit', (code) => {
+      logger.gateway(`exited with code ${code}`);
       console.log(`[gateway] exited with code ${code}`);
       this.gatewayReady = false;
       this.gatewayProcess = null;
@@ -375,6 +378,7 @@ class LLMService {
 
       this.ws.on('close', (code, reason) => {
         const reasonText = reason?.toString() || '';
+        logger.ws(`Closed (${code}): ${reasonText}`);
         console.log(`[ws] Closed (${code}): ${reasonText}`);
         this.wsConnected = false;
         this.ws = null;
@@ -396,6 +400,7 @@ class LLMService {
       });
 
       this.ws.on('error', (err) => {
+        logger.wsErr(err.message);
         console.error('[ws] Error:', err.message);
       });
 
@@ -409,6 +414,7 @@ class LLMService {
 
     if (frame.type === 'event') {
       if (frame.event === 'connect.challenge') {
+        logger.ws('received connect.challenge');
         this._sendConnectRequest(frame.payload?.nonce);
         return;
       }
@@ -424,6 +430,8 @@ class LLMService {
         this._onCharacterEvent?.(frame.payload);
         return;
       }
+      // 未知事件也记录
+      logger.ws(`unknown event: ${frame.event}`);
       return;
     }
 
@@ -438,12 +446,14 @@ class LLMService {
           this.helloOk = frame.payload;
           this.wsConnected = true;
           this._wsRetries = 0;
+          logger.ws(`Connected! Protocol: ${frame.payload?.protocol}, server: ${frame.payload?.server?.version}`);
           console.log('[ws] Connected! Protocol:', frame.payload?.protocol);
           connectResolve?.(true);
         }
         pending.resolve(frame.payload);
       } else {
         const err = frame.error || { message: 'Unknown error', code: 'UNKNOWN' };
+        logger.rpcErr(pending.method, `[${err.code}] ${err.message}`);
         pending.reject(new Error(`[${err.code}] ${err.message}`));
       }
     }
@@ -579,6 +589,8 @@ class LLMService {
     const runId = clientRunId || randomUUID();
     this.activeRunId = runId;
     this.activeSessionKey = resolvedKey;
+
+    logger.chat('send', userMessage, { sessionKey: resolvedKey, runId });
 
     await this._sendRequest('chat.send', {
       sessionKey: resolvedKey,
