@@ -58,6 +58,46 @@ function genId(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 }
 
+// ─── Helpers ───
+
+/**
+ * Smart truncation for AI replies: head(40%) + middle(20%) + tail(40%).
+ * Splits by sentence/clause boundaries before cutting, then joins with "……".
+ */
+function smartTruncateAiReply(text: string, maxLen: number): string {
+  if (!text || text.length <= maxLen) return text;
+
+  const EL = "……";
+  // Split into segments at sentence/clause boundaries (keeping the delimiter)
+  const segs = text.match(/[^。！？.!?，,；;\n]+[。！？.!?，,；;\n]*/g) ?? [text];
+
+  if (segs.length < 3 || maxLen < 20) {
+    const keep = Math.floor((maxLen - EL.length) / 2);
+    return text.slice(0, keep) + EL + text.slice(-keep);
+  }
+
+  const budget = maxLen - EL.length * 2;
+  const hBudget = Math.floor(budget * 0.4);
+  const tBudget = Math.floor(budget * 0.4);
+  const mBudget = budget - hBudget - tBudget;
+
+  let head = "", hi = 0;
+  while (hi < segs.length && head.length + segs[hi].length <= hBudget) head += segs[hi++];
+
+  let tail = "", ti = segs.length - 1;
+  while (ti >= hi && tail.length + segs[ti].length <= tBudget) tail = segs[ti--] + tail;
+
+  let mid = "";
+  if (hi <= ti && mBudget > 0) {
+    const midIdx = Math.floor((hi + ti) / 2);
+    for (let mi = midIdx; mi <= ti && mid.length + segs[mi].length <= mBudget; mi++) {
+      mid += segs[mi];
+    }
+  }
+
+  return [head, mid, tail].filter(s => s.length > 0).join(EL);
+}
+
 // ─── System ───
 
 export class MemoryGraphSystem {
@@ -140,8 +180,8 @@ export class MemoryGraphSystem {
 你是记忆管理器。
 
 [情景]
-用户: ${userMsg.slice(0, 200)}
-AI回复: ${aiReply.slice(0, 200)}
+用户: ${userMsg}
+AI回复: ${smartTruncateAiReply(aiReply, 500)}
 已有记忆簇: ${themes || "（空）"}
 
 [任务]
@@ -198,8 +238,8 @@ keywords=对话中直接出现的词；implicitKeywords=未直接出现但语义
     const frag: MemoryFragment = {
       id: genId("f"),
       text: (fragment ?? "").slice(0, 120),
-      userMsg: (userMsg ?? "").slice(0, 100),
-      aiReply: (aiReply ?? "").slice(0, 100),
+      userMsg: userMsg ?? "",
+      aiReply: smartTruncateAiReply(aiReply ?? "", 300),
       timestamp: now,
     };
 
@@ -242,10 +282,34 @@ keywords=对话中直接出现的词；implicitKeywords=未直接出现但语义
   }
 
   private _findClusterByTheme(theme: string): MemoryCluster | undefined {
-    const lower = theme.toLowerCase();
-    return Object.values(this._data.clusters).find(
-      c => c.theme.toLowerCase() === lower,
-    );
+    const lower = theme.toLowerCase().trim();
+    // Normalize all cluster themes once to avoid repeated toLowerCase/trim per pass
+    const norm = Object.values(this._data.clusters).map(c => ({ c, cl: c.theme.toLowerCase().trim() }));
+
+    // 1. Exact match
+    const exact = norm.find(({ cl }) => cl === lower);
+    if (exact) return exact.c;
+
+    // 2. Substring containment — shorter must be at least 2 chars to avoid false hits
+    if (lower.length >= 2) {
+      const contained = norm.find(({ cl }) =>
+        cl.length >= 2 && (cl.includes(lower) || lower.includes(cl))
+      );
+      if (contained) return contained.c;
+    }
+
+    // 3. Character-set overlap ratio (good for Chinese, catches paraphrase)
+    const newChars = new Set([...lower]);
+    let bestCluster: MemoryCluster | undefined;
+    let bestScore = 0;
+    for (const { c, cl } of norm) {
+      const clChars = new Set([...cl]);
+      const intersection = [...newChars].filter(ch => clChars.has(ch)).length;
+      const score = intersection / Math.max(newChars.size, clChars.size);
+      if (score > bestScore) { bestScore = score; bestCluster = c; }
+    }
+    // Threshold 0.7: at least 70% character overlap
+    return bestScore >= 0.7 ? bestCluster : undefined;
   }
 
   private _inferRelations(newCluster: MemoryCluster): void {

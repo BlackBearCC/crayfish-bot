@@ -43,6 +43,33 @@ import { CharacterStateSync } from './character/CharacterStateSync.js';
 import { NurturingPanel } from './ui/NurturingPanel.js';
 import { FloatText } from './ui/FloatText.js';
 
+// ── 工具调用动画映射 ──────────────────────────────────────────────────────────
+// 工具名 → 动画状态。只映射"有特征感"的操作，其余留在 work 状态。
+const TOOL_ANIM_MAP = {
+  // 阅读 / 搜索 → 专注坐姿
+  Read: 'sit', Grep: 'sit', Glob: 'sit',
+  // Web 检索 → 散步（嗅探）
+  WebSearch: 'walk', WebFetch: 'walk',
+  // 子 Agent 委托 → 交谈
+  Agent: 'talk',
+};
+
+/**
+ * 根据工具名返回对应动画状态，未命中返回 null（保持 work 状态）。
+ * @param {string} toolName
+ * @returns {string|null}
+ */
+function getToolAnim(toolName) {
+  if (!toolName) return null;
+  // Direct lookup is case-sensitive (map keys are PascalCase); regex fallback is case-insensitive
+  if (TOOL_ANIM_MAP[toolName]) return TOOL_ANIM_MAP[toolName];
+  if (/^web.?(search|fetch|browse)/i.test(toolName)) return 'walk';
+  if (/^(read|grep|glob|search|find|list)/i.test(toolName)) return 'sit';
+  if (/^agent/i.test(toolName)) return 'talk';
+  return null;
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 class OpenClawPet {
   constructor() {
     this.canvas = document.getElementById('pet-canvas');
@@ -103,6 +130,8 @@ class OpenClawPet {
     this._proactiveTimer = null;
     this._lastAppReaction = 0;    // 窗口感知冷却
     this._dockingEnabled = false;  // 窗口停靠状态
+    this._agentRunning = false;    // 是否处于 agent 执行中（用于工具动画回归 work）
+    this._toolAnimTimer = null;   // 当前待回归 work 的定时器（只保留最新一个）
   }
 
   async init() {
@@ -885,11 +914,7 @@ class OpenClawPet {
         localStorage.setItem('pet-chat-count', String(this._chatCompletionCount));
         this.achievementSystem?.check();
 
-        // 记忆提取 — 通知服务端 MemoryGraphSystem
-        const userMsg = this.chatPanel?.getLastUserMessage?.() || '';
-        if (userMsg || msg) {
-          this.electronAPI.characterRPC?.('character.memory.extract', { userMsg, aiReply: msg });
-        }
+        // 记忆提取由服务端 message:sent hook 自动完成，无需客户端重复触发
       }
     });
 
@@ -973,13 +998,28 @@ class OpenClawPet {
       // 1. 分发给小分身系统
       this.miniCatSystem?.onAgentEvent(event);
 
-      // 2. 工具调用 → 头顶状态条 + 工具图鉴统计（不再驱动技能领域）
+      // 2. 工具调用 → 头顶状态条 + 工具图鉴统计 + 动画映射
       if (event.stream === 'tool') {
         const toolName = event.data?.tool || event.data?.name || 'working';
         if (event.data?.phase === 'start' || event.data?.status === 'running') {
           this.toolStatusBar.show(toolName);
           this.skillSystem.recordTool(toolName);
           this.charSync.recordTool(toolName);
+
+          // 工具动画映射：特定工具类型播放短暂特征动画，之后回到 work
+          // 只保留最新一个定时器，避免多工具并发时累积大量 setTimeout
+          const animState = getToolAnim(toolName);
+          if (animState) {
+            if (this._toolAnimTimer) { clearTimeout(this._toolAnimTimer); this._toolAnimTimer = null; }
+            this.stateMachine.transition(animState, { force: true });
+            const ANIM_DURATION = animState === 'talk' ? 1500 : 1200;
+            this._toolAnimTimer = setTimeout(() => {
+              this._toolAnimTimer = null;
+              if (this._agentRunning && this.stateMachine.currentState === animState) {
+                this.stateMachine.transition('work', { force: true });
+              }
+            }, ANIM_DURATION);
+          }
 
           // 子 session 工具追踪
           const isSubSession = event.sessionKey && !event.sessionKey.endsWith(':main');
@@ -996,11 +1036,14 @@ class OpenClawPet {
       // 3. 生命周期 → 宠物动画 + Agent 完成追踪
       if (event.stream === 'lifecycle') {
         if (event.data?.phase === 'thinking' || event.data?.phase === 'running') {
+          this._agentRunning = true;
           const interruptible = ['idle', 'idle_ear_twitch', 'idle_yawn', 'walk', 'sit', 'sleep'];
           if (interruptible.includes(this.stateMachine.currentState)) {
             this.stateMachine.transition('work', { force: true });
           }
         } else if (event.data?.phase === 'complete') {
+          if (this._toolAnimTimer) { clearTimeout(this._toolAnimTimer); this._toolAnimTimer = null; }
+          this._agentRunning = false;
           this.stateMachine.transition('happy', { force: true, duration: 3000 });
           this.bubble.show('任务完成了喵！✨', 2000);
 
