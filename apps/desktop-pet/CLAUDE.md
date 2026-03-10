@@ -13,7 +13,7 @@ npm run dist                   # Build distributable Windows .exe
 npm test                       # Run Jest tests (ES module support enabled)
 ```
 
-**Prerequisite**: User must have run `openclaw onboard` once to create `~/.openclaw/openclaw.json` with API keys/model config.
+**Prerequisite**: Pet-Claw 客户端首次启动时会自动初始化 `~/.petclaw/openclaw.json`，无需手动 onboard。
 
 **ELECTRON_RUN_AS_NODE 自愈**：Claude Code 等工具会设置 `ELECTRON_RUN_AS_NODE=1`，导致 Electron 以纯 Node 模式启动。`main.js` 顶部已内置自愈逻辑：检测到该变量时，利用 `require('electron')` 返回的二进制路径，以干净环境 `spawn` 重新启动自身，因此可直接在 Claude Code 终端中 `pnpm start`。
 
@@ -96,7 +96,7 @@ Regenerate all sprites: `npm run generate-placeholder` (calls `scripts/generate-
 | 2 | 350 | 亲密伙伴 | adult | none |
 | 3 | 800 | 心灵契合 | adult | saturate(1.25) brightness(0.92) |
 
-Persisted server-side in `~/.openclaw/store/character/intimacy.json`. Client reads via `charSync.getGrowthStage()`.
+Persisted server-side in `~/.petclaw/store/character/intimacy.json`. Client reads via `charSync.getGrowthStage()`.
 
 ## CharacterAI & Prompt Engineering
 

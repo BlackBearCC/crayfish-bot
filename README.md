@@ -1,10 +1,10 @@
-# Crayfish Bot
+# Pet-Claw
 
 A desktop pet powered by AI — fork of [OpenClaw](https://github.com/openclaw/openclaw) with a built-in Pet Engine for AI character/companion features.
 
 ## What is this?
 
-Crayfish Bot turns OpenClaw into an AI desktop companion. A virtual pet lives on your screen, reacts to your actions, learns new skills, grows through intimacy stages, and chats with you using LLM-powered personality.
+Pet-Claw turns OpenClaw into an AI desktop companion. A virtual pet lives on your screen, reacts to your actions, learns new skills, grows through intimacy stages, and chats with you using LLM-powered personality.
 
 **Key features:**
 
@@ -30,8 +30,8 @@ Built on OpenClaw's Gateway for LLM routing, session management, and tool execut
 
 ```bash
 # Clone
-git clone https://github.com/BlackBearCC/crayfish-bot.git
-cd crayfish-bot
+git clone https://github.com/BlackBearCC/PetClaw.git
+cd petclaw
 
 # Install
 pnpm install
@@ -66,7 +66,7 @@ npm test
 ## Architecture
 
 ```
-crayfish-bot/
+petclaw/
 ├── src/pet/                    # Pet Engine (TypeScript)
 │   ├── pet-engine.ts           # Main entry, composes all subsystems
 │   ├── attribute-engine.ts     # Generic attributes (mood/hunger/health)
@@ -144,7 +144,7 @@ git fetch upstream
 git merge upstream/main
 ```
 
-- `origin` → https://github.com/BlackBearCC/crayfish-bot.git
+- `origin` → https://github.com/BlackBearCC/PetClaw.git
 - `upstream` → https://github.com/openclaw/openclaw.git
 
 ## License

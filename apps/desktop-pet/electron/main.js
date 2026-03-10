@@ -291,7 +291,7 @@ function createWindow() {
   // ===== IPC: 写入技能文件到 OpenClaw workspace =====
   ipcMain.handle('write-skill-file', (event, skillName, content) => {
     try {
-      const skillDir = path.join(os.homedir(), '.openclaw', 'workspace', 'skills', skillName);
+      const skillDir = path.join(os.homedir(), '.petclaw', 'workspace', 'skills', skillName);
       fs.mkdirSync(skillDir, { recursive: true });
       fs.writeFileSync(path.join(skillDir, 'SKILL.md'), content, 'utf-8');
       console.log(`[character-ai] Skill written: ${skillName}`);
@@ -305,7 +305,7 @@ function createWindow() {
   // ===== IPC: 追加事件到当前 Agent session =====
   ipcMain.handle('append-agent-session', (event, text) => {
     try {
-      const sessionsJson = path.join(os.homedir(), '.openclaw', 'agents', 'main', 'sessions', 'sessions.json');
+      const sessionsJson = path.join(os.homedir(), '.petclaw', 'agents', 'main', 'sessions', 'sessions.json');
       if (!fs.existsSync(sessionsJson)) return false;
       const sessions = JSON.parse(fs.readFileSync(sessionsJson, 'utf-8'));
       // main agent 下可能有多个 session（如用户清空后开了新的），取最近活跃的
@@ -347,7 +347,7 @@ function createWindow() {
   ipcMain.handle('append-agent-memory', (event, text) => {
     try {
       const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-      const memoryDir = path.join(os.homedir(), '.openclaw', 'workspace', 'memory');
+      const memoryDir = path.join(os.homedir(), '.petclaw', 'workspace', 'memory');
       fs.mkdirSync(memoryDir, { recursive: true });
       const memoryFile = path.join(memoryDir, `${today}.md`);
       const line = `\n- [character-event] ${text}`;

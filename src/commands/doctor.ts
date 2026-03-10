@@ -60,6 +60,7 @@ import { noteWorkspaceStatus } from "./doctor-workspace-status.js";
 import { MEMORY_SYSTEM_PROMPT, shouldSuggestMemorySystem } from "./doctor-workspace.js";
 import { noteOpenAIOAuthTlsPrerequisites } from "./oauth-tls-preflight.js";
 import { applyWizardMetadata, printWizardHeader, randomToken } from "./onboard-helpers.js";
+import { assertNotPetManaged } from "./pet-guard.js";
 import { ensureSystemdUserLingerInteractive } from "./systemd-linger.js";
 
 const intro = (message: string) => clackIntro(stylePromptTitle(message) ?? message);
@@ -73,6 +74,7 @@ export async function doctorCommand(
   runtime: RuntimeEnv = defaultRuntime,
   options: DoctorOptions = {},
 ) {
+  assertNotPetManaged(runtime);
   const prompter = createDoctorPrompter({ runtime, options });
   printWizardHeader(runtime);
   intro("OpenClaw doctor");

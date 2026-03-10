@@ -1,8 +1,8 @@
 {
-  "name": "@crayfish-bot/desktop-pet",
+  "name": "@petclaw/desktop-pet",
   "version": "0.2.0",
   "private": true,
-  "description": "Desktop Pet - Electron client for crayfish-bot AI engine",
+  "description": "Desktop Pet - Electron client for Pet-Claw AI engine",
   "main": "electron/main.js",
   "scripts": {
     "start": "chcp 65001 >nul 2>&1 && electron .",
@@ -28,8 +28,8 @@
     "jest": "^29.7.0"
   },
   "build": {
-    "appId": "com.crayfish-bot.desktop-pet",
-    "productName": "Crayfish Desktop Pet",
+    "appId": "com.petclaw.desktop-pet",
+    "productName": "Pet-Claw Desktop",
     "files": [
       "electron/**/*",
       "src/**/*",

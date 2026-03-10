@@ -1,11 +1,11 @@
-# Crayfish Bot — CLAUDE.md
+# Pet-Claw — CLAUDE.md
 
 Fork of [OpenClaw](https://github.com/openclaw/openclaw), extended with a Character Engine for AI character/companion features.
 
 ## Project Structure
 
 ```
-crayfish-bot/
+petclaw/
 ├── src/                          # OpenClaw core (TypeScript)
 │   ├── character/                # 🆕 Character Engine — AI character state engine
 │   │   ├── character-engine.ts   # Main entry, composes all subsystems
@@ -60,7 +60,7 @@ git fetch upstream
 git merge upstream/main            # Merge latest OpenClaw changes
 ```
 
-- `origin` → https://github.com/BlackBearCC/crayfish-bot.git
+- `origin` → https://github.com/BlackBearCC/PetClaw.git
 - `upstream` → https://github.com/openclaw/openclaw.git
 
 ## Character Engine Architecture
@@ -95,7 +95,7 @@ Client (Electron/Web/Mobile)
 
 ### Persistence
 
-Character state is stored as JSON files in `~/.openclaw/store/character/`:
+Character state is stored as JSON files in `~/.petclaw/store/character/`:
 - `mood.json`, `hunger.json`, `health.json` — attribute states
 - `intimacy.json` — growth points
 - `skill-system.json` — domain data, tools, realized skills
@@ -160,7 +160,7 @@ Gateway (character.* RPC handlers) → CharacterEngine (in-memory, file-persiste
 
 - **数据流**: 对话完成 → `character.memory.extract` RPC → `MemoryGraphSystem.enqueueExtraction()` → LLM 提取 → `indexClusters()` → SQLite FTS
 - **LLM 调用**: 服务端 `characterLLMComplete()` 直接调用 OpenAI-compatible API（读取 OpenClaw config 的 model provider）
-- **簇持久化**: `~/.openclaw/store/character/memory-graph.json`（PersistenceStore，与其他 character state 一致）
+- **簇持久化**: `~/.petclaw/store/character/memory-graph.json`（PersistenceStore，与其他 character state 一致）
 - **隐性关键词**: LLM 提取时生成 `implicitKeywords`（同义词/上位概念），写入 FTS 索引提升召回率
 - **面板**: `MemoryGraphPanel` 通过 `characterRPC('character.memory.clusters')` 读取服务端数据
 
@@ -183,7 +183,7 @@ git fetch upstream
 git merge upstream/main            # 正常合并（已建立 git 关系，v2026.3.8 后）
 ```
 
-- `origin` → https://github.com/BlackBearCC/crayfish-bot.git
+- `origin` → https://github.com/BlackBearCC/PetClaw.git
 - `upstream` → https://github.com/openclaw/openclaw.git
 
 > **注意**: 本项目最初是代码复制（非 git fork），v2026.3.8 同步时通过 cherry-pick 策略建立了正式 git 关系。

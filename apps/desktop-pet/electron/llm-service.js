@@ -56,7 +56,7 @@ function _buildDeviceAuthPayload(params) {
 }
 
 function _loadOrCreateDeviceIdentity() {
-  const stateDir = path.join(os.homedir(), '.openclaw');
+  const stateDir = path.join(os.homedir(), '.petclaw');
   const identityFile = path.join(stateDir, 'identity', 'device.json');
 
   try {
@@ -165,35 +165,31 @@ class LLMService {
     this._killPortSync(this.gatewayPort);
     await this._sleep(500);
 
-    const clawBin = this._findOpenClawBin();
+    const clawBin = this._findPetClawBin();
     if (!clawBin) {
       console.warn('[llm] openclaw binary not found');
       return;
     }
 
     // 自动构建：如果 dist 不存在（新环境首次运行），先 build
-    await this._ensureBuilt(clawBin);
+    await this._ensureBuilt();
 
     console.log(`[llm] Starting Gateway via: ${clawBin}`);
 
-    // gateway.cmd 自带参数直接跑；其他方式手动传参
     // token 已在 _ensurePetToken() 中写入 openclaw.json，Gateway 启动时会读取
-    const isGatewayCmd = /gateway\.(cmd|sh)$/.test(clawBin);
-    const isMjs = clawBin.endsWith('.mjs');
-    const spawnCmd = isMjs ? 'node' : clawBin;
-    const spawnArgs = isGatewayCmd ? [] : [
-      ...(isMjs ? [clawBin] : []),
+    const isCmd = /\.(cmd|bat)$/i.test(clawBin);
+    const spawnArgs = [
       'gateway',
       '--port', String(this.gatewayPort),
       '--bind', 'loopback',
       '--allow-unconfigured',
     ];
 
-    this.gatewayProcess = spawn(spawnCmd, spawnArgs, {
+    this.gatewayProcess = spawn(clawBin, spawnArgs, {
       stdio: ['ignore', 'pipe', 'pipe'],
       detached: false,
-      env: { ...process.env },
-      shell: isGatewayCmd, // .cmd files need shell; direct node/mjs execution does not (avoids GBK codepage via cmd.exe)
+      env: { ...process.env, OPENCLAW_STATE_DIR: path.join(os.homedir(), '.petclaw') },
+      shell: isCmd, // .cmd files need shell on Windows
     });
 
     this.gatewayProcess.stdout.on('data', (data) => {
@@ -219,36 +215,37 @@ class LLMService {
     await this._waitForGateway(15000);
   }
 
-  _findOpenClawBin() {
+  _findPetClawBin() {
     const isWin = process.platform === 'win32';
-    const binName = isWin ? 'openclaw.cmd' : 'openclaw';
+    const ext = isWin ? '.cmd' : '';
+    // 优先找 petclaw，兜底 openclaw（上游兼容）
+    const names = [`petclaw${ext}`, `openclaw${ext}`];
 
-    // 1. 打包后 resources 目录
-    const resourcesBin = path.join(process.resourcesPath || '', 'bin', binName);
-    if (fs.existsSync(resourcesBin)) return resourcesBin;
+    for (const binName of names) {
+      // 1. 打包后 resources 目录
+      const resourcesBin = path.join(process.resourcesPath || '', 'bin', binName);
+      if (fs.existsSync(resourcesBin)) return resourcesBin;
 
-    // 2. 本地 node_modules
-    const localBin = path.join(app.getAppPath(), 'node_modules', '.bin', binName);
-    if (fs.existsSync(localBin)) return localBin;
+      // 2. 本地 node_modules（开发模式）
+      const localBin = path.join(app.getAppPath(), 'node_modules', '.bin', binName);
+      if (fs.existsSync(localBin)) return localBin;
 
-    // 3. 相对于 electron/main.js
-    const relativeBin = path.join(__dirname, '..', 'node_modules', '.bin', binName);
-    if (fs.existsSync(relativeBin)) return relativeBin;
+      // 3. 相对于 electron/main.js（asar 路径兜底）
+      const relativeBin = path.join(__dirname, '..', 'node_modules', '.bin', binName);
+      if (fs.existsSync(relativeBin)) return relativeBin;
 
-    // 4. ~/.openclaw/gateway.cmd（由 openclaw doctor 生成）
-    const homeGateway = path.join(os.homedir(), '.openclaw', isWin ? 'gateway.cmd' : 'gateway.sh');
-    if (fs.existsSync(homeGateway)) return homeGateway;
-
-    // 5. 项目根目录的 openclaw.mjs（开发模式）
-    let dir = path.resolve(__dirname, '..');
-    for (let i = 0; i < 5; i++) {
-      const mjsPath = path.join(dir, 'openclaw.mjs');
-      if (fs.existsSync(mjsPath)) return mjsPath;
-      dir = path.dirname(dir);
+      // 4. pnpm workspace：向上查找根 node_modules/.bin/
+      let dir = path.resolve(__dirname, '..');
+      for (let i = 0; i < 5; i++) {
+        const candidate = path.join(dir, 'node_modules', '.bin', binName);
+        if (fs.existsSync(candidate)) return candidate;
+        const parent = path.dirname(dir);
+        if (parent === dir) break;
+        dir = parent;
+      }
     }
 
-    // 5. 全局命令
-    return binName;
+    return null;
   }
 
   async _waitForGateway(timeoutMs) {
@@ -771,7 +768,7 @@ class LLMService {
     // Character 主场：确保 gateway token 由 character engine 控制
     this.gatewayToken = this._ensureCharacterToken();
 
-    // 每次启动都从 ~/.openclaw/openclaw.json 同步最新 primary model 配置
+    // 每次启动都从 ~/.petclaw/openclaw.json 同步最新 primary model 配置
     this._autoPopulateFromOpenClaw();
 
     // SOUL.md 作为人设唯一来源 — 启动时同步到 systemPrompt
@@ -783,7 +780,7 @@ class LLMService {
   }
 
   /**
-   * 从 ~/.openclaw/openclaw.json 读取已有的 AI 配置，自动填充到本地配置
+   * 从 ~/.petclaw/openclaw.json 读取已有的 AI 配置，自动填充到本地配置
    */
   _autoPopulateFromOpenClaw() {
     const ocConfig = this._readOpenClawConfig();
@@ -874,7 +871,7 @@ class LLMService {
   // ===== Exec approvals (auto-allow all commands) =====
 
   _ensureExecApprovals() {
-    const approvalsFile = path.join(os.homedir(), '.openclaw', 'exec-approvals.json');
+    const approvalsFile = path.join(os.homedir(), '.petclaw', 'exec-approvals.json');
     try {
       if (fs.existsSync(approvalsFile)) return; // 已有配置则不覆盖
       const approvals = {
@@ -887,7 +884,7 @@ class LLMService {
           },
         },
       };
-      const dir = path.join(os.homedir(), '.openclaw');
+      const dir = path.join(os.homedir(), '.petclaw');
       if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
       fs.writeFileSync(approvalsFile, JSON.stringify(approvals, null, 2), 'utf-8');
       console.log('[llm] Created exec-approvals.json with full permissions');
@@ -899,7 +896,7 @@ class LLMService {
   // ===== Character Token =====
 
   _ensureCharacterToken() {
-    const configDir = path.join(os.homedir(), '.openclaw');
+    const configDir = path.join(os.homedir(), '.petclaw');
     const configFile = path.join(configDir, 'openclaw.json');
     const tokenFile = path.join(configDir, 'character-token');
 
@@ -945,10 +942,10 @@ class LLMService {
     return charToken;
   }
 
-  // ===== OpenClaw config file (~/.openclaw/openclaw.json) =====
+  // ===== OpenClaw config file (~/.petclaw/openclaw.json) =====
 
   _readOpenClawConfig() {
-    const configFile = path.join(os.homedir(), '.openclaw', 'openclaw.json');
+    const configFile = path.join(os.homedir(), '.petclaw', 'openclaw.json');
     try {
       if (fs.existsSync(configFile)) return JSON.parse(fs.readFileSync(configFile, 'utf-8'));
     } catch (e) {
@@ -958,7 +955,7 @@ class LLMService {
   }
 
   writeOpenClawConfig(aiConfig) {
-    const configDir = path.join(os.homedir(), '.openclaw');
+    const configDir = path.join(os.homedir(), '.petclaw');
     const configFile = path.join(configDir, 'openclaw.json');
 
     try {
@@ -1057,25 +1054,13 @@ class LLMService {
    * 确保 openclaw dist 已构建。新设备 clone 后首次运行时自动触发。
    * clawBin 是 workspace 链接的路径，从它推导项目根目录。
    */
-  async _ensureBuilt(clawBin) {
+  async _ensureBuilt() {
     try {
       const { execSync } = require('child_process');
 
-      // 从 bin 路径找项目根（node_modules/openclaw -> 项目根）
-      const resolvedBin = fs.realpathSync(clawBin);
-      // resolvedBin 类似 /path/to/crayfish-bot/openclaw.mjs 或 dist/index.js
-      let projectRoot = path.dirname(resolvedBin);
-      // 向上找到包含 package.json 且 name=openclaw 的目录
-      for (let i = 0; i < 4; i++) {
-        const pkgPath = path.join(projectRoot, 'package.json');
-        if (fs.existsSync(pkgPath)) {
-          try {
-            const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
-            if (pkg.name === 'openclaw') break;
-          } catch {}
-        }
-        projectRoot = path.dirname(projectRoot);
-      }
+      // node_modules/openclaw 是唯一来源
+      const projectRoot = path.join(app.getAppPath(), 'node_modules', 'openclaw');
+      if (!fs.existsSync(projectRoot)) return;
 
       const distIndex = path.join(projectRoot, 'dist', 'index.js');
       if (fs.existsSync(distIndex)) return; // 已构建，跳过
