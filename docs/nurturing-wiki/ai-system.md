@@ -418,19 +418,36 @@ const CHARACTER_TOOLS = [
 安全约束: 每轮最多 2 次宠物工具，受 CareSystem 冷却限制，簇数量上限 50。
 
 
-## Session 集成
+## 对话经验奖励（每轮）
+
+按轮次奖励经验，用户发消息 + AI 回复 = 1 轮。
 
 ```typescript
-registerInternalHook("session-end", (event) => {
-  const { sessionKey, messageCount, duration } = event.context;
+// 在 message:sent hook 中计数
+registerInternalHook("message:sent", (event) => {
   const engine = getEngineIfReady();
   if (!engine) return;
 
-  engine.dailyTaskSystem.addProgress("chat_minutes", Math.floor(duration / 60000));
-  const baseExp = Math.min(messageCount * 2, 50);
-  engine.levelSystem.addExp(baseExp, "session_complete");
+  // 每轮对话奖励 2-5 EXP
+  const exp = 2 + Math.floor(Math.random() * 4); // 2-5
+  engine.levelSystem.addExp(exp, "chat_round");
 });
 ```
+
+**经验平衡**：
+- 等级上限：Lv.30（需要 63000 EXP）
+- 每轮奖励：2-5 EXP
+- 每天上限：100 EXP（约 20-50 轮对话）
+- 预计满级时间：~2 年（每天活跃）
+
+**其他经验来源**：
+| 来源 | EXP |
+|------|-----|
+| 每日任务 | 10-30 |
+| 探险成功 | 20-100 |
+| 待办验收 | 10 |
+| 成就解锁 | 50-200 |
+| 登录连续 | 5-20 |
 
 ---
 
