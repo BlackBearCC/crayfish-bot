@@ -196,3 +196,4 @@ git merge upstream/main            # 正常合并（已建立 git 关系，v2026
 - Keep upstream OpenClaw modules untouched when possible for easy sync
 - New character features go in `src/character/` + `src/gateway/server-methods/character.ts`
 - AI 集成（角色状态 → LLM 语气）通过 `agent:bootstrap` hook 无侵入注入，不改 OpenClaw 核心
+- **Git 提交不加 Co-Authored-By** — 提交消息中不要附加 `Co-Authored-By: Claude ...` 签名行

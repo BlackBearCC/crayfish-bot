@@ -15,11 +15,7 @@ npm test                       # Run Jest tests (ES module support enabled)
 
 **Prerequisite**: User must have run `openclaw onboard` once to create `~/.openclaw/openclaw.json` with API keys/model config.
 
-**启动注意**：Claude Code 进程会设置 `ELECTRON_RUN_AS_NODE=1`，导致 `npm start` 在 Claude Code 终端里运行时 Electron 以纯 Node 模式启动（`require('electron')` 返回 undefined，app 报错）。必须在**系统终端**（PowerShell 或 cmd）中启动，并确保该变量未设置：
-```cmd
-set ELECTRON_RUN_AS_NODE=
-npm start
-```
+**ELECTRON_RUN_AS_NODE 自愈**：Claude Code 等工具会设置 `ELECTRON_RUN_AS_NODE=1`，导致 Electron 以纯 Node 模式启动。`main.js` 顶部已内置自愈逻辑：检测到该变量时，利用 `require('electron')` 返回的二进制路径，以干净环境 `spawn` 重新启动自身，因此可直接在 Claude Code 终端中 `pnpm start`。
 
 ## Architecture
 

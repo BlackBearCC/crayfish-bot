@@ -8,6 +8,22 @@
  * - 用户只需启动一个 exe，一切自动搞定
  */
 
+// Self-heal: Claude Code (or similar) sets ELECTRON_RUN_AS_NODE=1, which makes
+// the electron binary act as plain Node.  Detect this and relaunch as real Electron.
+if (process.env.ELECTRON_RUN_AS_NODE) {
+  const electronPath = require('electron');
+  if (typeof electronPath === 'string') {
+    const { spawn } = require('child_process');
+    const env = { ...process.env };
+    delete env.ELECTRON_RUN_AS_NODE;
+    const child = spawn(electronPath, [__dirname + '/..', ...process.argv.slice(2)], {
+      env, stdio: 'ignore', detached: true,
+    });
+    child.unref();
+    process.exit(0);
+  }
+}
+
 const { app, BrowserWindow, ipcMain, Menu, screen, clipboard } = require('electron');
 const path = require('path');
 const fs = require('fs');
