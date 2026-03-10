@@ -1259,4 +1259,58 @@ export const characterHandlers: GatewayRequestHandlers = {
     history: e.adventures.getHistory(20),
     stats: e.adventures.getStats(),
   })),
+
+  // ── First Time Experience ──
+
+  "character.firstTime.state": safeHandler((e) => e.firstTime.getState()),
+
+  "character.firstTime.welcome": safeHandler((e) => {
+    const welcome = e.firstTime.getWelcomeMessage();
+    if (welcome) {
+      e.firstTime.markWelcomeShown();
+    }
+    return { welcome, isFirstTime: e.firstTime.isFirstTimeUser() };
+  }),
+
+  "character.firstTime.completeStep": ({ params, respond }) => {
+    const step = params?.step as string;
+    if (!step) {
+      (respond as Function)(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, "missing 'step' param"));
+      return;
+    }
+
+    try {
+      const e = getEngine();
+      e.firstTime.completeStep(step as any);
+      (respond as Function)(true, { ok: true, state: e.firstTime.getState() });
+    } catch (err) {
+      (respond as Function)(false, undefined, errorShape(ErrorCodes.UNAVAILABLE, String(err)));
+    }
+  },
+
+  "character.firstTime.hint": safeHandler((e) => {
+    const trigger = e.firstTime.shouldShowIdleHint();
+    return { hint: trigger, progress: e.firstTime.getProgress() };
+  }),
+
+  "character.firstTime.suggestions": safeHandler((e) => ({
+    suggestions: e.firstTime.getTaskSuggestions(),
+    progress: e.firstTime.getProgress(),
+  })),
+
+  "character.firstTime.recordTask": ({ params, respond }) => {
+    const type = params?.type as string;
+    if (!type) {
+      (respond as Function)(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, "missing 'type' param"));
+      return;
+    }
+
+    try {
+      const e = getEngine();
+      e.firstTime.recordFirstTask(type);
+      (respond as Function)(true, { ok: true });
+    } catch (err) {
+      (respond as Function)(false, undefined, errorShape(ErrorCodes.UNAVAILABLE, String(err)));
+    }
+  },
 };
