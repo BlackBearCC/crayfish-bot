@@ -49,11 +49,11 @@ export interface BuyResult {
 // ─── Shop catalog (from design doc §9.2) ───
 
 export const SHOP_CATALOG: ShopItemDef[] = [
-  { id: "babel_fish_can",  price: 30,  dailyLimit: 5 },
-  { id: "gargle_blaster",  price: 80,  dailyLimit: 2 },
-  { id: "dont_panic",      price: 25,  dailyLimit: 3 },
-  { id: "marvin_patch",    price: 40,  dailyLimit: 3 },
-  { id: "deep_thought",    price: 200, dailyLimit: 0, weeklyLimit: 1 },
+  { id: "巴别鱼罐头", price: 30, dailyLimit: 5 },
+  { id: "泛银河爆破饮", price: 80, dailyLimit: 2 },
+  { id: "不要恐慌胶囊", price: 25, dailyLimit: 3 },
+  { id: "马文牌退烧贴", price: 40, dailyLimit: 3 },
+  { id: "深思重启针", price: 200, dailyLimit: 0, weeklyLimit: 1 },
 ];
 
 // ─── Persistence keys ───

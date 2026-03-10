@@ -22,10 +22,10 @@ export interface PlayAction {
 }
 
 export const PLAY_ACTIONS: PlayAction[] = [
-  { id: "pet_stroke",     name: "抚摸",             effects: { mood: 8, intimacy: 2 } },
-  { id: "improbability",  name: "无限非概率逗猫器",   effects: { mood: 15, hunger: -5, intimacy: 5 } },
-  { id: "hide_seek",      name: "捉迷藏",           effects: { mood: 20, hunger: -8, intimacy: 8 } },
-  { id: "sunbathe",       name: "晒太阳",           effects: { mood: 10, hunger: -2, intimacy: 3 } },
+  { id: "pet_stroke",       name: "抚摸",             effects: { mood: 8, intimacy: 2 } },
+  { id: "无限非概率逗猫器", name: "无限非概率逗猫器", effects: { mood: 15, hunger: -5, intimacy: 5 } },
+  { id: "hide_seek",        name: "捉迷藏",           effects: { mood: 20, hunger: -8, intimacy: 8 } },
+  { id: "sunbathe",         name: "晒太阳",           effects: { mood: 10, hunger: -2, intimacy: 3 } },
 ];
 
 // ─── Rest types ───

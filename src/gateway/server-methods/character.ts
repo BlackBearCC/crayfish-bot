@@ -870,7 +870,7 @@ export const characterHandlers: GatewayRequestHandlers = {
   // ── Care ──
 
   "character.care.feed": ({ params, respond }) => {
-    const itemId = (params?.itemId as string) ?? "ration_42";
+    const itemId = (params?.itemId as string) ?? "42号口粮";
     try {
       const e = getEngine();
       const result = e.care.feed(itemId);

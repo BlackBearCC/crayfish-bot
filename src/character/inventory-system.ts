@@ -40,8 +40,8 @@ export interface InventorySlot {
 // ─── Item Definitions ───
 
 export const ITEM_DEFS: Record<string, ItemDef> = {
-  ration_42: {
-    id: "ration_42",
+  42号口粮: {
+    id: "42号口粮",
     name: "42号口粮",
     icon: "🧊",
     category: "food",
@@ -50,32 +50,32 @@ export const ITEM_DEFS: Record<string, ItemDef> = {
     cooldownMs: 20 * 60 * 1000,
     unlimited: true,
   },
-  babel_fish_can: {
-    id: "babel_fish_can",
+  巴别鱼罐头: {
+    id: "巴别鱼罐头",
     name: "巴别鱼罐头",
     icon: "🐠",
     category: "food",
     description: "美味的鱼罐头，恢复45饱腹值和大量心情。",
     effects: { hunger: 45, mood: 12 },
   },
-  gargle_blaster: {
-    id: "gargle_blaster",
+  泛银河爆破饮: {
+    id: "泛银河爆破饮",
     name: "泛银河爆破饮",
     icon: "🌌",
     category: "food",
     description: "强力饮料，恢复120饱腹值并提升健康。",
     effects: { hunger: 120, mood: 8, health: 5 },
   },
-  dont_panic: {
-    id: "dont_panic",
+  不要恐慌胶囊: {
+    id: "不要恐慌胶囊",
     name: "不要恐慌胶囊",
     icon: "💊",
     category: "food",
-    description: "镇定胶囊，少量饱腹但大幅提升健康。",
+    description: "镇定胶囊，少量饱腹，提升心情和健康。",
     effects: { hunger: 30, mood: 5, health: 15 },
   },
-  marvin_patch: {
-    id: "marvin_patch",
+  马文牌退烧贴: {
+    id: "马文牌退烧贴",
     name: "马文牌退烧贴",
     icon: "🤖",
     category: "medicine",
@@ -83,8 +83,8 @@ export const ITEM_DEFS: Record<string, ItemDef> = {
     effects: { health: 20 },
     cooldownMs: 4 * 3600 * 1000,
   },
-  deep_thought: {
-    id: "deep_thought",
+  深思重启针: {
+    id: "深思重启针",
     name: "深思重启针",
     icon: "💉",
     category: "medicine",
@@ -92,8 +92,8 @@ export const ITEM_DEFS: Record<string, ItemDef> = {
     effects: { health: 100 },
     cooldownMs: 24 * 3600 * 1000,
   },
-  improbability: {
-    id: "improbability",
+  无限非概率逗猫器: {
+    id: "无限非概率逗猫器",
     name: "无限非概率逗猫器",
     icon: "🎲",
     category: "toy",

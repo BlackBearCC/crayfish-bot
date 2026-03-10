@@ -94,7 +94,7 @@ export function createCharacterSelfCareTool(options?: {
 
         switch (action) {
           case "feed":
-            result = engine.care.feed("ration_42");
+            result = engine.care.feed("42号口粮");
             break;
           case "rest":
             result = engine.care.rest("nap");

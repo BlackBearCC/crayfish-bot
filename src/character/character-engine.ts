@@ -285,7 +285,7 @@ export class CharacterEngine {
 
   /** Convenience: feed the character with free ration */
   feed(): void {
-    this.care.feed("ration_42");
+    this.care.feed("42号口粮");
   }
 
   /**

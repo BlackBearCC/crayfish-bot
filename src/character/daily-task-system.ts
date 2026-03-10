@@ -71,9 +71,9 @@ const DIFFICULTY_TIERS: DifficultyTier[] = [
     ],
     rewardPool: [
       { exp: 8,  coins: 12, items: [] },
-      { exp: 5,  coins: 10, items: [{ id: "babel_fish_can", qty: 1 }] },
+      { exp: 5,  coins: 10, items: [{ id: "巴别鱼罐头", qty: 1 }] },
       { exp: 10, coins: 15, items: [] },
-      { exp: 6,  coins: 10, items: [{ id: "babel_fish_can", qty: 1 }] },
+      { exp: 6,  coins: 10, items: [{ id: "巴别鱼罐头", qty: 1 }] },
     ],
   },
   {
@@ -88,10 +88,10 @@ const DIFFICULTY_TIERS: DifficultyTier[] = [
     ],
     rewardPool: [
       { exp: 15, coins: 25, items: [] },
-      { exp: 10, coins: 20, items: [{ id: "babel_fish_can", qty: 2 }] },
-      { exp: 12, coins: 22, items: [{ id: "dont_panic", qty: 1 }] },
+      { exp: 10, coins: 20, items: [{ id: "巴别鱼罐头", qty: 2 }] },
+      { exp: 12, coins: 22, items: [{ id: "不要恐慌胶囊", qty: 1 }] },
       { exp: 18, coins: 30, items: [] },
-      { exp: 10, coins: 20, items: [{ id: "marvin_patch", qty: 1 }] },
+      { exp: 10, coins: 20, items: [{ id: "马文牌退烧贴", qty: 1 }] },
     ],
   },
   {
@@ -104,11 +104,11 @@ const DIFFICULTY_TIERS: DifficultyTier[] = [
       { type: "achievement_unlock", threshold: 1 },
     ],
     rewardPool: [
-      { exp: 25, coins: 45, items: [{ id: "gargle_blaster", qty: 1 }] },
-      { exp: 20, coins: 50, items: [{ id: "babel_fish_can", qty: 3 }] },
+      { exp: 25, coins: 45, items: [{ id: "泛银河爆破饮", qty: 1 }] },
+      { exp: 20, coins: 50, items: [{ id: "巴别鱼罐头", qty: 3 }] },
       { exp: 30, coins: 60, items: [] },
-      { exp: 20, coins: 40, items: [{ id: "dont_panic", qty: 2 }] },
-      { exp: 25, coins: 45, items: [{ id: "marvin_patch", qty: 1 }, { id: "babel_fish_can", qty: 1 }] },
+      { exp: 20, coins: 40, items: [{ id: "不要恐慌胶囊", qty: 2 }] },
+      { exp: 25, coins: 45, items: [{ id: "马文牌退烧贴", qty: 1 }, { id: "巴别鱼罐头", qty: 1 }] },
     ],
   },
 ];
