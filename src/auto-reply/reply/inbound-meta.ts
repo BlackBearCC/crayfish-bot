@@ -149,7 +149,10 @@ export function buildInboundUserContextPrefix(ctx: TemplateContext): string {
     tag: safeTrim(ctx.SenderTag),
     e164: safeTrim(ctx.SenderE164),
   };
-  if (senderInfo?.label) {
+  // Skip sender block for direct webchat — single-user desktop/web clients don't
+  // need sender metadata injected into the prompt (it's the authenticated user).
+  const isDirectWebchat = isDirect && directChannelValue === "webchat";
+  if (senderInfo?.label && !isDirectWebchat) {
     blocks.push(
       ["Sender (untrusted metadata):", "```json", JSON.stringify(senderInfo, null, 2), "```"].join(
         "\n",

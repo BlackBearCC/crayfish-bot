@@ -122,6 +122,20 @@ describe("buildInboundUserContextPrefix", () => {
     expect(text).toBe("");
   });
 
+  it("skips sender metadata block for direct webchat chats", () => {
+    const text = buildInboundUserContextPrefix({
+      ChatType: "direct",
+      Provider: "webchat",
+      Surface: "webchat",
+      OriginatingChannel: "webchat",
+      SenderId: "gateway-client",
+      SenderName: "OpenClaw Character",
+      SenderUsername: "OpenClaw Character",
+    } as TemplateContext);
+
+    expect(text).toBe("");
+  });
+
   it("includes message identifiers for direct external-channel chats", () => {
     const text = buildInboundUserContextPrefix({
       ChatType: "direct",

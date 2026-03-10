@@ -317,21 +317,28 @@ export class ChatPanel {
 
   /**
    * 从 chat 事件 message 中提取文本
-   * 支持: string | { content } | { text } | [{ type:'text', text }]
+   * 支持: string | { text } | { content: string } | { content: [{type:'text',text}] }
+   * text 字段优先（与服务端 extractAssistantText 行为一致）
    */
   _extractText(message) {
     if (!message) return '';
     if (typeof message === 'string') return message.trim();
-    let content = message;
-    if (typeof message === 'object' && message.content !== undefined) content = message.content;
-    else if (typeof message === 'object' && typeof message.text === 'string') return message.text.trim();
-    if (typeof content === 'string') return content.trim();
-    if (Array.isArray(content)) {
-      return content
-        .filter(b => b && typeof b === 'object' && b.type === 'text' && typeof b.text === 'string')
-        .map(b => b.text)
-        .join('\n')
-        .trim();
+    if (typeof message === 'object') {
+      // text 字段优先（历史消息可能同时有 text 和 content）
+      if (typeof message.text === 'string') {
+        const t = message.text.trim();
+        if (t) return t;
+      }
+      const content = message.content;
+      if (content === undefined) return '';
+      if (typeof content === 'string') return content.trim();
+      if (Array.isArray(content)) {
+        return content
+          .filter(b => b && typeof b === 'object' && b.type === 'text' && typeof b.text === 'string')
+          .map(b => b.text)
+          .join('\n')
+          .trim();
+      }
     }
     return '';
   }
@@ -366,12 +373,30 @@ export class ChatPanel {
 
       this._clearMessages();
 
+      // debug: 首次加载时输出消息格式，便于排查角色/内容问题
+      if (messages.length > 0) {
+        const sample = messages.slice(0, 3).map(m => ({
+          role: m?.role, hasContent: m?.content !== undefined, hasText: typeof m?.text === 'string',
+        }));
+        console.log('[ChatPanel] History sample:', sample);
+      }
+
       for (const msg of messages) {
         if (!msg || typeof msg !== 'object') continue;
-        const role = msg.role === 'assistant' ? 'assistant' : 'user';
-        const text = this._extractText(msg);
+        // 跳过 system/tool/unknown 角色
+        if (msg.role !== 'user' && msg.role !== 'assistant') continue;
+        let text = this._extractText(msg);
         if (!text) continue;
-        this._addMessage(role, text, role === 'assistant', msg.timestamp);
+
+        // 内部事件/角色反应 → 小型系统通知
+        const eventMatch = text.match(/^\[(event|character):[^\]]*\]\s*([\s\S]*)/);
+        if (eventMatch) {
+          const label = eventMatch[2].trim();
+          if (label) this._addSystemMessage(label, msg.timestamp);
+          continue;
+        }
+
+        this._addMessage(msg.role, text, msg.role === 'assistant', msg.timestamp);
       }
       this._historyStale = false;
     } catch (e) {
@@ -393,6 +418,26 @@ export class ChatPanel {
       return;
     }
     this._addMessage(role, text, role === 'assistant');
+  }
+
+  /**
+   * 添加小型系统通知消息（居中、半透明、无边框）
+   */
+  _addSystemMessage(text, timestamp) {
+    const div = document.createElement('div');
+    div.className = 'chat-msg chat-msg-system';
+
+    const contentEl = document.createElement('div');
+    contentEl.className = 'msg-content';
+    contentEl.textContent = text;
+
+    const timeEl = document.createElement('span');
+    timeEl.className = 'msg-time';
+    timeEl.textContent = this._formatTime(timestamp);
+
+    div.appendChild(contentEl);
+    div.appendChild(timeEl);
+    this.messagesEl.insertBefore(div, this.scrollBtn);
   }
 
   _detectSentiment(text) {

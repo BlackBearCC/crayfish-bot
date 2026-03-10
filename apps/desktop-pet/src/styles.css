@@ -327,6 +327,19 @@ html, body {
   border-radius: var(--radius-bubble);
 }
 
+.chat-msg-system {
+  align-self: center;
+  background: rgba(42, 42, 42, 0.06);
+  color: rgba(42, 42, 42, 0.5);
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 10px;
+  max-width: 85%;
+  text-align: center;
+  border: none;
+  box-shadow: none;
+}
+
 /* 消息时间戳 */
 .msg-time {
   display: block;
