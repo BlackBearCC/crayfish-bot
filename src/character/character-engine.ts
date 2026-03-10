@@ -29,6 +29,7 @@ import { MemoryGraphSystem } from "./memory-graph.js";
 import { WorldEventSystem } from "./world-event-system.js";
 import { TodoSystem } from "./todo-system.js";
 import { AdventureSystem } from "./adventure-system.js";
+import { FirstTimeSystem } from "./first-time-system.js";
 import { DEFAULT_ATTRIBUTES, GROWTH_INTIMACY } from "./presets.js";
 import type { AttributeDef } from "./attribute-engine.js";
 
@@ -84,6 +85,7 @@ export class CharacterEngine {
   readonly worldEvents: WorldEventSystem;
   readonly todos: TodoSystem;
   readonly adventures: AdventureSystem;
+  readonly firstTime: FirstTimeSystem;
 
   private _passiveAcc: number = 0;
 
@@ -171,6 +173,9 @@ export class CharacterEngine {
 
     // Adventure system (exploration mechanics)
     this.adventures = new AdventureSystem(this.bus, options.store);
+
+    // First-time user experience
+    this.firstTime = new FirstTimeSystem(this.bus, options.store);
 
     // ─── Cross-system wiring ───
 
