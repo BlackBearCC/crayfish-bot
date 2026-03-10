@@ -399,6 +399,7 @@ export class ChatPanel {
         this._addMessage(msg.role, text, msg.role === 'assistant', msg.timestamp);
       }
       this._historyStale = false;
+      this._scrollToBottom(true);
     } catch (e) {
       console.warn('[ChatPanel] Failed to load history:', e.message);
     } finally {
