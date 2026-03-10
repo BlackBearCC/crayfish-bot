@@ -164,10 +164,17 @@ Gateway (character.* RPC handlers) → CharacterEngine (in-memory, file-persiste
 - **隐性关键词**: LLM 提取时生成 `implicitKeywords`（同义词/上位概念），写入 FTS 索引提升召回率
 - **面板**: `MemoryGraphPanel` 通过 `characterRPC('character.memory.clusters')` 读取服务端数据
 
+### ChatEvalSystem — 对话意图评估 (Done)
+
+每 5 条用户消息 + 间隔 ≥5min 触发一次 LLM 意图分类（`chat-eval-system.ts`）：
+- **意图标签**: praise / deep_talk / playful / gratitude / cold / impatient / angry / sad_share / neutral
+- **效果**: mood/intimacy delta + streak 连击倍率（最高 3×）+ LevelSystem +5 EXP
+- **饥饿门控**: hunger ≤30 时 `canChat()` 返回 false，`chat.ts` 拒绝对话
+- **AI 回复上下文**: `message:sent` hook 调用 `onAssistantMessage()` 补全双边对话记录
+- **客户端反应**: 服务端 `chat:eval` bus → `_broadcast("character", { kind: "chat-eval", intent, ... })` → `app.js._handleChatEval()` → 正向 intent 播放 happy 动画 + 随机气泡，负向只播 sad 动画
+
 ### P1 待实现
-- ChatEvalSystem LLM 意图评估回调
 - 气泡型主动对话（客户端固定文案触发）
-- 工具调用动画映射（tool_use → 特定动画帧）
 
 ## Upstream Sync
 

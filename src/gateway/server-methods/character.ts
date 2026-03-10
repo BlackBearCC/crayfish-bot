@@ -314,10 +314,13 @@ function registerCharacterHooks(eng: CharacterEngine): void {
       return;
     }
 
-    // Regular user sessions → memory extraction
+    // Regular user sessions → memory extraction + chat eval context
     const userMsg = consumeLastUserMessage(event.sessionKey);
     if (userMsg || content) {
       engine.memoryGraph.enqueueExtraction(userMsg, content);
+    }
+    if (content) {
+      engine.chatEval.onAssistantMessage(content);
     }
   });
 
@@ -414,6 +417,12 @@ function getEngine(): CharacterEngine {
     engine.bus.on("level:up", () => {
       if (!_broadcast || !engine) return;
       _broadcast("character", { kind: "state-update", state: engine.getState() }, { dropIfSlow: true });
+    });
+
+    // Broadcast chat eval result → client plays intent-driven animation/bubble
+    engine.bus.on("chat:eval", (data) => {
+      if (!_broadcast) return;
+      _broadcast("character", { kind: "chat-eval", ...(data as object) }, { dropIfSlow: true });
     });
 
     // Event-driven Soul Agent: trigger on every chat interval (every 5 messages)

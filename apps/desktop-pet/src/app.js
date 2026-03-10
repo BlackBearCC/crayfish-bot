@@ -1066,6 +1066,8 @@ class OpenClawPet {
       } else if (payload?.kind === 'state-update') {
         // 属性/成长/等级变化时服务端主动推送，立即同步到客户端缓存
         this.charSync.handleServerPush(payload);
+      } else if (payload?.kind === 'chat-eval') {
+        this._handleChatEval(payload);
       }
     });
 
@@ -1083,6 +1085,29 @@ class OpenClawPet {
       this.bubble.show(hint, 6000);
       this.stateMachine.transition('idle_ear_twitch', { force: true, duration: 2000 }); // 侧耳倾听
     });
+  }
+
+  /**
+   * 对话意图评估结果：intent → 动画 + 气泡（仅正向 intent 弹气泡，负向只做动画）
+   */
+  _handleChatEval({ intent } = {}) {
+    // Positive intents: play happy animation + optional bubble
+    const POSITIVE_BUBBLES = {
+      praise:    ['嘿嘿，主人夸我了~', '喵喵喵！好开心！', '被夸了！今天要加倍努力！'],
+      playful:   ['嘻嘻嘻～', '哈哈哈好好玩！'],
+      gratitude: ['不用谢不用谢~', '能帮上忙就好！'],
+    };
+    if (POSITIVE_BUBBLES[intent]) {
+      const msgs = POSITIVE_BUBBLES[intent];
+      const msg = msgs[Math.floor(Math.random() * msgs.length)];
+      this.bubble.show(msg, 3000);
+      this.stateMachine.transition('happy', { force: true, duration: 2000 });
+      return;
+    }
+    // Negative intents: shrink animation only, no bubble to avoid awkward back-talk
+    if (intent === 'angry' || intent === 'impatient') {
+      this.stateMachine.transition('sad', { force: true, duration: 1500 });
+    }
   }
 
   /**
