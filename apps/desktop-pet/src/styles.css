@@ -3002,6 +3002,16 @@ body.panels-right .md-panel {
   margin-bottom: 12px;
 }
 
+.nur-adv-chosen {
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background: rgba(74, 222, 128, 0.12);
+  border: 1px solid rgba(74, 222, 128, 0.3);
+  border-radius: 8px;
+  font-size: 12px;
+  color: #4ade80;
+}
+
 .nur-adv-choices-title {
   font-size: 12px;
   font-weight: 600;

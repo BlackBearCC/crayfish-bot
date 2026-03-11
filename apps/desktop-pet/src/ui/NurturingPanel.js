@@ -589,15 +589,20 @@ export class NurturingPanel {
     const riskColors = { safe: '#4ade80', moderate: '#fbbf24', dangerous: '#ef4444' };
 
     let choicesHtml = '';
-    if (adventure.type === 'interactive' && adventure.choices?.length) {
+    if (adventure.type === 'interactive' && adventure.choices?.length && !adventure.selectedChoice) {
       choicesHtml = `
         <div class="nur-adv-choices">
           <div class="nur-adv-choices-title">做出选择：</div>
-          ${adventure.choices.map((c, i) => `
+          ${adventure.choices.map((c) => `
             <button class="nur-adv-choice" data-choice-id="${c.id}">${this._esc(c.text)}</button>
           `).join('')}
         </div>
       `;
+    } else if (adventure.selectedChoice) {
+      const chosen = adventure.choices?.find(c => c.id === adventure.selectedChoice);
+      choicesHtml = chosen
+        ? `<div class="nur-adv-chosen">已选择：${this._esc(chosen.text)}</div>`
+        : '';
     }
 
     body.innerHTML = `

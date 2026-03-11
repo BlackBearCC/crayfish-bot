@@ -259,9 +259,9 @@ export class AdventureSystem {
       };
     }
 
-    // Add random items on success
+    // Add random items on success — must use valid ITEM_DEFS keys
     if (success && Math.random() > 0.5) {
-      const items = ["神秘种子", "古旧硬币", "闪光石头", "奇异草药"];
+      const items = ["巴别鱼罐头", "不要恐慌胶囊", "马文牌退烧贴", "泛银河爆破饮"];
       rewards.items = [items[Math.floor(Math.random() * items.length)]];
     }
 

@@ -575,8 +575,29 @@ ${conditions.map((c, i) => `${i + 1}. ${c}`).join('\n')}
       _broadcast("character", { kind: "chat-eval", ...(data as object) }, { dropIfSlow: true });
     });
 
-    // Broadcast adventure completion → client shows result bubble + animation
+    // Grant rewards + broadcast adventure completion → client shows result bubble + animation
     engine.bus.on("adventure:completed", (data) => {
+      // Award rewards here so both tick() auto-complete and RPC manual-complete paths work
+      try {
+        const { exp, coins, items } = data.result.rewards;
+        if (exp) engine.levels.gainExp(exp, "adventure");
+        if (coins) engine.shop.earnCoins(coins, "adventure");
+        for (const itemId of items ?? []) {
+          engine.inventory.addItem(itemId, 1);
+        }
+      } catch {
+        // rewards failed; adventure is still completed
+      }
+
+      // Apply damage to health on failure
+      if (data.result.damage) {
+        try {
+          engine.attributes.adjust("health", -data.result.damage);
+        } catch {
+          // non-critical
+        }
+      }
+
       if (!_broadcast) return;
       _broadcast("character", {
         kind: "adventure-completed",
@@ -1334,15 +1355,7 @@ export const characterHandlers: GatewayRequestHandlers = {
       if ("error" in advResult) {
         (respond as Function)(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, advResult.error));
       } else {
-        // Award rewards — isolated so a reward failure doesn't un-complete the adventure
-        if (advResult.result?.rewards) {
-          try {
-            if (advResult.result.rewards.exp) e.levels.gainExp(advResult.result.rewards.exp, "adventure");
-            if (advResult.result.rewards.coins) e.shop.earnCoins(advResult.result.rewards.coins, "adventure");
-          } catch {
-            // rewards failed; adventure is still completed
-          }
-        }
+        // Rewards are granted via the adventure:completed bus listener (covers both RPC and tick paths)
         (respond as Function)(true, { ok: true, adventure: advResult });
       }
     } catch (err) {
