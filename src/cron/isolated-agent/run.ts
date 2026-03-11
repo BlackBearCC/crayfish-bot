@@ -223,7 +223,7 @@ export async function runCronIsolatedAgentTurn(params: {
     : undefined;
   // Use the requested agentId even when there is no explicit agent config entry.
   // This ensures auth-profiles, workspace, and agentDir all resolve to the
-  // correct per-agent paths (e.g. ~/.openclaw/agents/<agentId>/agent/).
+  // correct per-agent paths (e.g. ~/.petclaw/agents/<agentId>/agent/).
   const agentId = normalizedRequested ?? defaultAgentId;
   const agentCfg = buildCronAgentDefaultsConfig({
     defaults: params.cfg.agents?.defaults,

@@ -1609,7 +1609,7 @@ async function maybeMigrateLegacyConfig(): Promise<string[]> {
     return changes;
   }
 
-  const targetDir = path.join(home, ".openclaw");
+  const targetDir = path.join(home, ".petclaw");
   const targetPath = path.join(targetDir, "petclaw.json");
   try {
     await fs.access(targetPath);

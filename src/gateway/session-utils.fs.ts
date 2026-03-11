@@ -157,7 +157,7 @@ export function resolveSessionTranscriptCandidates(
   }
 
   const home = resolveRequiredHomeDir(process.env, os.homedir);
-  const legacyDir = path.join(home, ".openclaw", "sessions");
+  const legacyDir = path.join(home, ".petclaw", "sessions");
   pushCandidate(() => resolveSessionTranscriptPathInDir(sessionId, legacyDir));
 
   return Array.from(new Set(candidates));

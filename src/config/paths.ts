@@ -112,7 +112,7 @@ export const STATE_DIR = resolveStateDir();
 /**
  * Config file path (JSON5).
  * Can be overridden via OPENCLAW_CONFIG_PATH.
- * Default: ~/.openclaw/petclaw.json (or $PETCLAW_STATE_DIR/petclaw.json)
+ * Default: ~/.petclaw/petclaw.json (or $PETCLAW_STATE_DIR/petclaw.json)
  */
 export function resolveCanonicalConfigPath(
   env: NodeJS.ProcessEnv = process.env,
