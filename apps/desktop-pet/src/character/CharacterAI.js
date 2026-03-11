@@ -2,7 +2,7 @@
  * CharacterAI.js
  * 角色层 AI 服务 — 角色自身的"内心活动"通道
  *
- * 不经过 OpenClaw gateway，由 main 进程直接调用 LLM API。
+ * 不经过 PetClaw gateway，由 main 进程直接调用 LLM API。
  * 用于领悟生成、反思等角色私有的 AI 调用，结果不进聊天面板。
  *
  * 所有 prompt 通过 _buildPrompt(persona, context, task) 统一构建：

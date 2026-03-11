@@ -13,7 +13,7 @@ desktop.ini
 
 # Secrets & local config
 *.env
-openclaw-pet-config.json
+petclaw-pet-config.json
 
 # Claude Code
 .claude/

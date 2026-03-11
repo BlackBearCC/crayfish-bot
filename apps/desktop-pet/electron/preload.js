@@ -1,7 +1,7 @@
 /**
  * preload.js — Electron 预加载脚本
  *
- * 安全地暴露所有 API 给渲染进程，包括 OpenClaw 全能力通道
+ * 安全地暴露所有 API 给渲染进程，包括 PetClaw 全能力通道
  */
 
 const { contextBridge, ipcRenderer } = require('electron');
@@ -49,7 +49,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getConfig: () => ipcRenderer.invoke('get-config'),
   saveConfig: (config) => ipcRenderer.invoke('save-config', config),
   saveAndApply: (config) => ipcRenderer.invoke('save-and-apply', config),
-  writeOpenClawConfig: (aiConfig) => ipcRenderer.invoke('write-openclaw-config', aiConfig),
+  writePetClawConfig: (aiConfig) => ipcRenderer.invoke('write-petclaw-config', aiConfig),
   getGatewayHealth: () => ipcRenderer.invoke('get-gateway-health'),
   getAIProviders: () => ipcRenderer.invoke('get-ai-providers'),
 

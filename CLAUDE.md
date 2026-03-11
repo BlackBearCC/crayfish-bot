@@ -6,7 +6,7 @@ Fork of [OpenClaw](https://github.com/openclaw/openclaw), extended with a Charac
 
 ```
 petclaw/
-├── src/                          # OpenClaw core (TypeScript)
+├── src/                          # PetClaw core (TypeScript)
 │   ├── character/                # 🆕 Character Engine — AI character state engine
 │   │   ├── character-engine.ts   # Main entry, composes all subsystems
 │   │   ├── attribute-engine.ts   # Generic attributes (mood/hunger/health/custom)
@@ -23,7 +23,7 @@ petclaw/
 │   │   └── server-methods/character.ts # character.* RPC methods
 │   ├── auto-reply/               # LLM calling + reply processing
 │   ├── sessions/                 # Session management
-│   └── ...                       # Other OpenClaw modules
+│   └── ...                       # Other upstream modules
 ├── apps/
 │   ├── desktop-pet/              # 🆕 Electron desktop character client
 │   │   ├── electron/             # Main process (IPC, window, llm-service)
@@ -42,7 +42,7 @@ petclaw/
 
 ```bash
 pnpm install                      # Install all workspace dependencies
-pnpm build                        # Build OpenClaw + character engine
+pnpm build                        # Build PetClaw + character engine
 pnpm gateway:watch                # Dev mode with auto-reload
 
 # Desktop character (from apps/desktop-pet/)
@@ -57,7 +57,7 @@ pnpm run generate-placeholder     # Regenerate placeholder sprites
 
 ```bash
 git fetch upstream
-git merge upstream/main            # Merge latest OpenClaw changes
+git merge upstream/main            # Merge latest upstream changes
 ```
 
 - `origin` → https://github.com/BlackBearCC/PetClaw.git
@@ -159,7 +159,7 @@ Gateway (character.* RPC handlers) → CharacterEngine (in-memory, file-persiste
 服务端 `MemoryGraphSystem`（`src/character/memory-graph.ts`）负责记忆的完整生命周期：LLM 提取 → 簇合并/剪枝 → SQLite FTS 索引。客户端零逻辑，仅在对话完成后调用 `characterRPC('character.memory.extract', {userMsg, aiReply})` 传递原始数据。
 
 - **数据流**: 对话完成 → `character.memory.extract` RPC → `MemoryGraphSystem.enqueueExtraction()` → LLM 提取 → `indexClusters()` → SQLite FTS
-- **LLM 调用**: 服务端 `characterLLMComplete()` 直接调用 OpenAI-compatible API（读取 OpenClaw config 的 model provider）
+- **LLM 调用**: 服务端 `characterLLMComplete()` 直接调用 OpenAI-compatible API（读取 Gateway config 的 model provider）
 - **簇持久化**: `~/.petclaw/store/character/memory-graph.json`（PersistenceStore，与其他 character state 一致）
 - **隐性关键词**: LLM 提取时生成 `implicitKeywords`（同义词/上位概念），写入 FTS 索引提升召回率
 - **面板**: `MemoryGraphPanel` 通过 `characterRPC('character.memory.clusters')` 读取服务端数据
@@ -200,7 +200,7 @@ git merge upstream/main            # 正常合并（已建立 git 关系，v2026
 - Character engine is TypeScript (`src/character/`), desktop client is plain JS (`apps/desktop-pet/`)
 - All character state logic lives in the engine, clients are thin renderers
 - One generic `characterRPC(method, params)` covers all `character.*` methods — no specialized IPC per method
-- Keep upstream OpenClaw modules untouched when possible for easy sync
+- Keep upstream modules untouched when possible for easy sync
 - New character features go in `src/character/` + `src/gateway/server-methods/character.ts`
-- AI 集成（角色状态 → LLM 语气）通过 `agent:bootstrap` hook 无侵入注入，不改 OpenClaw 核心
+- AI 集成（角色状态 → LLM 语气）通过 `agent:bootstrap` hook 无侵入注入，不改上游核心
 - **Git 提交不加 Co-Authored-By** — 提交消息中不要附加 `Co-Authored-By: Claude ...` 签名行

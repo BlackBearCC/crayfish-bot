@@ -1,6 +1,6 @@
 /**
  * SettingsPanel.js
- * 设置面板 — 配置 AI 服务、OpenClaw Gateway 连接、文件权限和宠物人设
+ * 设置面板 — 配置 AI 服务、PetClaw Gateway 连接、文件权限和宠物人设
  */
 
 // AI Provider 预设（与 llm-service.js 保持一致）
@@ -116,12 +116,12 @@ export class SettingsPanel {
           </div>
         </div>
 
-        <!-- OpenClaw 设置 -->
-        <div class="settings-section-title">OpenClaw</div>
+        <!-- PetClaw 设置 -->
+        <div class="settings-section-title">PetClaw</div>
         <div class="settings-group">
           <label>Agent ID</label>
           <input type="text" id="set-agent-id" placeholder="main" />
-          <div class="settings-hint">OpenClaw 的 agent 名称，默认 main</div>
+          <div class="settings-hint">PetClaw 的 agent 名称，默认 main</div>
         </div>
         <div class="settings-group">
           <label>Gateway Token (可选)</label>
@@ -256,7 +256,7 @@ export class SettingsPanel {
         document.getElementById('set-clf-api-key').value = '';
         document.getElementById('set-clf-api-key').placeholder = config.hasClassifierApiKey ? '已设置 (****)' : '留空则跟随主 AI';
 
-        // OpenClaw 字段
+        // PetClaw 字段
         document.getElementById('set-agent-id').value = config.agentId || 'main';
         document.getElementById('set-token').value = '';
         document.getElementById('set-token').placeholder = config.hasToken ? '已设置 (****)' : '未设置';
@@ -348,7 +348,7 @@ export class SettingsPanel {
     if (newClfApiKey) config.classifierApiKey = newClfApiKey;
 
     try {
-      // 使用 saveAndApply 写入本地配置 + OpenClaw 主配置 + 重连
+      // 使用 saveAndApply 写入本地配置 + PetClaw 主配置 + 重连
       let result;
       if (this.electronAPI.saveAndApply) {
         result = await this.electronAPI.saveAndApply(config);

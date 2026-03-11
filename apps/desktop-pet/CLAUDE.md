@@ -5,9 +5,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-npm install                    # Install dependencies (includes openclaw gateway)
+npm install                    # Install dependencies (includes petclaw gateway)
 npm run generate-placeholder   # Generate placeholder spritesheets (required first-time setup)
-npm start                      # Launch app (auto-starts OpenClaw Gateway subprocess)
+npm start                      # Launch app (auto-starts PetClaw Gateway subprocess)
 npm run dev                    # Development mode with DevTools opened
 npm run dist                   # Build distributable Windows .exe
 npm test                       # Run Jest tests (ES module support enabled)
@@ -19,17 +19,17 @@ npm test                       # Run Jest tests (ES module support enabled)
 
 ## Architecture
 
-OpenClaw Desktop Character is a frameless, transparent, always-on-top Electron desktop companion. The app is split into two isolated processes:
+PetClaw Desktop Character is a frameless, transparent, always-on-top Electron desktop companion. The app is split into two isolated processes:
 
 **Main process** (`electron/main.js`):
 - Creates 280×580px window positioned bottom-right
-- Manages the OpenClaw Gateway subprocess (auto-spawned from `node_modules/openclaw`)
+- Manages the PetClaw Gateway subprocess (auto-spawned from `node_modules/openclaw`)
 - Handles Win32 foreground window tracking (`electron/win32-monitor.js`)
 - All LLM communication via `electron/llm-service.js` which connects to the Gateway over HTTP/WebSocket
 
 **Renderer process** (`src/`):
 - Pure ES modules, no bundler — `src/index.html` uses `<script type="module" src="app.js">`
-- `src/app.js` exports `OpenClawPet` class which bootstraps and owns all subsystems
+- `src/app.js` exports `PetClawPet` class which bootstraps and owns all subsystems
 - No direct Node.js access — renderer talks to main exclusively via `window.electronAPI` (exposed by `electron/preload.js`)
 
 **IPC bridge** (`electron/preload.js`):
@@ -48,7 +48,7 @@ OpenClaw Desktop Character is a frameless, transparent, always-on-top Electron d
 ## Renderer Subsystems
 
 ```
-src/app.js (OpenClawPet)
+src/app.js (PetClawPet)
 ├── character/CharacterStateSync.js   Server state bridge (characterRPC, 10s polling, callbacks)
 ├── character/CharacterRenderer.js    Canvas 2D renderer; wraps SpriteSheet + StateMachine
 ├── character/StateMachine.js         Animation state transitions (idle/walk/sit/sleep/work/eat/…)
@@ -100,7 +100,7 @@ Persisted server-side in `~/.petclaw/store/character/intimacy.json`. Client read
 
 ## CharacterAI & Prompt Engineering
 
-`CharacterAI.js` handles all character-internal LLM calls (not through OpenClaw Gateway). Key conventions:
+`CharacterAI.js` handles all character-internal LLM calls (not through PetClaw Gateway). Key conventions:
 
 - **Persona from config**: All prompts load persona via `_getPersona()` which reads `systemPrompt` from user settings. Default: `'你是一只可爱的桌面宠物猫'`. Never hardcode a specific character in prompts.
 - **Structured prompts**: Use `_buildPrompt(persona, context, task)` → `[角色] + [情景] + [任务]` three-section format.
@@ -115,7 +115,7 @@ Persisted server-side in `~/.petclaw/store/character/intimacy.json`. Client read
   - Murmur (50%): 8-char bubble via CharacterAI
   - Quiz (30%): Choice buttons → mood/intimacy rewards
   - Story (20%): Fun fact via MarkdownPanel
-- **Event sync**: All learning events + CharacterAI reactions written to OpenClaw via `appendAgentSession` + `appendAgentMemory`.
+- **Event sync**: All learning events + CharacterAI reactions written to PetClaw via `appendAgentSession` + `appendAgentMemory`.
 - **StateMachine note**: Transitioning from `work` to `talk`/`happy` returns to `idle` (not `work`). Must manually `transition('work', { force: true })` after temporary animations.
 
 ## Key Conventions

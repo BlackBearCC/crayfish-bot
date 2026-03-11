@@ -1,5 +1,5 @@
 /**
- * app.js — OpenClaw Character 入口
+ * app.js — PetClaw Character 入口
  *
  * 架构：
  * - 宠物动画 + 交互
@@ -70,7 +70,7 @@ function getToolAnim(toolName) {
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
-class OpenClawPet {
+class PetClawPet {
   constructor() {
     this.canvas = document.getElementById('pet-canvas');
     this.bubbleContainer = document.getElementById('bubble-container');
@@ -135,7 +135,7 @@ class OpenClawPet {
   }
 
   async init() {
-    console.log('🐱 OpenClaw Pet initializing...');
+    console.log('🐱 PetClaw Pet initializing...');
 
     // 1. 并行加载 spritesheet（成年猫 + 幼猫 + 姿势动画）
     const spritePath = '../assets/sprites/placeholder/';
@@ -458,7 +458,7 @@ class OpenClawPet {
       this.charSync.recordDomain(result.categoryName, result.courseTitle, 3);
       this.charSync.interact('chat'); // intimacy +3 via server
 
-      // 写入 OpenClaw 记忆
+      // 写入 PetClaw 记忆
       const completeEvent = `[event:learning-complete] 宠物完成了「${result.courseTitle}」一节学习（${result.categoryName}领域），经验 +${result.xpGained}`;
       Promise.all([
         this.electronAPI?.appendAgentSession?.(completeEvent),
@@ -682,7 +682,7 @@ class OpenClawPet {
       this.stateMachine.transition('happy', { force: true, duration: 3000 });
     }, 800);
 
-    console.log('✅ OpenClaw Pet ready!');
+    console.log('✅ PetClaw Pet ready!');
   }
 
   /**
@@ -1172,7 +1172,7 @@ class OpenClawPet {
       getElapsed: () => this.learningSystem.getActiveLesson()?.elapsed || 0,
     });
 
-    // 写入 OpenClaw 记忆
+    // 写入 PetClaw 记忆
     const startEvent = `[event:learning-start] 宠物开始学习「${courseTitle}」（${categoryName}领域）`;
     Promise.all([
       this.electronAPI?.appendAgentSession?.(startEvent),
@@ -1300,6 +1300,6 @@ class OpenClawPet {
 }
 
 // 启动
-const pet = new OpenClawPet();
+const pet = new PetClawPet();
 pet.init().catch(e => console.error('Failed to initialize:', e));
 window._pet = pet;

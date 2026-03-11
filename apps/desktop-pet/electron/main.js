@@ -3,8 +3,8 @@
  *
  * 一体化打包架构：
  * - 透明无框窗口承载桌面宠物
- * - 内部管理 OpenClaw Gateway 生命周期（自动启动/关闭）
- * - 通过 WebSocket RPC 与 OpenClaw Gateway 全能力通信
+ * - 内部管理 PetClaw Gateway 生命周期（自动启动/关闭）
+ * - 通过 WebSocket RPC 与 PetClaw Gateway 全能力通信
  * - 用户只需启动一个 exe，一切自动搞定
  */
 
@@ -248,8 +248,8 @@ function createWindow() {
     return await llmService.saveAndApply(newConfig);
   });
 
-  ipcMain.handle('write-openclaw-config', (event, aiConfig) => {
-    return llmService.writeOpenClawConfig(aiConfig);
+  ipcMain.handle('write-petclaw-config', (event, aiConfig) => {
+    return llmService.writePetClawConfig(aiConfig);
   });
 
   ipcMain.handle('get-gateway-health', () => {
@@ -306,7 +306,7 @@ function createWindow() {
     }
   });
 
-  // ===== IPC: 写入技能文件到 OpenClaw workspace =====
+  // ===== IPC: 写入技能文件到 PetClaw workspace =====
   ipcMain.handle('write-skill-file', (event, skillName, content) => {
     try {
       const skillDir = path.join(os.homedir(), '.petclaw', 'workspace', 'skills', skillName);

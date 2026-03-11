@@ -52,7 +52,7 @@ export class ChatPanel {
     this.element.id = 'chat-panel';
     this.element.innerHTML = `
       <div class="chat-header">
-        <span class="chat-title">🐾 OpenClaw Chat</span>
+        <span class="chat-title">🐾 PetClaw Chat</span>
         <div class="chat-header-actions">
           <button class="chat-abort" title="中止回复" style="display:none">■</button>
           <button class="chat-close" title="关闭">✕</button>

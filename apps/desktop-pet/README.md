@@ -1,19 +1,19 @@
-# OpenClaw Character 🐱
+# PetClaw Character 🐱
 
-OpenClaw 桌面角色助手 — 内嵌 OpenClaw AI 的可爱像素小猫。
+PetClaw 桌面角色助手 — 内嵌 PetClaw AI 的可爱像素小猫。
 
-**一体化打包**：一个 exe 启动，OpenClaw Gateway 自动在内部运行，无需手动启动任何服务。
+**一体化打包**：一个 exe 启动，PetClaw Gateway 自动在内部运行，无需手动启动任何服务。
 
 ## 快速开始
 
 ```bash
-# 安装全部依赖（含 OpenClaw）
+# 安装全部依赖（含 PetClaw）
 npm install
 
 # 生成占位帧动画（首次运行）
 npm run generate-placeholder
 
-# 启动（自动拉起 OpenClaw Gateway）
+# 启动（自动拉起 PetClaw Gateway）
 npm start
 
 # 开发模式（自动打开 DevTools）
@@ -26,7 +26,7 @@ npm run dist
 npm test
 ```
 
-**前提**：需要先通过 `openclaw onboard` 完成 OpenClaw 的基础配置（选模型、配 API Key 等），这些配置保存在 `~/.openclaw/openclaw.json` 中。
+**前提**：需要先通过 `petclaw onboard` 完成 PetClaw 的基础配置（选模型、配 API Key 等），这些配置保存在 `~/.petclaw/openclaw.json` 中。
 
 > **注意**：Claude Code 环境会设置 `ELECTRON_RUN_AS_NODE=1`，导致 Electron 以纯 Node 模式启动。请在系统终端（PowerShell / cmd）中运行 `npm start`。
 
@@ -43,8 +43,8 @@ npm test
 │  └──────────┬─────────────────────┘      │
 │             │ HTTP localhost:18789        │
 │  ┌──────────▼─────────────────────┐      │
-│  │  OpenClaw Gateway (子进程)      │      │
-│  │  - 来自 node_modules/openclaw   │     │
+│  │  PetClaw Gateway (子进程)       │      │
+│  │  - 来自 node_modules/petclaw    │     │
 │  │  - 自动启动/关闭                │      │
 │  └────────────────────────────────┘      │
 │                                          │
@@ -115,7 +115,7 @@ npm test
 - **快捷输入** — 底部浮动输入栏，Enter 发送，流式回复走气泡，Markdown 回复走面板
 - **工具状态栏** — 角色头顶显示当前执行的工具名称 + 图标 + 转圈动画
 - **思考动画** — 等待 AI 首个回复时显示 6 点省略号动效
-- **内嵌 OpenClaw** — 自动管理 Gateway 生命周期，支持多会话、工具调用、Agent 事件
+- **内嵌 PetClaw** — 自动管理 Gateway 生命周期，支持多会话、工具调用、Agent 事件
 
 ### 图鉴面板
 

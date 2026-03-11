@@ -136,7 +136,7 @@ export class NurturingPanel {
 
     if (!this._isConnected()) {
       bar.innerHTML = '';
-      body.innerHTML = '<div class="nur-empty">🔌 Gateway 未连接<br><br>请确保 OpenClaw Gateway 已启动后重试</div>';
+      body.innerHTML = '<div class="nur-empty">🔌 Gateway 未连接<br><br>请确保 PetClaw Gateway 已启动后重试</div>';
       return;
     }
 

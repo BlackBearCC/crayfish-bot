@@ -1,8 +1,8 @@
 /**
- * llm-service.js — OpenClaw 内嵌网关管理 + WebSocket RPC 全能力客户端
+ * llm-service.js — PetClaw 内嵌网关管理 + WebSocket RPC 全能力客户端
  *
  * 架构：
- *   Electron 主进程启动 → 内部拉起 OpenClaw Gateway 子进程 → 等待就绪
+ *   Electron 主进程启动 → 内部拉起 PetClaw Gateway 子进程 → 等待就绪
  *   → 通过 WebSocket (ws://127.0.0.1:18789) 全 RPC 通信
  *   → 支持流式聊天（chat.send + chat 事件）、会话管理、配置管理
  *   → Electron 退出时自动杀掉 Gateway
@@ -142,12 +142,12 @@ class LLMService {
   // ===== 初始化 =====
 
   async init() {
-    this.configPath = path.join(app.getPath('userData'), 'openclaw-character-config.json');
+    this.configPath = path.join(app.getPath('userData'), 'petclaw-character-config.json');
     this._loadConfig();
-    // 自动同步 AI 配置到 OpenClaw Gateway 配置
+    // 自动同步 AI 配置到 PetClaw Gateway 配置
     if (this.config.aiProvider && this.config.aiApiKey) {
-      this.writeOpenClawConfig(this.config);
-      console.log('[llm] Auto-synced AI config to OpenClaw Gateway');
+      this.writePetClawConfig(this.config);
+      console.log('[llm] Auto-synced AI config to PetClaw Gateway');
     }
     try { this.deviceIdentity = _loadOrCreateDeviceIdentity(); } catch (e) {
       console.warn('[llm] Failed to load device identity:', e.message);
@@ -225,7 +225,7 @@ class LLMService {
 
   /**
    * 解析 Gateway 启动方式，返回 { cmd, args, shell }。
-   * 打包模式：用 node 直接跑 resources/gateway/openclaw.mjs
+   * 打包模式：用 node 直接跑 resources/gateway/openclaw.mjs（上游文件名保持不变）
    * 开发模式：用 node_modules/.bin/ 下的 CLI shim
    */
   _resolveGateway() {
@@ -471,7 +471,7 @@ class LLMService {
       maxProtocol: 3,
       client: {
         id: clientId,
-        displayName: 'OpenClaw Character',
+        displayName: 'PetClaw Character',
         version: app.getVersion?.() || '0.2.0',
         platform: process.platform,
         mode: clientMode,
@@ -746,13 +746,13 @@ class LLMService {
     try {
       const headers = {
         'Content-Type': 'application/json',
-        'x-openclaw-agent-id': this.config.agentId,
+        'x-openclaw-agent-id': this.config.agentId, // gateway 要求此 header 名
       };
       if (this.gatewayToken) {
         headers['Authorization'] = `Bearer ${this.gatewayToken}`;
       }
       const body = JSON.stringify({
-        model: 'openclaw',
+        model: 'openclaw', // gateway 默认 model 名
         messages: [
           { role: 'system', content: this.config.systemPrompt },
           ...this.conversationHistory,
@@ -793,7 +793,7 @@ class LLMService {
     this.gatewayToken = this._ensureCharacterToken();
 
     // 每次启动都从 ~/.petclaw/openclaw.json 同步最新 primary model 配置
-    this._autoPopulateFromOpenClaw();
+    this._autoPopulateFromPetClaw();
 
     // SOUL.md 作为人设唯一来源 — 启动时同步到 systemPrompt
     const soul = this._loadSoulFile();
@@ -806,8 +806,8 @@ class LLMService {
   /**
    * 从 ~/.petclaw/openclaw.json 读取已有的 AI 配置，自动填充到本地配置
    */
-  _autoPopulateFromOpenClaw() {
-    const ocConfig = this._readOpenClawConfig();
+  _autoPopulateFromPetClaw() {
+    const ocConfig = this._readPetClawConfig();
     if (!ocConfig) return;
 
     try {
@@ -829,7 +829,7 @@ class LLMService {
             if (providerConfig.baseUrl) this.config.aiBaseUrl = providerConfig.baseUrl;
             if (providerConfig.apiKey) this.config.aiApiKey = providerConfig.apiKey;
 
-            console.log(`[llm] Auto-populated AI config from openclaw: ${providerKey}/${modelName}`);
+            console.log(`[llm] Auto-populated AI config from petclaw: ${providerKey}/${modelName}`);
 
             // 保存到本地配置文件，下次不用再读
             try {
@@ -840,7 +840,7 @@ class LLMService {
         }
       }
     } catch (e) {
-      console.warn('[llm] Failed to auto-populate from openclaw config:', e.message);
+      console.warn('[llm] Failed to auto-populate from petclaw config:', e.message);
     }
   }
 
@@ -946,7 +946,7 @@ class LLMService {
       } catch (e) { console.warn('[llm] Failed to save character token:', e.message); }
     }
 
-    // 写入 openclaw.json，Gateway 启动时读取
+    // 写入 openclaw.json（上游配置文件名保持不变），Gateway 启动时读取
     try {
       let config = {};
       if (fs.existsSync(configFile)) {
@@ -958,7 +958,7 @@ class LLMService {
         config.gateway.auth.mode = 'token';
         config.gateway.auth.token = charToken;
         fs.writeFileSync(configFile, JSON.stringify(config, null, 2), 'utf-8');
-        console.log('[llm] Synced character token to openclaw.json');
+        console.log('[llm] Synced character token to petclaw config');
       }
     } catch (e) { console.warn('[llm] Failed to sync character token:', e.message); }
 
@@ -966,19 +966,19 @@ class LLMService {
     return charToken;
   }
 
-  // ===== OpenClaw config file (~/.petclaw/openclaw.json) =====
+  // ===== PetClaw config file (~/.petclaw/openclaw.json) =====
 
-  _readOpenClawConfig() {
+  _readPetClawConfig() {
     const configFile = path.join(os.homedir(), '.petclaw', 'openclaw.json');
     try {
       if (fs.existsSync(configFile)) return JSON.parse(fs.readFileSync(configFile, 'utf-8'));
     } catch (e) {
-      console.warn('[llm] Failed to read openclaw config:', e.message);
+      console.warn('[llm] Failed to read petclaw config:', e.message);
     }
     return null;
   }
 
-  writeOpenClawConfig(aiConfig) {
+  writePetClawConfig(aiConfig) {
     const configDir = path.join(os.homedir(), '.petclaw');
     const configFile = path.join(configDir, 'openclaw.json');
 
@@ -1038,10 +1038,10 @@ class LLMService {
       };
 
       fs.writeFileSync(configFile, JSON.stringify(config, null, 2), 'utf-8');
-      console.log('[llm] OpenClaw config written to', configFile);
+      console.log('[llm] PetClaw config written to', configFile);
       return { ok: true, path: configFile };
     } catch (e) {
-      console.error('[llm] Failed to write openclaw config:', e.message);
+      console.error('[llm] Failed to write petclaw config:', e.message);
       return { ok: false, error: e.message };
     }
   }
@@ -1050,7 +1050,7 @@ class LLMService {
     this.saveConfig(newConfig);
 
     if (newConfig.aiProvider && newConfig.aiApiKey) {
-      const result = this.writeOpenClawConfig(newConfig);
+      const result = this.writePetClawConfig(newConfig);
       if (!result.ok) return { ok: false, error: result.error };
     }
 
@@ -1075,7 +1075,7 @@ class LLMService {
   // ===== Auto-build =====
 
   /**
-   * 确保 openclaw dist 已构建。新设备 clone 后首次运行时自动触发。
+   * 确保 petclaw dist 已构建。新设备 clone 后首次运行时自动触发。
    * clawBin 是 workspace 链接的路径，从它推导项目根目录。
    */
   async _ensureBuilt() {
@@ -1089,7 +1089,7 @@ class LLMService {
       const distIndex = path.join(projectRoot, 'dist', 'index.js');
       if (fs.existsSync(distIndex)) return; // 已构建，跳过
 
-      console.log('[llm] dist not found, building openclaw (first run)...');
+      console.log('[llm] dist not found, building petclaw (first run)...');
       execSync('pnpm build', {
         cwd: projectRoot,
         stdio: 'inherit',
@@ -1104,7 +1104,7 @@ class LLMService {
   // ===== SOUL.md sync =====
 
   _getSoulPath() {
-    const ocConfig = this._readOpenClawConfig();
+    const ocConfig = this._readPetClawConfig();
     const workspace = ocConfig?.agents?.defaults?.workspace || path.join(os.homedir(), 'clawd');
     return path.join(workspace, 'SOUL.md');
   }

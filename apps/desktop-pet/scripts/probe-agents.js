@@ -16,7 +16,7 @@ ws.on('message', (data) => {
     send('connect', {
       minProtocol: 3,
       maxProtocol: 3,
-      client: { id: 'gateway-client', displayName: 'OpenClaw Pet', version: '0.2.0', platform: 'win32', mode: 'ui', instanceId: crypto.randomUUID() },
+      client: { id: 'gateway-client', displayName: 'PetClaw Pet', version: '0.2.0', platform: 'win32', mode: 'ui', instanceId: crypto.randomUUID() },
       caps: ['tool-events'],
       role: 'operator',
       scopes: ['operator.read', 'operator.write'],
