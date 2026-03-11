@@ -422,7 +422,7 @@ export class FirstTimeSystem {
   }
 
   /** Get hint for a specific task type */
-  getTaskHint(type: string): string | null {
+  getTaskHintByType(type: string): string | null {
     const task = FIRST_TASK_SUGGESTIONS.find(t => t.type === type);
     return task?.hint ?? null;
   }

@@ -542,8 +542,10 @@ export function loadOpenClawPlugins(options: PluginLoadOptions = {}): PluginRegi
     }
     const pluginSdkAlias = resolvePluginSdkAlias();
     const aliasMap = {
-      ...(pluginSdkAlias ? { "openclaw/plugin-sdk": pluginSdkAlias } : {}),
+      // Scoped aliases must come first so that e.g. "openclaw/plugin-sdk/telegram" is
+      // matched exactly before the root "openclaw/plugin-sdk" prefix greedily shadows it.
       ...resolvePluginSdkScopedAliasMap(),
+      ...(pluginSdkAlias ? { "openclaw/plugin-sdk": pluginSdkAlias } : {}),
     };
     jitiLoader = createJiti(import.meta.url, {
       interopDefault: true,
