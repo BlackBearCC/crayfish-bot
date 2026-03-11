@@ -2804,6 +2804,19 @@ body.panels-right .md-panel {
   color: var(--ink-light);
   font-style: italic;
 }
+.nur-care-cd-list {
+  margin-top: 4px;
+  font-size: 9px;
+  color: var(--ink-light);
+  opacity: 0.8;
+}
+.nur-care-cd-item {
+  display: inline-block;
+  background: rgba(0,0,0,0.05);
+  padding: 1px 4px;
+  border-radius: 3px;
+  margin-right: 4px;
+}
 
 /* ═══════════════ Shop Tab ═══════════════ */
 

@@ -14,6 +14,15 @@ const ICON_BASE = '../assets/icons';
 
 /** 道具图标映射（itemId → 图片路径） */
 const ITEM_ICONS = {
+  // 中文 ID (后端实际使用)
+  '42号口粮':      `${ICON_BASE}/food/ration_42.png`,
+  '巴别鱼罐头':    `${ICON_BASE}/food/babel_fish_can.png`,
+  '泛银河爆破饮':  `${ICON_BASE}/food/gargle_blaster.png`,
+  '不要恐慌胶囊':  `${ICON_BASE}/food/dont_panic.png`,
+  '马文牌退烧贴':  `${ICON_BASE}/medicine/marvin_patch.png`,
+  '深思重启针':    `${ICON_BASE}/medicine/deep_thought.png`,
+  '无限非概率逗猫器': `${ICON_BASE}/toy/improbability.png`,
+  // 英文 ID (兼容旧版)
   ration_42:      `${ICON_BASE}/food/ration_42.png`,
   babel_fish_can: `${ICON_BASE}/food/babel_fish_can.png`,
   gargle_blaster: `${ICON_BASE}/food/gargle_blaster.png`,
@@ -343,7 +352,9 @@ export class NurturingPanel {
 
   async _renderCare(body) {
     const careActions = [
-      { id: 'feed',  label: '喂食',   icon: ACTION_ICONS.feed, method: 'character.care.feed', desc: '恢复饱食度' },
+      { id: 'feed',  label: '喂食',   icon: ACTION_ICONS.feed, method: 'character.care.feed', desc: '恢复饱食度',
+        needsItem: true, itemCategory: 'food',
+      },
       { id: 'play',  label: '玩耍',   icon: ACTION_ICONS.play, method: 'character.care.play', desc: '提升心情',
         options: [
           { id: 'pet_stroke', label: '抚摸' },
@@ -362,12 +373,22 @@ export class NurturingPanel {
       },
     ];
 
-    // 获取背包道具用于治疗选择
-    let inventoryItems = [];
+    // 获取背包道具用于喂食/治疗选择
+    let foodItems = [];
+    let medicineItems = [];
     try {
       const inv = await this._rpc('character.inventory.list');
-      inventoryItems = (inv?.items || []).filter(i => i.def?.category === 'medicine' && i.canUse);
-    } catch { /* ignore */ }
+      console.log('[nurturing] inventory loaded:', inv?.items?.length, 'items');
+      for (const item of (inv?.items || [])) {
+        const cat = item.def?.category;
+        // 包含 canUse=false 的物品，但显示冷却状态
+        if (cat === 'food') foodItems.push(item);
+        if (cat === 'medicine') medicineItems.push(item);
+      }
+      console.log('[nurturing] foodItems:', foodItems.length, 'medicineItems:', medicineItems.length);
+    } catch (e) {
+      console.warn('[nurturing] inventory load failed:', e);
+    }
 
     const cards = careActions.map(a => {
       let optionsHtml = '';
@@ -376,15 +397,29 @@ export class NurturingPanel {
           `<button class="nur-care-opt" data-method="${a.method}" data-param="${o.id}">${o.label}</button>`
         ).join('')}</div>`;
       } else if (a.needsItem) {
-        if (inventoryItems.length > 0) {
-          optionsHtml = `<div class="nur-care-options">${inventoryItems.map(i => {
+        // 根据类型选择物品列表
+        const itemList = a.itemCategory === 'food' ? foodItems : medicineItems;
+        const availableItems = itemList.filter(i => i.canUse);
+        const cooldownItems = itemList.filter(i => !i.canUse);
+        
+        if (availableItems.length > 0) {
+          optionsHtml = `<div class="nur-care-options">${availableItems.map(i => {
             const icon = ITEM_ICONS[i.itemId] || '';
             return `<button class="nur-care-opt nur-care-item-opt" data-method="${a.method}" data-param="${i.itemId}">
               ${icon ? `<img src="${icon}" class="nur-opt-icon">` : ''} ${this._esc(i.def?.name || i.itemId)}
             </button>`;
           }).join('')}</div>`;
         } else {
-          optionsHtml = '<div class="nur-care-no-items">没有可用药品</div>';
+          optionsHtml = `<div class="nur-care-no-items">没有可用${a.itemCategory === 'food' ? '食物' : '药品'}</div>`;
+        }
+        
+        // 显示冷却中的物品
+        if (cooldownItems.length > 0) {
+          const cdHtml = cooldownItems.map(i => {
+            const cdLeft = this._cooldownLeft(i);
+            return `<span class="nur-care-cd-item">${this._esc(i.def?.name || i.itemId)} ${cdLeft ? `(${cdLeft})` : ''}</span>`;
+          }).join(' ');
+          optionsHtml += `<div class="nur-care-cd-list">冷却中: ${cdHtml}</div>`;
         }
       } else {
         optionsHtml = `<button class="nur-care-go" data-method="${a.method}">执行</button>`;
@@ -413,7 +448,7 @@ export class NurturingPanel {
   async _doCare(method, param) {
     try {
       const params = {};
-      if (method === 'character.care.feed') params.itemId = param || 'ration_42';
+      if (method === 'character.care.feed') params.itemId = param || '42号口粮';
       else if (method === 'character.care.play') params.actionId = param || 'pet_stroke';
       else if (method === 'character.care.heal') params.itemId = param;
       else if (method === 'character.care.rest') params.typeId = param || 'nap';
