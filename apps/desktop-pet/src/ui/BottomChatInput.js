@@ -33,6 +33,10 @@ export class BottomChatInput {
     /** @type {Map<string, {streamedText: string}>} */
     this._activeStreams = new Map();
 
+    /** 连击计数 + 定时器 */
+    this._comboCount = 0;
+    this._comboTimer = null;
+
     // 当前图标位置: 'left' | 'right'
     this._iconSide = 'left';
 
@@ -56,18 +60,37 @@ export class BottomChatInput {
     this.barEl.className = 'bottom-chat-input';
     this.barEl.innerHTML = `
       <input type="text" class="bottom-chat-field" placeholder="说点什么喵~" />
-      <button class="bottom-chat-send">➤</button>
+      <div class="bottom-send-wrap">
+        <button class="bottom-chat-send">➤</button>
+        <span class="chat-combo-badge" style="display:none"></span>
+      </div>
     `;
     this.petArea.appendChild(this.barEl);
 
     this.inputEl = this.barEl.querySelector('.bottom-chat-field');
     this.sendBtn = this.barEl.querySelector('.bottom-chat-send');
+    this.comboBadge = this.barEl.querySelector('.chat-combo-badge');
 
     this.inputEl.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); this._send(); }
       if (e.key === 'Escape') this.close();
     });
     this.sendBtn.addEventListener('click', () => this._send());
+  }
+
+  /** 更新连击徽章 */
+  _updateCombo() {
+    if (this._comboCount >= 2) {
+      this.comboBadge.textContent = `×${this._comboCount}`;
+      this.comboBadge.style.display = '';
+      this.comboBadge.classList.add('pop');
+      setTimeout(() => this.comboBadge.classList.remove('pop'), 300);
+    }
+    clearTimeout(this._comboTimer);
+    this._comboTimer = setTimeout(() => {
+      this._comboCount = 0;
+      this.comboBadge.style.display = 'none';
+    }, 3000);
   }
 
   /** 更新图标位置（由 app.js 在位置变化时调用） */
@@ -168,6 +191,10 @@ export class BottomChatInput {
     this.isSending = true;
     this.streamedText = '';
 
+    // 连击计数
+    this._comboCount++;
+    this._updateCombo();
+
     // 同步用户消息到聊天面板
     this.chatPanel?.appendExternal('user', text);
 
@@ -238,6 +265,7 @@ export class BottomChatInput {
 
   destroy() {
     this.close();
+    clearTimeout(this._comboTimer);
     this.toggleBtn.remove();
     this.barEl.remove();
   }
