@@ -178,6 +178,11 @@ type RunPreparedReplyParams = {
   abortedLastRun: boolean;
 };
 
+// Tracks how many runPreparedReply calls are in-flight per session key.
+// Covers the gap between message arrival and isEmbeddedPiRunActive becoming true
+// (typically 10–16 s on Telegram) so smart routing fires for back-to-back messages.
+const sessionPipelineCount = new Map<string, number>();
+
 export async function runPreparedReply(
   params: RunPreparedReplyParams,
 ): Promise<ReplyPayload | ReplyPayload[] | undefined> {
@@ -229,6 +234,13 @@ export async function runPreparedReply(
     abortedLastRun,
   } = params;
   let currentSystemSent = systemSent;
+
+  // Increment pipeline counter so back-to-back messages detect concurrency.
+  const pipelineKey = sessionKey?.trim() || null;
+  if (pipelineKey) {
+    sessionPipelineCount.set(pipelineKey, (sessionPipelineCount.get(pipelineKey) ?? 0) + 1);
+  }
+  try {
 
   const isFirstTurnInSession = isNewSession || !currentSystemSent;
   const isGroupChat = sessionCtx.ChatType === "group";
@@ -404,7 +416,7 @@ export async function runPreparedReply(
       sessionStore[sessionKey] = sessionEntry;
       if (storePath) {
         await updateSessionStore(storePath, (store) => {
-          store[sessionKey] = sessionEntry;
+          store[sessionKey!] = sessionEntry!;
         });
       }
     }
@@ -450,7 +462,14 @@ export async function runPreparedReply(
     logVerbose(`Interrupting ${sessionLaneKey} (cleared ${cleared}, aborted=${aborted})`);
   }
   const queueKey = sessionKey ?? sessionIdFinal;
-  const isActive = isEmbeddedPiRunActive(sessionIdFinal);
+  // isActive: LLM generating  OR  session lane has pending items  OR
+  // another runPreparedReply is already in the pipeline for this session key
+  // (covers the 10–16 s gap between message arrival and LLM start).
+  const isEmbeddedActive = isEmbeddedPiRunActive(sessionIdFinal);
+  const hasConcurrentProcessing = pipelineKey
+    ? (sessionPipelineCount.get(pipelineKey) ?? 0) > 1
+    : false;
+  const isActive = isEmbeddedActive || laneSize > 0 || hasConcurrentProcessing;
   const isStreaming = isEmbeddedPiRunStreaming(sessionIdFinal);
   const shouldSteer = resolvedQueue.mode === "steer" || resolvedQueue.mode === "steer-backlog";
   const shouldFollowup =
@@ -527,7 +546,7 @@ export async function runPreparedReply(
     },
   };
 
-  return runReplyAgent({
+  return await runReplyAgent({
     commandBody: prefixedCommandBody,
     followupRun,
     queueKey,
@@ -553,4 +572,12 @@ export async function runPreparedReply(
     shouldInjectGroupIntro,
     typingMode,
   });
+
+  } finally {
+    if (pipelineKey) {
+      const cnt = (sessionPipelineCount.get(pipelineKey) ?? 1) - 1;
+      if (cnt <= 0) sessionPipelineCount.delete(pipelineKey);
+      else sessionPipelineCount.set(pipelineKey, cnt);
+    }
+  }
 }
