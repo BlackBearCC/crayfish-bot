@@ -23,6 +23,7 @@ export const ONBOARDING_STEPS = {
   FIRST_CHAT: "first_chat",                  // 第一次聊天
   FIRST_TASK_SUCCESS: "first_task_success",  // 第一个任务成功
   FIRST_FEED: "first_feed",                  // 第一次喂食
+  ONLINE_10MIN: "online_10min",              // 在线陪伴10分钟
   MEMORY_SHOWN: "memory_shown",              // 记忆能力展示
   SKILL_SHOWN: "skill_shown",                // 技能成长展示
   ONBOARDING_COMPLETE: "onboarding_complete", // 引导完成
@@ -57,8 +58,8 @@ export interface FirstTimeState {
   isFirstTime: boolean;
   /** Completed onboarding steps */
   completedSteps: OnboardingStep[];
-  /** Hints that have been shown */
-  shownHints: HintTrigger[];
+  /** Hints and attribute hints that have been shown (unified string set) */
+  shownHints: string[];
   /** First task type attempted */
   firstTaskType?: string;
   /** Timestamp of first launch */
@@ -151,24 +152,25 @@ export const HINT_CONTENTS: HintContent[] = [
 // ─── Attribute Threshold Hints ───
 
 /**
- * Attribute threshold hints.
- * Shown when attribute crosses a threshold for the first time.
+ * Attribute level-transition hints.
+ * Triggered when an attribute transitions into a specific level for the first time.
+ * Keys use format: `{attribute}_{level}` matching the level names in presets.ts.
  * Design: Short, cute, non-intrusive.
  */
 export const ATTRIBUTE_HINTS = {
-  hunger_low_50: {
+  hunger_hungry: {
     text: "我有点饿了~",
     once: true,
   },
-  hunger_low_30: {
+  hunger_starving: {
     text: "好饿...先喂喂我吧",
     once: true,
   },
-  mood_low_50: {
+  mood_sad: {
     text: "我有点不开心...陪我玩玩？",
     once: true,
   },
-  health_low_50: {
+  health_sick: {
     text: "我不舒服...能给我吃点药吗？",
     once: true,
   },
@@ -231,7 +233,7 @@ export const DAY1_TASKS: NewbieTask[] = [
     title: "陪伴时光",
     description: "在线陪伴宠物 10 分钟",
     hint: "多陪我一会儿嘛~",
-    step: "onboarding_complete" as OnboardingStep,
+    step: "online_10min" as OnboardingStep,
     rewards: { exp: 15, coins: 30 },
   },
 ];
@@ -333,11 +335,12 @@ export class FirstTimeSystem {
 
     this._state.completedSteps.push(step);
 
-    // Check if onboarding is complete
+    // Check if onboarding is complete (all core steps done)
     const requiredSteps = [
       ONBOARDING_STEPS.WELCOME_SHOWN,
       ONBOARDING_STEPS.FIRST_CHAT,
       ONBOARDING_STEPS.FIRST_TASK_SUCCESS,
+      ONBOARDING_STEPS.FIRST_FEED,
     ];
 
     if (requiredSteps.every(s => this._state.completedSteps.includes(s))) {
@@ -459,39 +462,45 @@ export class FirstTimeSystem {
 
   // ─── Attribute Threshold Hints ───
 
-  /** Check and get attribute threshold hint */
+  /**
+   * Check and get attribute level-transition hint.
+   * Uses level names (from presets.ts) instead of numeric thresholds,
+   * so hints stay correct even if attribute thresholds are customized.
+   */
   getAttributeHint(
-    key: "hunger" | "mood" | "health",
-    value: number,
-    prevValue: number
+    key: string,
+    currentLevel: string,
+    prevLevel: string
   ): { key: AttributeHintKey; text: string } | null {
-    // Only show hints for first-time users
     if (!this._state.isFirstTime) return null;
+    if (currentLevel === prevLevel) return null;
 
-    // Check thresholds
-    if (key === "hunger") {
-      if (prevValue >= 30 && value < 30 && !this._isAttributeHintShown("hunger_low_30")) {
-        this._markAttributeHintShown("hunger_low_30");
-        return { key: "hunger_low_30", text: ATTRIBUTE_HINTS.hunger_low_30.text };
-      }
-      if (prevValue >= 50 && value < 50 && !this._isAttributeHintShown("hunger_low_50")) {
-        this._markAttributeHintShown("hunger_low_50");
-        return { key: "hunger_low_50", text: ATTRIBUTE_HINTS.hunger_low_50.text };
-      }
+    // Map: attribute + level → hint key
+    const LEVEL_HINT_MAP: Record<string, AttributeHintKey> = {
+      "hunger:hungry": "hunger_hungry",
+      "hunger:starving": "hunger_starving",
+      "mood:sad": "mood_sad",
+      "health:sick": "health_sick",
+    };
+
+    // Check for recovery (any attribute going to a high level)
+    const RECOVERY_LEVELS: Record<string, string[]> = {
+      hunger: ["full"],
+      mood: ["joyful"],
+      health: ["healthy"],
+    };
+
+    const hintKey = LEVEL_HINT_MAP[`${key}:${currentLevel}`];
+    if (hintKey && !this._isAttributeHintShown(hintKey)) {
+      this._markAttributeHintShown(hintKey);
+      return { key: hintKey, text: ATTRIBUTE_HINTS[hintKey].text };
     }
 
-    if (key === "mood") {
-      if (prevValue >= 50 && value < 50 && !this._isAttributeHintShown("mood_low_50")) {
-        this._markAttributeHintShown("mood_low_50");
-        return { key: "mood_low_50", text: ATTRIBUTE_HINTS.mood_low_50.text };
-      }
-    }
-
-    if (key === "health") {
-      if (prevValue >= 50 && value < 50 && !this._isAttributeHintShown("health_low_50")) {
-        this._markAttributeHintShown("health_low_50");
-        return { key: "health_low_50", text: ATTRIBUTE_HINTS.health_low_50.text };
-      }
+    // Recovery hint (attribute restored to top level)
+    const recoveryLevels = RECOVERY_LEVELS[key];
+    if (recoveryLevels?.includes(currentLevel) && !this._isAttributeHintShown("attribute_full")) {
+      this._markAttributeHintShown("attribute_full");
+      return { key: "attribute_full", text: ATTRIBUTE_HINTS.attribute_full.text };
     }
 
     return null;
@@ -506,12 +515,12 @@ export class FirstTimeSystem {
   }
 
   private _isAttributeHintShown(key: AttributeHintKey): boolean {
-    return this._state.shownHints.includes(key as HintTrigger);
+    return this._state.shownHints.includes(key);
   }
 
   private _markAttributeHintShown(key: AttributeHintKey): void {
-    if (!this._state.shownHints.includes(key as HintTrigger)) {
-      this._state.shownHints.push(key as HintTrigger);
+    if (!this._state.shownHints.includes(key)) {
+      this._state.shownHints.push(key);
       this._save();
     }
   }

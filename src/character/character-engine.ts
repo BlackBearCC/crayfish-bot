@@ -211,10 +211,10 @@ export class CharacterEngine {
       this.shop.earnCoins(5, `chat_milestone_${count}`);
     });
 
-    // Online 10min → complete newbie task
+    // Online 10min → complete the "陪伴时光" newbie task
     this.bus.on("login:online10min", () => {
-      if (this.firstTime.isFirstTimeUser() && !this.firstTime.isStepCompleted("onboarding_complete")) {
-        this.firstTime.completeStep("onboarding_complete");
+      if (!this.firstTime.isStepCompleted("online_10min")) {
+        this.firstTime.completeStep("online_10min");
       }
     });
   }

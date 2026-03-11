@@ -50,6 +50,7 @@ import {
   type PersistenceStore,
   inferDomainFromText,
 } from "../../character/index.js";
+import { ONBOARDING_STEPS, type OnboardingStep } from "../../character/first-time-system.js";
 import type { CronService } from "../../cron/service.js";
 import { ErrorCodes, errorShape } from "../protocol/index.js";
 import {
@@ -388,13 +389,9 @@ function registerCharacterHooks(eng: CharacterEngine): void {
     if (content) {
       engine.chatEval.onAssistantMessage(content);
       
-      // First-time experience: mark first chat and check task success
+      // First-time experience: mark first chat completed
       if (!engine.firstTime.isStepCompleted("first_chat")) {
         engine.firstTime.completeStep("first_chat");
-      }
-      // If this is a response to a task, mark task success
-      if (userMsg && !engine.firstTime.isStepCompleted("first_task_success")) {
-        engine.firstTime.completeStep("first_task_success");
       }
     }
   });
@@ -505,11 +502,11 @@ function getEngine(): CharacterEngine {
     engine.bus.on("attribute:level-change", (data) => {
       if (!_broadcast || !engine) return;
       
-      // Check for attribute threshold hints (first-time users)
+      // Check for attribute level-transition hints (first-time users)
       const hint = engine.firstTime.getAttributeHint(
-        data.key as "hunger" | "mood" | "health",
-        data.value,
-        data.prev === "critical" ? 0 : data.prev === "low" ? 30 : data.prev === "normal" ? 60 : 80
+        data.key,
+        data.level,
+        data.prev
       );
       if (hint) {
         _broadcast("character", {
@@ -1359,9 +1356,16 @@ export const characterHandlers: GatewayRequestHandlers = {
       return;
     }
 
+    // Validate step against known onboarding steps
+    const validSteps = Object.values(ONBOARDING_STEPS) as string[];
+    if (!validSteps.includes(step)) {
+      (respond as Function)(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, `unknown step '${step}'`));
+      return;
+    }
+
     try {
       const e = getEngine();
-      e.firstTime.completeStep(step as any);
+      e.firstTime.completeStep(step as OnboardingStep);
       (respond as Function)(true, { ok: true, state: e.firstTime.getState() });
     } catch (err) {
       (respond as Function)(false, undefined, errorShape(ErrorCodes.UNAVAILABLE, String(err)));
