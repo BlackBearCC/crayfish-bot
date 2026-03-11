@@ -31,6 +31,7 @@ import { isReasoningTagProvider } from "../../../utils/provider-utils.js";
 import { resolveOpenClawAgentDir } from "../../agent-paths.js";
 import { resolveSessionAgentIds } from "../../agent-scope.js";
 import { createAnthropicPayloadLogger } from "../../anthropic-payload-log.js";
+import { createPromptDebugLogger } from "../../prompt-debug-log.js";
 import {
   analyzeBootstrapBudget,
   buildBootstrapPromptWarning,
@@ -1224,6 +1225,13 @@ export async function runEmbeddedAttempt(
         modelApi: params.model.api,
         workspaceDir: params.workspaceDir,
       });
+      const promptDebugLogger = createPromptDebugLogger({
+        env: process.env,
+        runId: params.runId,
+        sessionKey: params.sessionKey,
+        provider: params.provider,
+        modelId: params.modelId,
+      });
 
       // Ollama native API: bypass SDK's streamSimple and use direct /api/chat calls
       // for reliable streaming + tool calling support (#11828).
@@ -1381,6 +1389,12 @@ export async function runEmbeddedAttempt(
 
       if (anthropicPayloadLogger) {
         activeSession.agent.streamFn = anthropicPayloadLogger.wrapStreamFn(
+          activeSession.agent.streamFn,
+        );
+      }
+
+      if (promptDebugLogger) {
+        activeSession.agent.streamFn = promptDebugLogger.wrapStreamFn(
           activeSession.agent.streamFn,
         );
       }

@@ -50,6 +50,8 @@ cd apps/desktop-pet
 pnpm install
 pnpm start                        # Launch Electron app
 pnpm dev                          # Dev mode with DevTools
+pnpm start:debug                  # Launch + prompt debug logging
+pnpm dev:debug                    # Dev mode + DevTools + prompt debug logging
 pnpm run generate-placeholder     # Regenerate placeholder sprites
 ```
 
@@ -194,6 +196,29 @@ git merge upstream/main            # 正常合并（已建立 git 关系，v2026
 - `getOrLoadBootstrapFiles` — bootstrap 文件缓存，避免重复读盘
 - `TypingPolicy` 类型 — 更细粒度的打字指示器控制
 - `bootstrapContextMode` / `suppressTyping` / `isReasoning` 字段到 `GetReplyOptions` / `ReplyPayload`
+
+## Prompt Debug Logging
+
+启动时加 `--prompt-debug` flag，每次 LLM 调用前将完整组装好的 payload（system prompt + messages 数组）追加写入 JSONL 文件，用于快速排查提示词问题。
+
+```bash
+# apps/desktop-pet/
+pnpm start:debug    # 普通启动 + 开启 prompt debug
+pnpm dev:debug      # 开发模式 + DevTools + prompt debug
+```
+
+**实现**：
+- `electron/main.js` 检测 `--prompt-debug` → 设 `process.env.PETCLAW_PROMPT_DEBUG=1`
+- gateway spawn 用 `{ ...process.env }` 继承，env var 自动透传
+- `src/agents/prompt-debug-log.ts` — 通用 streamFn wrapper，覆盖所有 provider（OpenAI-compatible / Anthropic / Ollama）
+- 挂载点：`src/agents/pi-embedded-runner/run/attempt.ts`，在 `anthropicPayloadLogger` 之后包裹
+
+**日志文件**：`~/.petclaw/logs/prompt-debug.jsonl`，超 500 KB 自动轮转为 `.old`
+
+每行格式：
+```json
+{"ts":"...","runId":"...","sessionKey":"...","provider":"bailian","model":"...","system":"<system prompt>","messages":[...]}
+```
 
 ## Key Conventions
 

@@ -35,6 +35,12 @@ const { logger, installGlobalLogger } = require('./logger');
 // 劫持 console → 同时写入 ~/.petclaw/logs/
 installGlobalLogger();
 
+// --prompt-debug flag → 透传给 gateway 子进程（通过 spawn env 继承）
+if (process.argv.includes('--prompt-debug')) {
+  process.env.PETCLAW_PROMPT_DEBUG = '1';
+  console.log('[main] prompt debug logging enabled → ~/.petclaw/logs/prompt-debug.jsonl');
+}
+
 // ===== 单实例锁 =====
 const gotSingleInstanceLock = app.requestSingleInstanceLock();
 if (!gotSingleInstanceLock) {
