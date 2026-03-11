@@ -374,7 +374,7 @@ export class FirstTimeSystem {
   private _load(): FirstTimeState {
     const saved = this._store.load("first-time");
     if (saved) {
-      return saved as FirstTimeState;
+      return saved as unknown as FirstTimeState;
     }
 
     // New user
