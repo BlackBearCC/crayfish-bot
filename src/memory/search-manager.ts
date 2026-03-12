@@ -5,6 +5,7 @@ import { resolveMemoryBackendConfig } from "./backend-config.js";
 import type {
   MemoryEmbeddingProbeResult,
   MemorySearchManager,
+  MemorySource,
   MemorySyncProgressUpdate,
 } from "./types.js";
 
@@ -101,7 +102,7 @@ class FallbackMemoryManager implements MemorySearchManager {
 
   async search(
     query: string,
-    opts?: { maxResults?: number; minScore?: number; sessionKey?: string },
+    opts?: { maxResults?: number; minScore?: number; sessionKey?: string; sourcesFilter?: MemorySource[] },
   ) {
     if (!this.primaryFailed) {
       try {

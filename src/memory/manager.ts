@@ -244,6 +244,7 @@ export class MemoryIndexManager extends MemoryManagerEmbeddingOps implements Mem
       maxResults?: number;
       minScore?: number;
       sessionKey?: string;
+      sourcesFilter?: MemorySource[];
     },
   ): Promise<MemorySearchResult[]> {
     void this.warmSession(opts?.sessionKey);
@@ -258,6 +259,7 @@ export class MemoryIndexManager extends MemoryManagerEmbeddingOps implements Mem
     }
     const minScore = opts?.minScore ?? this.settings.query.minScore;
     const maxResults = opts?.maxResults ?? this.settings.query.maxResults;
+    const sourcesOverride = opts?.sourcesFilter;
     const hybrid = this.settings.query.hybrid;
     const candidates = Math.min(
       200,
@@ -278,7 +280,7 @@ export class MemoryIndexManager extends MemoryManagerEmbeddingOps implements Mem
 
       // Search with each keyword and merge results
       const resultSets = await Promise.all(
-        searchTerms.map((term) => this.searchKeyword(term, candidates).catch(() => [])),
+        searchTerms.map((term) => this.searchKeyword(term, candidates, sourcesOverride).catch(() => [])),
       );
 
       // Merge and deduplicate results, keeping highest score for each chunk
@@ -303,13 +305,13 @@ export class MemoryIndexManager extends MemoryManagerEmbeddingOps implements Mem
     // If FTS isn't available, hybrid mode cannot use keyword search; degrade to vector-only.
     const keywordResults =
       hybrid.enabled && this.fts.enabled && this.fts.available
-        ? await this.searchKeyword(cleaned, candidates).catch(() => [])
+        ? await this.searchKeyword(cleaned, candidates, sourcesOverride).catch(() => [])
         : [];
 
     const queryVec = await this.embedQueryWithTimeout(cleaned);
     const hasVector = queryVec.some((v) => v !== 0);
     const vectorResults = hasVector
-      ? await this.searchVector(queryVec, candidates).catch(() => [])
+      ? await this.searchVector(queryVec, candidates, sourcesOverride).catch(() => [])
       : [];
 
     if (!hybrid.enabled || !this.fts.enabled || !this.fts.available) {
@@ -351,6 +353,7 @@ export class MemoryIndexManager extends MemoryManagerEmbeddingOps implements Mem
   private async searchVector(
     queryVec: number[],
     limit: number,
+    sourcesOverride?: MemorySource[],
   ): Promise<Array<MemorySearchResult & { id: string }>> {
     // This method should never be called without a provider
     if (!this.provider) {
@@ -364,8 +367,8 @@ export class MemoryIndexManager extends MemoryManagerEmbeddingOps implements Mem
       limit,
       snippetMaxChars: SNIPPET_MAX_CHARS,
       ensureVectorReady: async (dimensions) => await this.ensureVectorReady(dimensions),
-      sourceFilterVec: this.buildSourceFilter("c"),
-      sourceFilterChunks: this.buildSourceFilter(),
+      sourceFilterVec: this.buildSourceFilter("c", sourcesOverride),
+      sourceFilterChunks: this.buildSourceFilter(undefined, sourcesOverride),
     });
     return results.map((entry) => entry as MemorySearchResult & { id: string });
   }
@@ -377,11 +380,12 @@ export class MemoryIndexManager extends MemoryManagerEmbeddingOps implements Mem
   private async searchKeyword(
     query: string,
     limit: number,
+    sourcesOverride?: MemorySource[],
   ): Promise<Array<MemorySearchResult & { id: string; textScore: number }>> {
     if (!this.fts.enabled || !this.fts.available) {
       return [];
     }
-    const sourceFilter = this.buildSourceFilter();
+    const sourceFilter = this.buildSourceFilter(undefined, sourcesOverride);
     // In FTS-only mode (no provider), search all models; otherwise filter by current provider's model
     const providerModel = this.provider?.model;
     const results = await searchKeyword({
@@ -757,9 +761,6 @@ export class MemoryIndexManager extends MemoryManagerEmbeddingOps implements Mem
    */
   indexClusters(clusters: MemoryClusterInput[]): void {
     if (!clusters.length) return;
-
-    // Ensure "clusters" source is included in search filtering
-    this.sources.add("clusters");
 
     const now = Date.now();
 

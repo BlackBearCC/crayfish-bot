@@ -70,6 +70,8 @@ import { loadConfig, readConfigFileSnapshotForWrite, writeConfigFile } from "../
 import { resolveAgentWorkspaceDir, resolveDefaultAgentId } from "../../agents/agent-scope.js";
 import { registerCharacterTools } from "../../agents/character-tool-registry.js";
 import { createCharacterTools } from "../../agents/tools/character-tools.js";
+import { getMemorySearchManager } from "../../memory/index.js";
+import type { MemoryClusterInput } from "../../memory/types.js";
 import { getGlobalPluginRegistry } from "../../plugins/hook-runner-global.js";
 import type { PluginHookRegistration } from "../../plugins/types.js";
 
@@ -447,9 +449,24 @@ function getEngine(): CharacterEngine {
     // Wire up memory graph callbacks
     engine.memoryGraph.setLLMComplete(characterLLMComplete);
 
+    // Index memory clusters into SQLite FTS for character_memory_recall tool
+    engine.memoryGraph.setIndexCallback((clusters) => {
+      const cfg = loadConfig();
+      const agentId = resolveDefaultAgentId(cfg);
+      void getMemorySearchManager({ cfg, agentId }).then(({ manager }) => {
+        if (manager?.indexClusters) {
+          manager.indexClusters(clusters as MemoryClusterInput[]);
+        }
+      }).catch(() => {});
+    });
+
     // Register character tools into the agent tool registry
+    const toolCfg = loadConfig();
+    const toolAgentId = resolveDefaultAgentId(toolCfg);
     registerCharacterTools(createCharacterTools({
       broadcast: _broadcast ?? undefined,
+      cfg: toolCfg,
+      agentId: toolAgentId,
       engine: {
         care: engine.care,
         memoryGraph: engine.memoryGraph,

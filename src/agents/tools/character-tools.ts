@@ -8,6 +8,8 @@
  */
 
 import { Type } from "@sinclair/typebox";
+import type { OpenClawConfig } from "../../config/config.js";
+import { getMemorySearchManager } from "../../memory/index.js";
 import type { AnyAgentTool } from "./common.js";
 import { jsonResult, readStringParam } from "./common.js";
 
@@ -225,17 +227,8 @@ export function createCharacterExpressMoodTool(options?: {
 }
 
 export function createCharacterMemoryRecallTool(options?: {
-  engine?: {
-    memoryGraph: {
-      search: (query: string, topN?: number) => Array<{
-        theme: string;
-        summary: string;
-        keywords: string[];
-        fragments: Array<{ text: string }>;
-        weight: number;
-      }>;
-    };
-  };
+  cfg?: OpenClawConfig;
+  agentId?: string;
 }): AnyAgentTool {
   return {
     label: "记忆图谱搜索",
@@ -245,23 +238,28 @@ export function createCharacterMemoryRecallTool(options?: {
     parameters: CharacterMemoryRecallSchema,
     execute: async (_toolCallId, params) => {
       const query = readStringParam(params, "query", { required: true });
-      const engine = options?.engine;
-      if (!engine) {
-        return jsonResult({ ok: false, error: "Character engine not initialized" });
-      }
       try {
-        const clusters = engine.memoryGraph.search(query, 5);
-        if (clusters.length === 0) {
+        const cfg = options?.cfg ?? {};
+        const agentId = options?.agentId ?? "";
+        const { manager } = await getMemorySearchManager({ cfg, agentId });
+        if (!manager) {
+          return jsonResult({ ok: false, error: "Memory search unavailable" });
+        }
+        const results = await manager.search(query, {
+          maxResults: 5,
+          sourcesFilter: ["clusters"],
+        });
+        if (results.length === 0) {
           return jsonResult({ ok: true, results: [], message: "未找到相关记忆" });
         }
-        const results = clusters.map((c) => ({
-          theme: c.theme,
-          summary: c.summary,
-          keywords: c.keywords,
-          relevantFragments: c.fragments.slice(0, 2).map((f) => f.text),
-          weight: c.weight,
-        }));
-        return jsonResult({ ok: true, results });
+        return jsonResult({
+          ok: true,
+          results: results.map((r) => ({
+            snippet: r.snippet,
+            path: r.path,
+            score: r.score,
+          })),
+        });
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         return jsonResult({ ok: false, error: message });
@@ -274,6 +272,8 @@ export function createCharacterMemoryRecallTool(options?: {
 
 export function createCharacterTools(options?: {
   broadcast?: (channel: string, payload: unknown) => void;
+  cfg?: OpenClawConfig;
+  agentId?: string;
   engine?: {
     care: {
       feed: (id: string) => { ok: boolean; reason?: string };
@@ -282,13 +282,6 @@ export function createCharacterTools(options?: {
     };
     memoryGraph: {
       enqueueExtraction: (userMsg: string, aiReply: string) => void;
-      search: (query: string, topN?: number) => Array<{
-        theme: string;
-        summary: string;
-        keywords: string[];
-        fragments: Array<{ text: string }>;
-        weight: number;
-      }>;
     };
     bus: { emit: (event: string, data: unknown) => void };
     getState: () => unknown;
@@ -298,6 +291,6 @@ export function createCharacterTools(options?: {
     createCharacterSelfCareTool(options),
     createCharacterRememberTool(options),
     createCharacterExpressMoodTool(options),
-    createCharacterMemoryRecallTool(options),
+    createCharacterMemoryRecallTool({ cfg: options?.cfg, agentId: options?.agentId }),
   ];
 }

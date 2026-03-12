@@ -135,9 +135,16 @@ export class SpriteSheet {
   getAnimation(animationName) {
     if (!this.meta) return null;
     if (this.meta.animations[animationName]) return this.meta.animations[animationName];
+    // Try stripping state prefix: 'work_loop' → 'loop', 'work_enter' → 'enter', 'work_exit' → 'exit'
+    const suffix = animationName.includes('_') ? animationName.split('_').pop() : null;
+    if (suffix && this.meta.animations[suffix]) return this.meta.animations[suffix];
     // Fallback to 'idle' frames when this sheet doesn't have the requested animation
     if (animationName !== 'idle' && this.meta.animations['idle']) {
       return this.meta.animations['idle'];
+    }
+    // Fallback to 'loop' (breathing idle equivalent for compound sheets)
+    if (animationName !== 'loop' && this.meta.animations['loop']) {
+      return this.meta.animations['loop'];
     }
     console.warn(`Animation "${animationName}" not found in spritesheet`);
     return null;
