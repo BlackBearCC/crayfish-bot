@@ -1111,15 +1111,25 @@ class PetClawPet {
             this.agentStatsTracker?.recordTool(event.sessionKey, toolName, taskName);
           }
         } else if (event.data?.phase === 'complete' || event.data?.phase === 'error') {
-          this.toolStatusBar.hide();
+          // tool 结束：若主代理仍在运行则回退到"思考中"，否则收起
+          if (this._agentRunning) {
+            this.toolStatusBar.showThinking();
+          } else {
+            this.toolStatusBar.hide();
+          }
         }
         this.achievementSystem?.check();
       }
 
       // 3. 生命周期 → 宠物动画 + Agent 完成追踪 + Steam Rich Presence
       if (event.stream === 'lifecycle') {
+        const isMainSession = !event.sessionKey || event.sessionKey.endsWith(':main');
         if (event.data?.phase === 'thinking' || event.data?.phase === 'running') {
           this._agentRunning = true;
+          // 主代理思考中：若无 tool 占用状态条则显示"思考中"
+          if (isMainSession && !this.toolStatusBar.isInToolMode) {
+            this.toolStatusBar.showThinking();
+          }
           const interruptible = ['idle', 'idle_ear_twitch', 'idle_yawn', 'walk', 'sit', 'sleep'];
           if (interruptible.includes(this.stateMachine.currentState)) {
             this.stateMachine.transition('work', { force: true });
@@ -1129,6 +1139,7 @@ class PetClawPet {
         } else if (event.data?.phase === 'complete') {
           if (this._toolAnimTimer) { clearTimeout(this._toolAnimTimer); this._toolAnimTimer = null; }
           this._agentRunning = false;
+          if (isMainSession) this.toolStatusBar.hide();
           this.stateMachine.transition('happy', { force: true, duration: 3000 });
           this.bubble.show('任务完成了喵！✨', 2000);
 

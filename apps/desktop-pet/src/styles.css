@@ -972,6 +972,16 @@ html, body {
   animation: spin 0.8s linear infinite;
 }
 
+/* 思考中状态 — 紫色强调 */
+.tool-status-bar.thinking {
+  border-color: var(--clr-purple);
+  color: var(--clr-purple);
+}
+.tool-status-bar.thinking .tool-spinner {
+  border-color: rgba(139, 92, 246, 0.2);
+  border-top-color: var(--clr-purple);
+}
+
 /* ===== 小分身 ===== */
 .mini-cat {
   position: absolute;

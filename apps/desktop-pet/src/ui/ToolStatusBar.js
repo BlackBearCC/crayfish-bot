@@ -24,6 +24,7 @@ export class ToolStatusBar {
     this._timer = null;
     this._learningMode = false;
     this._learningInterval = null;
+    this._thinkingMode = false;
     this._createDOM(petArea);
   }
 
@@ -38,8 +39,25 @@ export class ToolStatusBar {
    * @param {string} toolName — 工具名称
    * @param {string} [icon] — 可选，强制指定图标
    */
+  /** 显示"思考中"状态（agent 忙但暂无 tool 调用时） */
+  showThinking() {
+    if (this._learningMode) return;
+    this._thinkingMode = true;
+    this.element.innerHTML = `
+      <span class="tool-icon">💭</span>
+      <span class="tool-name">思考中</span>
+      <span class="tool-spinner"></span>
+    `;
+    this.element.classList.add('visible', 'thinking');
+    this._visible = true;
+    clearTimeout(this._timer);
+    this._timer = setTimeout(() => this.hide(), 60000);
+  }
+
   show(toolName, icon) {
     if (this._learningMode) return; // 学习中不被工具状态覆盖
+    this._thinkingMode = false; // tool 调用覆盖思考状态
+    this.element.classList.remove('thinking');
     const resolvedIcon = icon || this._matchIcon(toolName) || '🔧';
     const safeName = this._escapeHtml(this._truncate(toolName, 10));
 
@@ -95,7 +113,8 @@ export class ToolStatusBar {
   }
 
   hide() {
-    this.element.classList.remove('visible');
+    this._thinkingMode = false;
+    this.element.classList.remove('visible', 'thinking');
     this._visible = false;
     clearTimeout(this._timer);
   }
@@ -117,6 +136,8 @@ export class ToolStatusBar {
   }
 
   get isVisible() { return this._visible; }
+  /** true = 当前正在展示 tool（非 thinking、非 learning） */
+  get isInToolMode() { return this._visible && !this._thinkingMode && !this._learningMode; }
 
   destroy() {
     clearTimeout(this._timer);
