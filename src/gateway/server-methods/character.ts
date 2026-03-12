@@ -314,7 +314,7 @@ function registerCharacterHooks(eng: CharacterEngine): void {
 
     // Remove any existing CHARACTER_STATE.md (e.g. stale physical file in workspace)
     // so we never inject it twice.
-    const existingIdx = ctx.bootstrapFiles.findIndex((f) => f.name === "CHARACTER_STATE.md");
+    const existingIdx = ctx.bootstrapFiles.findIndex((f) => f.name === ("CHARACTER_STATE.md" as WorkspaceBootstrapFile["name"]));
     if (existingIdx >= 0) ctx.bootstrapFiles.splice(existingIdx, 1);
 
     const soulIdx = ctx.bootstrapFiles.findIndex((f) => f.name === "SOUL.md");
@@ -582,6 +582,7 @@ ${conditions.map((c, i) => `${i + 1}. ${c}`).join('\n')}
 
     // Grant rewards + broadcast adventure completion → client shows result bubble + animation
     engine.bus.on("adventure:completed", (data) => {
+      if (!engine) return;
       // Award rewards here so both tick() auto-complete and RPC manual-complete paths work
       try {
         const { exp, coins, items } = data.result.rewards;

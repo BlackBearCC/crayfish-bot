@@ -1,25 +1,24 @@
 /**
  * Smart Queue Router — classifies incoming messages while the main agent is
- * busy and either enqueues them (steer) or spawns a parallel sub-agent.
+ * busy and either enqueues them (steer) or handles via MiniAgent (parallel).
  *
  * Flow:
  *   1. LLM classifier decides: steer (related to current task) / parallel (new topic)
  *   2. steer  → falls back to enqueueFollowupRun (original serial queue)
- *   3. parallel → buildParallelContextSnapshot + callGateway({method:"agent"})
+ *   3. parallel → buildParallelContextSnapshot + runMiniAgent + routeReply (direct, no announce)
  */
 
 import crypto from "node:crypto";
-import { AGENT_LANE_SUBAGENT } from "../../agents/lanes.js";
-import { registerSubagentRun } from "../../agents/subagent-registry.js";
-import { callGateway } from "../../gateway/call.js";
+import { runMiniAgent } from "../../agents/mini-agent.js";
 import { classifierLLMComplete } from "../../gateway/server-methods/character.js";
 import { logVerbose } from "../../globals.js";
 import { getLogger } from "../../logging/logger.js";
-import { resolveAgentIdFromSessionKey } from "../../routing/session-key.js";
-import type { GetReplyOptions } from "../types.js";
+import type { GetReplyOptions, ReplyPayload } from "../types.js";
 import { buildParallelContextSnapshot } from "./parallel-context.js";
 import { enqueueFollowupRun, type FollowupRun, type QueueSettings } from "./queue.js";
 import { readRecentSessionMessages } from "./parallel-context.js";
+import { routeReply } from "./route-reply.js";
+import { loadConfig } from "../../config/config.js";
 
 // ─── Types ───
 
@@ -82,63 +81,56 @@ async function classifyMessage(params: {
   }
 }
 
-// ─── Sub-agent spawn ───
+// ─── MiniAgent direct reply ───
 
-async function spawnParallelSubagent(params: {
+async function sendDirectReply(params: {
   followupRun: FollowupRun;
   contextSnapshot: string;
-}): Promise<{ runId: string; childSessionKey: string } | null> {
+}): Promise<{ ok: boolean }> {
   const { followupRun, contextSnapshot } = params;
-
-  const parentSessionKey = followupRun.run.sessionKey ?? "";
-  const agentId = resolveAgentIdFromSessionKey(parentSessionKey) ?? "main";
-  const childSessionKey = `agent:${agentId}:subagent:${crypto.randomUUID()}`;
-  const idempotencyKey = followupRun.run.clientRunId ?? crypto.randomUUID();
+  const log = getLogger();
 
   try {
-    const response = await callGateway<{ runId: string }>({
-      method: "agent",
-      params: {
-        message: followupRun.prompt,
-        sessionKey: childSessionKey,
-        channel: followupRun.originatingChannel || "webchat",
-        to: followupRun.originatingTo,
-        accountId: followupRun.originatingAccountId,
-        threadId:
-          followupRun.originatingThreadId != null
-            ? String(followupRun.originatingThreadId)
-            : undefined,
-        idempotencyKey,
-        deliver: true,
-        lane: AGENT_LANE_SUBAGENT,
-        extraSystemPrompt: contextSnapshot,
-        label: "parallel-queue",
-        spawnedBy: parentSessionKey,
-      },
-      timeoutMs: 10_000,
+    // Run MiniAgent to get response
+    const result = await runMiniAgent({
+      userPrompt: followupRun.prompt,
+      contextSnapshot,
+      mirrorToSession: followupRun.run.sessionFile
+        ? {
+            sessionFile: followupRun.run.sessionFile,
+            sessionKey: followupRun.run.sessionKey,
+          }
+        : undefined,
     });
-    if (!response?.runId) return null;
 
-    try {
-      registerSubagentRun({
-        runId: response.runId,
-        childSessionKey,
-        requesterSessionKey: parentSessionKey,
-        requesterDisplayKey: parentSessionKey,
-        task: followupRun.prompt,
-        cleanup: "delete",
-        label: "parallel-queue",
-      });
-    } catch (regErr) {
-      const msg = regErr instanceof Error ? regErr.message : String(regErr);
-      logVerbose(`smart-queue-router: registerSubagentRun failed (non-fatal): ${msg}`);
+    if (!result.ok || !result.text) {
+      log.info({ message: `[smart-router] MiniAgent failed or empty response` }, "smart-router");
+      return { ok: false };
     }
 
-    return { runId: response.runId, childSessionKey };
+    // Route reply directly to user
+    const payload: ReplyPayload = {
+      text: result.text,
+    };
+
+    const cfg = loadConfig();
+    await routeReply({
+      payload,
+      channel: followupRun.originatingChannel || "webchat",
+      to: followupRun.originatingTo || "",
+      accountId: followupRun.originatingAccountId,
+      threadId: followupRun.originatingThreadId != null ? String(followupRun.originatingThreadId) : undefined,
+      sessionKey: followupRun.run.sessionKey,
+      cfg,
+      mirror: true,
+    });
+
+    log.info({ message: `[smart-router] MiniAgent direct reply sent` }, "smart-router");
+    return { ok: true };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    logVerbose(`smart-queue-router: subagent spawn failed: ${msg}`);
-    return null;
+    log.info({ message: `[smart-router] MiniAgent direct reply failed: ${msg}` }, "smart-router");
+    return { ok: false };
   }
 }
 
@@ -176,25 +168,25 @@ export async function smartRouteOrEnqueue(params: {
     return "steer-enqueued";
   }
 
-  // Step 3: Build context + spawn sub-agent
+  // Step 3: Build context + run MiniAgent for direct reply
   const contextSnapshot = await buildParallelContextSnapshot({
     sessionFile: followupRun.run.sessionFile,
   });
 
-  const result = await spawnParallelSubagent({
+  const result = await sendDirectReply({
     followupRun,
     contextSnapshot,
   });
 
-  if (!result) {
-    // Spawn failed — fall back to serial queue
-    logVerbose("smart-queue-router: spawn failed, falling back to serial queue");
+  if (!result.ok) {
+    // MiniAgent failed — fall back to serial queue
+    logVerbose("smart-queue-router: MiniAgent failed, falling back to serial queue");
     enqueueFollowupRun(queueKey, followupRun, resolvedQueue);
     return "fallback-enqueued";
   }
 
   const log = getLogger();
-  log.info({ message: `[smart-router] parallel sub-agent spawned (runId=${result.runId} childSessionKey=${result.childSessionKey})` }, "smart-router");
-  logVerbose(`smart-queue-router: parallel sub-agent spawned (runId=${result.runId} childSessionKey=${result.childSessionKey})`);
+  log.info({ message: `[smart-router] MiniAgent direct reply completed` }, "smart-router");
+  logVerbose(`smart-queue-router: MiniAgent direct reply completed`);
   return "parallel-spawned";
 }

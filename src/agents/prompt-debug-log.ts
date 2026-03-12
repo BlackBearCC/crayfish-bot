@@ -27,11 +27,53 @@ const writers = new Map<string, QueuedFileWriter>();
 function resolveLogPath(env: NodeJS.ProcessEnv): string {
   const override = env.PETCLAW_PROMPT_DEBUG_FILE?.trim();
   if (override) return override;
-  return path.join(resolveStateDir(env), "logs", "prompt-debug.jsonl");
+  return path.join(resolveStateDir(env), "logs", "prompt-debug.log");
 }
 
 function isEnabled(env: NodeJS.ProcessEnv): boolean {
   return parseBooleanValue(env.PETCLAW_PROMPT_DEBUG) ?? false;
+}
+
+function formatSystemWithSeparators(system: string | undefined): string {
+  if (!system) return "[无系统提示词]";
+  const lines = system.split('\n');
+  return lines.map(line => `  ${line}`).join('\n');
+}
+
+function formatMessagesWithSeparators(messages: unknown[]): string {
+  if (!messages || messages.length === 0) return "[无消息]";
+
+  const parts: string[] = [];
+  for (const msg of messages) {
+    const m = msg as Record<string, unknown>;
+    const role = String(m.role || 'unknown').toUpperCase();
+    const content = extractContentText(m.content);
+    parts.push(`\n--- [${role}] ---`);
+    parts.push(content || '[空内容]');
+  }
+  return parts.join('\n');
+}
+
+function extractContentText(content: unknown): string {
+  if (typeof content === 'string') return content;
+  if (Array.isArray(content)) {
+    // Handle content blocks (text, image, etc.)
+    return content.map(block => {
+      if (typeof block === 'string') return block;
+      if (block && typeof block === 'object') {
+        const b = block as Record<string, unknown>;
+        if (b.type === 'text' && typeof b.text === 'string') return b.text;
+        if (b.type === 'image_url' && typeof b.image_url === 'string') return `[图片: ${b.image_url}]`;
+        if (b.type === 'image_url' && b.image_url && typeof b.image_url === 'object') {
+          const url = (b.image_url as Record<string, unknown>).url;
+          return `[图片: ${url}]`;
+        }
+        return `[${b.type}]`;
+      }
+      return String(block);
+    }).join('\n');
+  }
+  return String(content || '');
 }
 
 /**
@@ -79,6 +121,38 @@ function extractMessages(payload: Record<string, unknown>): unknown[] {
     return msgs.slice(1);
   }
   return msgs;
+}
+
+/**
+ * Format entry as human-readable text with clear separators.
+ */
+function formatReadableEntry(entry: {
+  ts: string;
+  runId?: string;
+  sessionKey?: string;
+  provider?: string;
+  model?: unknown;
+  system?: string;
+  messages: unknown[];
+}): string {
+  const lines: string[] = [];
+  lines.push('');
+  lines.push('╔══════════════════════════════════════════════════════════════════╗');
+  lines.push(`║ 时间: ${entry.ts}`);
+  lines.push(`║ Run: ${entry.runId || 'N/A'}`);
+  lines.push(`║ Session: ${entry.sessionKey || 'N/A'}`);
+  lines.push(`║ Provider: ${entry.provider || 'N/A'} | Model: ${String(entry.model || 'N/A')}`);
+  lines.push('╠══════════════════════════════════════════════════════════════════╣');
+  lines.push('║ SYSTEM PROMPT');
+  lines.push('╠══════════════════════════════════════════════════════════════════╣');
+  lines.push(formatSystemWithSeparators(entry.system));
+  lines.push('╠══════════════════════════════════════════════════════════════════╣');
+  lines.push('║ MESSAGES');
+  lines.push('╠══════════════════════════════════════════════════════════════════╣');
+  lines.push(formatMessagesWithSeparators(entry.messages));
+  lines.push('╚══════════════════════════════════════════════════════════════════╝');
+  lines.push('');
+  return lines.join('\n');
 }
 
 function rotateIfNeeded(filePath: string): void {
@@ -131,8 +205,8 @@ export function createPromptDebugLogger(params: {
             system,
             messages,
           };
-          const line = safeJsonStringify(entry);
-          if (line) writer.write(line + "\n");
+          const readable = formatReadableEntry(entry);
+          writer.write(readable);
         }
         options?.onPayload?.(payload);
       };

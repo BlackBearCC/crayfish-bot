@@ -1124,11 +1124,15 @@ class PetClawPet {
       // 3. 生命周期 → 宠物动画 + Agent 完成追踪 + Steam Rich Presence
       if (event.stream === 'lifecycle') {
         const isMainSession = !event.sessionKey || event.sessionKey.endsWith(':main');
+        // announce run 是框架内部投递子代理结果的 run，runId 以 "announce:" 开头，不是用户对话的主代理
+        const isAnnounceRun = typeof event.runId === 'string' && event.runId.startsWith('announce:');
+        const isRealMainAgent = isMainSession && !isAnnounceRun;
         if (event.data?.phase === 'start') {
-          this._agentRunning = true;
-          // 主代理开始：若无 tool 占用状态条则显示"思考中"
-          if (isMainSession && !this.toolStatusBar.isInToolMode) {
-            this.toolStatusBar.showThinking();
+          if (isRealMainAgent) {
+            this._agentRunning = true;
+            if (!this.toolStatusBar.isInToolMode) {
+              this.toolStatusBar.showThinking();
+            }
           }
           const interruptible = ['idle', 'idle_ear_twitch', 'idle_yawn', 'walk', 'sit', 'sleep'];
           if (interruptible.includes(this.stateMachine.currentState)) {
@@ -1138,10 +1142,14 @@ class PetClawPet {
           this._steam?.setStatus('working', { charName: '猫咪', task: '执行任务' });
         } else if (event.data?.phase === 'end' || event.data?.phase === 'error') {
           if (this._toolAnimTimer) { clearTimeout(this._toolAnimTimer); this._toolAnimTimer = null; }
-          this._agentRunning = false;
-          if (isMainSession) this.toolStatusBar.hide();
-          this.stateMachine.transition('happy', { force: true, duration: 3000 });
-          this.bubble.show('任务完成了喵！✨', 2000);
+          if (isRealMainAgent) {
+            this._agentRunning = false;
+            this.toolStatusBar.hide();
+          }
+          if (!isAnnounceRun) {
+            this.stateMachine.transition('happy', { force: true, duration: 3000 });
+            this.bubble.show('任务完成了喵！✨', 2000);
+          }
 
           const isSubSession = event.sessionKey && !event.sessionKey.endsWith(':main');
           if (isSubSession) {
