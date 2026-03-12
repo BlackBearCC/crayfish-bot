@@ -1970,6 +1970,13 @@ body.panels-right .md-panel {
   padding: 6px 14px;
   line-height: 1;
 }
+/* 工具提示：字体缩回正常大小 */
+.thinking-dots.tool-hint {
+  font-size: 11px;
+  letter-spacing: 0;
+  padding: 6px 10px;
+  line-height: 1.4;
+}
 .thinking-dots span {
   display: inline-block;
   animation: dotBounce 1.4s ease-in-out infinite;

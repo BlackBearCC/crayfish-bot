@@ -172,12 +172,14 @@ export class StreamingBubble {
    */
   setToolHint(label) {
     if (!this.isActive || !this._thinkingEl) return;
+    this._thinkingEl.classList.add('tool-hint');
     this._thinkingEl.textContent = label;
   }
 
   /** 清除工具提示，恢复省略号动画 */
   clearToolHint() {
     if (!this.isActive || !this._thinkingEl) return;
+    this._thinkingEl.classList.remove('tool-hint');
     this._thinkingEl.innerHTML = '<span>.</span><span>.</span><span>.</span><span>.</span><span>.</span><span>.</span>';
   }
 
