@@ -184,6 +184,7 @@ class LLMService {
       '--port', String(this.gatewayPort),
       '--bind', 'loopback',
       '--allow-unconfigured',
+      ...(process.env.PETCLAW_VERBOSE ? ['--verbose'] : []),
     ];
 
     // cwd 必须指向 petclaw 项目根目录，Gateway dist 用 import.meta.url 相对路径查找 docs/reference/templates/

@@ -42,6 +42,12 @@ if (process.argv.includes('--prompt-debug')) {
   console.log('[main] prompt debug logging enabled → ~/.petclaw/logs/prompt-debug.jsonl');
 }
 
+// --verbose flag → gateway 启动时加 --verbose，显示完整 WS 请求/响应日志
+if (process.argv.includes('--verbose')) {
+  process.env.PETCLAW_VERBOSE = '1';
+  console.log('[main] verbose gateway logging enabled');
+}
+
 // ===== 单实例锁 =====
 const gotSingleInstanceLock = app.requestSingleInstanceLock();
 if (!gotSingleInstanceLock) {
@@ -419,6 +425,7 @@ app.whenReady().then(async () => {
 
   // 初始化 Steam SDK
   steamService = new SteamService();
+  steamService.setWin32Monitor(win32Monitor); // 传入 Win32 监控用于游戏检测
   const steamResult = steamService.init();
   if (!steamResult.ok) {
     // 初始化失败，记录详细原因

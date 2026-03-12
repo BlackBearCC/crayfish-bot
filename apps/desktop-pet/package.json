@@ -7,8 +7,10 @@
   "scripts": {
     "start": "chcp 65001 >nul 2>&1 && electron .",
     "start:debug": "chcp 65001 >nul 2>&1 && electron . --prompt-debug",
+    "start:verbose": "chcp 65001 >nul 2>&1 && electron . --verbose",
     "dev": "chcp 65001 >nul 2>&1 && electron . --dev",
     "dev:debug": "chcp 65001 >nul 2>&1 && electron . --dev --prompt-debug",
+    "dev:verbose": "chcp 65001 >nul 2>&1 && electron . --dev --verbose",
     "generate-placeholder": "node scripts/generate-placeholder.js",
     "pack": "electron-builder --dir",
     "dist": "electron-builder",
