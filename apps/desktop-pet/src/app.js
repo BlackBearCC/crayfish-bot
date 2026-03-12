@@ -62,6 +62,22 @@ const TOOL_ANIM_MAP = {
  * @param {string} toolName
  * @returns {string|null}
  */
+function getToolHintLabel(toolName) {
+  if (!toolName) return '🔧 工作中...';
+  const n = toolName.toLowerCase();
+  if (n.includes('search') || n.includes('browser')) return '🔍 搜索中...';
+  if (n.includes('fetch') || n.includes('web')) return '🌐 读取中...';
+  if (n.includes('read') || n.includes('pdf')) return '📄 阅读中...';
+  if (n.includes('write') || n.includes('edit')) return '✏️ 写入中...';
+  if (n.includes('exec') || n.includes('bash') || n.includes('shell')) return '⚡ 执行中...';
+  if (n.includes('memory') || n.includes('recall') || n.includes('graph')) return '🧠 记忆检索...';
+  if (n.includes('cron') || n.includes('schedule')) return '⏰ 计划中...';
+  if (n.includes('glob') || n.includes('find')) return '📂 查找中...';
+  if (n.includes('grep') || n.includes('search')) return '🔎 检索中...';
+  if (n.includes('agent')) return '🤝 委派中...';
+  return `🔧 ${toolName.slice(0, 8)}...`;
+}
+
 function getToolAnim(toolName) {
   if (!toolName) return null;
   // Direct lookup is case-sensitive (map keys are PascalCase); regex fallback is case-insensitive
@@ -1084,10 +1100,16 @@ class PetClawPet {
       // 2. 工具调用 → 头顶状态条 + 工具图鉴统计 + 动画映射
       if (event.stream === 'tool') {
         const toolName = event.data?.tool || event.data?.name || 'working';
+        const isMainToolSession = !event.sessionKey || event.sessionKey.endsWith(':main');
         if (event.data?.phase === 'start' || event.data?.status === 'running') {
           this.toolStatusBar.show(toolName);
           this.skillSystem.recordTool(toolName);
           this.charSync.recordTool(toolName);
+
+          // 主 session 工具执行时，在气泡上显示工具提示
+          if (isMainToolSession) {
+            this.streamingBubble?.setToolHint(getToolHintLabel(toolName));
+          }
 
           // 工具动画映射：特定工具类型播放短暂特征动画，之后回到 work
           // 只保留最新一个定时器，避免多工具并发时累积大量 setTimeout
@@ -1112,6 +1134,10 @@ class PetClawPet {
           }
         } else if (event.data?.phase === 'complete' || event.data?.phase === 'error') {
           this.toolStatusBar.hide();
+          // 工具结束，恢复省略号
+          if (isMainToolSession) {
+            this.streamingBubble?.clearToolHint();
+          }
         }
         this.achievementSystem?.check();
       }

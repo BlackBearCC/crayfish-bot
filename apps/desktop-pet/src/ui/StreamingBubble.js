@@ -166,6 +166,21 @@ export class StreamingBubble {
     requestAnimationFrame(() => this._thinkingEl?.classList.add('visible'));
   }
 
+  /**
+   * 在思考省略号气泡中显示工具提示（仅在思考阶段有效，文本开始流入后自动忽略）
+   * @param {string} label - 显示文本，如 "🔍 搜索中..."
+   */
+  setToolHint(label) {
+    if (!this.isActive || !this._thinkingEl) return;
+    this._thinkingEl.textContent = label;
+  }
+
+  /** 清除工具提示，恢复省略号动画 */
+  clearToolHint() {
+    if (!this.isActive || !this._thinkingEl) return;
+    this._thinkingEl.innerHTML = '<span>.</span><span>.</span><span>.</span><span>.</span><span>.</span><span>.</span>';
+  }
+
   /** 移除思考省略号 */
   _removeThinkingDots() {
     if (this._thinkingEl) {
