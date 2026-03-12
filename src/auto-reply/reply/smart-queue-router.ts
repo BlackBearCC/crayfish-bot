@@ -17,7 +17,7 @@ import type { GetReplyOptions, ReplyPayload } from "../types.js";
 import { buildParallelContextSnapshot } from "./parallel-context.js";
 import { enqueueFollowupRun, type FollowupRun, type QueueSettings } from "./queue.js";
 import { readRecentSessionMessages } from "./parallel-context.js";
-import { routeReply } from "./route-reply.js";
+import { isRoutableChannel, routeReply } from "./route-reply.js";
 import { loadConfig } from "../../config/config.js";
 
 // ─── Types ───
@@ -91,6 +91,8 @@ ${historyLines}
 async function sendDirectReply(params: {
   followupRun: FollowupRun;
   contextSnapshot: string;
+  /** Webchat fallback: called when routeReply is unavailable (INTERNAL_MESSAGE_CHANNEL). */
+  onWebChatReply?: (payload: ReplyPayload) => Promise<void> | void;
 }): Promise<{ ok: boolean }> {
   const { followupRun, contextSnapshot } = params;
   const log = getLogger();
@@ -124,20 +126,30 @@ async function sendDirectReply(params: {
       return { ok: false };
     }
 
-    // Route reply directly to user
-    const payload: ReplyPayload = {
-      text: result.text,
-    };
+    const payload: ReplyPayload = { text: result.text };
+    const channel = followupRun.originatingChannel || "webchat";
 
+    // For non-routable channels (webchat/desktop), use the webchat reply callback if available.
+    if (!isRoutableChannel(channel)) {
+      if (params.onWebChatReply) {
+        log.info({ message: `[smart-router] webchat reply (onWebChatReply)` }, "smart-router");
+        await params.onWebChatReply(payload);
+        return { ok: true };
+      }
+      log.info({ message: `[smart-router] webchat channel but no onWebChatReply — cannot route` }, "smart-router");
+      return { ok: false };
+    }
+
+    // Route reply directly to user via external channel (Telegram, Slack, etc.)
     log.info(
-      { message: `[smart-router] routeReply START | channel=${followupRun.originatingChannel || "webchat"} to=${followupRun.originatingTo || ""}` },
+      { message: `[smart-router] routeReply START | channel=${channel} to=${followupRun.originatingTo || ""}` },
       "smart-router"
     );
 
     const cfg = loadConfig();
     await routeReply({
       payload,
-      channel: followupRun.originatingChannel || "webchat",
+      channel,
       to: followupRun.originatingTo || "",
       accountId: followupRun.originatingAccountId,
       threadId: followupRun.originatingThreadId != null ? String(followupRun.originatingThreadId) : undefined,
@@ -210,6 +222,9 @@ export async function smartRouteOrEnqueue(params: {
   const result = await sendDirectReply({
     followupRun,
     contextSnapshot,
+    onWebChatReply: params.opts?.onBlockReply
+      ? (payload) => params.opts!.onBlockReply!(payload)
+      : undefined,
   });
 
   if (!result.ok) {
