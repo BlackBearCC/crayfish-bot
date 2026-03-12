@@ -10,10 +10,12 @@
 
 import crypto from "node:crypto";
 import { AGENT_LANE_SUBAGENT } from "../../agents/lanes.js";
+import { registerSubagentRun } from "../../agents/subagent-registry.js";
 import { callGateway } from "../../gateway/call.js";
 import { classifierLLMComplete } from "../../gateway/server-methods/character.js";
 import { logVerbose } from "../../globals.js";
 import { getLogger } from "../../logging/logger.js";
+import { resolveAgentIdFromSessionKey } from "../../routing/session-key.js";
 import type { GetReplyOptions } from "../types.js";
 import { buildParallelContextSnapshot } from "./parallel-context.js";
 import { enqueueFollowupRun, type FollowupRun, type QueueSettings } from "./queue.js";
@@ -85,14 +87,20 @@ async function classifyMessage(params: {
 async function spawnParallelSubagent(params: {
   followupRun: FollowupRun;
   contextSnapshot: string;
-}): Promise<{ runId: string } | null> {
+}): Promise<{ runId: string; childSessionKey: string } | null> {
   const { followupRun, contextSnapshot } = params;
+
+  const parentSessionKey = followupRun.run.sessionKey ?? "";
+  const agentId = resolveAgentIdFromSessionKey(parentSessionKey) ?? "main";
+  const childSessionKey = `agent:${agentId}:subagent:${crypto.randomUUID()}`;
+  const idempotencyKey = followupRun.run.clientRunId ?? crypto.randomUUID();
 
   try {
     const response = await callGateway<{ runId: string }>({
       method: "agent",
       params: {
         message: followupRun.prompt,
+        sessionKey: childSessionKey,
         channel: followupRun.originatingChannel || "webchat",
         to: followupRun.originatingTo,
         accountId: followupRun.originatingAccountId,
@@ -100,16 +108,33 @@ async function spawnParallelSubagent(params: {
           followupRun.originatingThreadId != null
             ? String(followupRun.originatingThreadId)
             : undefined,
-        idempotencyKey: followupRun.run.clientRunId ?? crypto.randomUUID(),
+        idempotencyKey,
         deliver: true,
         lane: AGENT_LANE_SUBAGENT,
         extraSystemPrompt: contextSnapshot,
         label: "parallel-queue",
-        spawnedBy: followupRun.run.sessionKey,
+        spawnedBy: parentSessionKey,
       },
       timeoutMs: 10_000,
     });
-    return response;
+    if (!response?.runId) return null;
+
+    try {
+      registerSubagentRun({
+        runId: response.runId,
+        childSessionKey,
+        requesterSessionKey: parentSessionKey,
+        requesterDisplayKey: parentSessionKey,
+        task: followupRun.prompt,
+        cleanup: "delete",
+        label: "parallel-queue",
+      });
+    } catch (regErr) {
+      const msg = regErr instanceof Error ? regErr.message : String(regErr);
+      logVerbose(`smart-queue-router: registerSubagentRun failed (non-fatal): ${msg}`);
+    }
+
+    return { runId: response.runId, childSessionKey };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     logVerbose(`smart-queue-router: subagent spawn failed: ${msg}`);
@@ -126,6 +151,12 @@ export async function smartRouteOrEnqueue(params: {
   opts?: GetReplyOptions;
 }): Promise<SmartRouteResult> {
   const { queueKey, followupRun, resolvedQueue } = params;
+
+  // Non-smart modes: skip classifier, always use serial queue
+  if (resolvedQueue.mode !== "smart") {
+    enqueueFollowupRun(queueKey, followupRun, resolvedQueue);
+    return "steer-enqueued";
+  }
 
   // Step 1: Classify (default to steer when uncertain — safe serial queue fallback)
   let route: "steer" | "parallel";
@@ -163,7 +194,7 @@ export async function smartRouteOrEnqueue(params: {
   }
 
   const log = getLogger();
-  log.info({ message: `[smart-router] parallel sub-agent spawned (runId=${result.runId})` }, "smart-router");
-  logVerbose(`smart-queue-router: parallel sub-agent spawned (runId=${result.runId})`);
+  log.info({ message: `[smart-router] parallel sub-agent spawned (runId=${result.runId} childSessionKey=${result.childSessionKey})` }, "smart-router");
+  logVerbose(`smart-queue-router: parallel sub-agent spawned (runId=${result.runId} childSessionKey=${result.childSessionKey})`);
   return "parallel-spawned";
 }
