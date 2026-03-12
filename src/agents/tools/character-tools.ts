@@ -82,7 +82,7 @@ export function createCharacterSelfCareTool(options?: {
 }): AnyAgentTool {
   return {
     label: "Character Self Care",
-    name: "character_self_care",
+    name: "self_care",
     description:
       "Use when you feel your character state is abnormal (very hungry, tired, or bored). Automatically feeds, rests, or plays to improve your state. Limited to 2 calls per turn, subject to cooldowns.",
     parameters: CharacterSelfCareSchema,
@@ -146,7 +146,7 @@ export function createCharacterRememberTool(options?: {
 }): AnyAgentTool {
   return {
     label: "Character Remember",
-    name: "character_remember",
+    name: "remember",
     description:
       "Proactively remember important information the user mentioned. Creates a memory cluster that can be recalled later via memory_search.",
     parameters: CharacterRememberSchema,
@@ -186,7 +186,7 @@ export function createCharacterExpressMoodTool(options?: {
 }): AnyAgentTool {
   return {
     label: "Character Express Mood",
-    name: "character_express_mood",
+    name: "express_mood",
     description:
       "Express your current emotion through an animation. Use to show happiness, sadness, excitement, sleepiness, or curiosity. Does not change any stats.",
     parameters: CharacterExpressMoodSchema,
@@ -232,7 +232,7 @@ export function createCharacterMemoryGraphSearchTool(options?: {
 }): AnyAgentTool {
   return {
     label: "记忆图谱联想检索",
-    name: "character_memory_graph_search",
+    name: "memory_graph_search",
     description:
       "在角色记忆图谱中进行语义联想检索。记忆图谱以簇（cluster）为节点、relatedClusters 为边，存储从对话中提炼的主题、偏好、人际关系和隐式关联。" +
       "适用场景：发现概念间的潜在联系、跨主题知识相似性联想、推断用户偏好与行为模式、溯源某个话题相关的历史记忆簇。" +
