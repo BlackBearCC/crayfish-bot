@@ -82,7 +82,7 @@ export function createCharacterSelfCareTool(options?: {
 }): AnyAgentTool {
   return {
     label: "Character Self Care",
-    name: "self_care",
+    name: "character_self_care",
     description:
       "Use when you feel your character state is abnormal (very hungry, tired, or bored). Automatically feeds, rests, or plays to improve your state. Limited to 2 calls per turn, subject to cooldowns.",
     parameters: CharacterSelfCareSchema,
@@ -146,7 +146,7 @@ export function createCharacterRememberTool(options?: {
 }): AnyAgentTool {
   return {
     label: "Character Remember",
-    name: "remember",
+    name: "character_remember",
     description:
       "Proactively remember important information the user mentioned. Creates a memory cluster that can be recalled later via memory_search.",
     parameters: CharacterRememberSchema,
@@ -186,7 +186,7 @@ export function createCharacterExpressMoodTool(options?: {
 }): AnyAgentTool {
   return {
     label: "Character Express Mood",
-    name: "express_mood",
+    name: "character_express_mood",
     description:
       "Express your current emotion through an animation. Use to show happiness, sadness, excitement, sleepiness, or curiosity. Does not change any stats.",
     parameters: CharacterExpressMoodSchema,
