@@ -32,21 +32,26 @@ async function classifyMessage(params: {
 }): Promise<"steer" | "parallel"> {
   const { newMessage, sessionFile } = params;
 
-  // Grab last 1 turn for classifier context (lightweight)
-  const recent = await readRecentSessionMessages(sessionFile, 1);
-  const lastUser = recent.find((m) => m.role === "user")?.text ?? "";
-  const lastAssistant = recent.find((m) => m.role === "assistant")?.text ?? "";
+  // Grab last 3 user messages for classifier context (assistant messages excluded to avoid content pollution)
+  const recent = await readRecentSessionMessages(sessionFile, 5);
+  const recentUserMsgs = recent
+    .filter((m) => m.role === "user")
+    .slice(-3)
+    .map((m) => m.text);
+
+  const historyLines = recentUserMsgs.length > 0
+    ? recentUserMsgs.map((t, i) => `用户消息${i + 1}: ${t}`).join("\n")
+    : "（无历史记录）";
 
   const prompt = `你是消息路由分类器，判断新消息应"等待当前任务完成后处理"还是"立即独立处理"。
 
-当前上下文（最近一轮对话）：
-用户: ${lastUser}
-助手: ${lastAssistant}（当前仍在处理中...）
+用户最近消息记录（最多3条，助手正在处理中）：
+${historyLines}
 
 用户新消息: ${newMessage}
 
 判断规则：
-- steer：仅当助手正在执行具体任务（写代码、修改文件、分析数据、搜索等），且新消息是对该任务的直接补充/修正/催促/追问
+- steer：仅当历史消息显示用户正在与助手协作执行具体任务（写代码、修改文件、分析数据、搜索等），且新消息是对该任务的直接补充/修正/催促/追问
 - parallel：其他所有情况，包括日常聊天、问候、闲聊、新话题、角色扮演对话、无明确执行中任务时的任何消息
 
 只返回 JSON，不要解释。示例：{"route":"parallel"}`;
@@ -54,7 +59,7 @@ async function classifyMessage(params: {
   const log = getLogger();
   log.info(
     {
-      message: `[smart-router] classify prompt snapshot | newMessage="${newMessage.slice(0, 100)}" lastAssistant="${lastAssistant.slice(0, 150)}"`,
+      message: `[smart-router] classify prompt snapshot | newMessage="${newMessage.slice(0, 100)}" recentUserMsgs=${JSON.stringify(recentUserMsgs.map(t => t.slice(0, 80)))}`,
     },
     "smart-router",
   );
@@ -90,8 +95,14 @@ async function sendDirectReply(params: {
   const { followupRun, contextSnapshot } = params;
   const log = getLogger();
 
+  log.info(
+    { message: `[smart-router] MiniAgent START | prompt="${followupRun.prompt.slice(0, 80)}..." sessionKey=${followupRun.run.sessionKey}` },
+    "smart-router"
+  );
+
   try {
     // Run MiniAgent to get response
+    log.info({ message: `[smart-router] MiniAgent calling runMiniAgent...` }, "smart-router");
     const result = await runMiniAgent({
       userPrompt: followupRun.prompt,
       contextSnapshot,
@@ -103,6 +114,11 @@ async function sendDirectReply(params: {
         : undefined,
     });
 
+    log.info(
+      { message: `[smart-router] MiniAgent result | ok=${result.ok} textLen=${result.text?.length ?? 0}` },
+      "smart-router"
+    );
+
     if (!result.ok || !result.text) {
       log.info({ message: `[smart-router] MiniAgent failed or empty response` }, "smart-router");
       return { ok: false };
@@ -112,6 +128,11 @@ async function sendDirectReply(params: {
     const payload: ReplyPayload = {
       text: result.text,
     };
+
+    log.info(
+      { message: `[smart-router] routeReply START | channel=${followupRun.originatingChannel || "webchat"} to=${followupRun.originatingTo || ""}` },
+      "smart-router"
+    );
 
     const cfg = loadConfig();
     await routeReply({
@@ -125,11 +146,11 @@ async function sendDirectReply(params: {
       mirror: true,
     });
 
-    log.info({ message: `[smart-router] MiniAgent direct reply sent` }, "smart-router");
+    log.info({ message: `[smart-router] routeReply DONE` }, "smart-router");
     return { ok: true };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    log.info({ message: `[smart-router] MiniAgent direct reply failed: ${msg}` }, "smart-router");
+    log.info({ message: `[smart-router] MiniAgent ERROR: ${msg}` }, "smart-router");
     return { ok: false };
   }
 }
@@ -143,14 +164,22 @@ export async function smartRouteOrEnqueue(params: {
   opts?: GetReplyOptions;
 }): Promise<SmartRouteResult> {
   const { queueKey, followupRun, resolvedQueue } = params;
+  const log = getLogger();
+
+  log.info(
+    { message: `[smart-router] ENTER | queueKey=${queueKey} mode=${resolvedQueue.mode} prompt="${followupRun.prompt.slice(0, 50)}..."` },
+    "smart-router"
+  );
 
   // Non-smart modes: skip classifier, always use serial queue
   if (resolvedQueue.mode !== "smart") {
+    log.info({ message: `[smart-router] non-smart mode (${resolvedQueue.mode}) → steer-enqueued` }, "smart-router");
     enqueueFollowupRun(queueKey, followupRun, resolvedQueue);
     return "steer-enqueued";
   }
 
   // Step 1: Classify (default to steer when uncertain — safe serial queue fallback)
+  log.info({ message: `[smart-router] Step 1: classifyMessage...` }, "smart-router");
   let route: "steer" | "parallel";
   try {
     route = await classifyMessage({
@@ -159,19 +188,24 @@ export async function smartRouteOrEnqueue(params: {
     });
   } catch {
     // Classification failed — default to steer (serial queue)
+    log.info({ message: `[smart-router] classify failed → default steer` }, "smart-router");
     route = "steer";
   }
+  log.info({ message: `[smart-router] Step 1 done: route=${route}` }, "smart-router");
 
   // Step 2: Route
   if (route === "steer") {
+    log.info({ message: `[smart-router] Step 2: route=steer → enqueueFollowupRun` }, "smart-router");
     enqueueFollowupRun(queueKey, followupRun, resolvedQueue);
     return "steer-enqueued";
   }
 
   // Step 3: Build context + run MiniAgent for direct reply
+  log.info({ message: `[smart-router] Step 3: route=parallel → build context...` }, "smart-router");
   const contextSnapshot = await buildParallelContextSnapshot({
     sessionFile: followupRun.run.sessionFile,
   });
+  log.info({ message: `[smart-router] context built, calling sendDirectReply...` }, "smart-router");
 
   const result = await sendDirectReply({
     followupRun,
@@ -180,13 +214,11 @@ export async function smartRouteOrEnqueue(params: {
 
   if (!result.ok) {
     // MiniAgent failed — fall back to serial queue
-    logVerbose("smart-queue-router: MiniAgent failed, falling back to serial queue");
+    log.info({ message: `[smart-router] sendDirectReply failed → fallback to enqueueFollowupRun` }, "smart-router");
     enqueueFollowupRun(queueKey, followupRun, resolvedQueue);
     return "fallback-enqueued";
   }
 
-  const log = getLogger();
-  log.info({ message: `[smart-router] MiniAgent direct reply completed` }, "smart-router");
-  logVerbose(`smart-queue-router: MiniAgent direct reply completed`);
+  log.info({ message: `[smart-router] DONE: parallel-spawned (MiniAgent direct reply)` }, "smart-router");
   return "parallel-spawned";
 }

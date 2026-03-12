@@ -226,8 +226,10 @@ export async function runReplyAgent(params: {
 
   if (activeRunQueueAction === "enqueue-followup") {
     const routeResult = await smartRouteOrEnqueue({ queueKey, followupRun, resolvedQueue, opts });
-    if (routeResult === "parallel-spawned" && opts?.onBlockReply) {
-      await opts.onBlockReply({ text: "[ 智能调度 ] 已为你启动并行处理，稍等~" });
+    // MiniAgent now handles parallel replies synchronously; no need for "processing" indicator
+    // since the reply is sent directly before this returns
+    if (routeResult === "steer-enqueued" && opts?.onBlockReply) {
+      await opts.onBlockReply({ text: "[ 智能调度 ] 已加入队列，当前任务完成后处理~" });
     }
     await touchActiveSessionEntry();
     typing.cleanup();
