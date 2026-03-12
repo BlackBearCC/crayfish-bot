@@ -14,7 +14,7 @@ export function resolveActiveRunQueueAction(params: {
   if (params.isHeartbeat) {
     return "drop";
   }
-  if (params.shouldFollowup || params.queueMode === "steer" || params.queueMode === "smart") {
+  if (params.shouldFollowup || params.queueMode === "steer") {
     return "enqueue-followup";
   }
   return "run-now";

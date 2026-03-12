@@ -179,8 +179,6 @@ type RunPreparedReplyParams = {
 };
 
 // Tracks how many runPreparedReply calls are in-flight per session key.
-// Covers the gap between message arrival and isEmbeddedPiRunActive becoming true
-// (typically 10–16 s on Telegram) so smart routing fires for back-to-back messages.
 const sessionPipelineCount = new Map<string, number>();
 
 export async function runPreparedReply(

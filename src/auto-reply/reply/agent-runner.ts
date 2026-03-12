@@ -52,7 +52,6 @@ import { resolveOriginMessageProvider, resolveOriginMessageTo } from "./origin-r
 import { readPostCompactionContext } from "./post-compaction-context.js";
 import { resolveActiveRunQueueAction } from "./queue-policy.js";
 import { enqueueFollowupRun, type FollowupRun, type QueueSettings } from "./queue.js";
-import { smartRouteOrEnqueue } from "./smart-queue-router.js";
 import { createReplyMediaPathNormalizer } from "./reply-media-paths.js";
 import { createReplyToModeFilterForChannel, resolveReplyToMode } from "./reply-threading.js";
 import { incrementRunCompactionCount, persistRunSessionUsage } from "./session-run-accounting.js";
@@ -211,26 +210,13 @@ export async function runReplyAgent(params: {
     queueMode: resolvedQueue.mode,
   });
 
-  // Diagnostic: log smart queue decision factors (helps debug "queue not triggering")
-  if (isActive || activeRunQueueAction !== "run-now") {
-    const { getLogger } = await import("../../logging/logger.js");
-    getLogger().info({
-      message: `[agent-runner] queue decision: action=${activeRunQueueAction} isActive=${isActive} isHeartbeat=${isHeartbeat} shouldFollowup=${shouldFollowup} queueMode=${resolvedQueue.mode} sessionKey=${sessionKey ?? "none"}`,
-    }, "smart-router");
-  }
-
   if (activeRunQueueAction === "drop") {
     typing.cleanup();
     return undefined;
   }
 
   if (activeRunQueueAction === "enqueue-followup") {
-    const routeResult = await smartRouteOrEnqueue({ queueKey, followupRun, resolvedQueue, opts });
-    // MiniAgent now handles parallel replies synchronously; no need for "processing" indicator
-    // since the reply is sent directly before this returns
-    if (routeResult === "steer-enqueued" && opts?.onBlockReply) {
-      await opts.onBlockReply({ text: "[ 智能调度 ] 已加入队列，当前任务完成后处理~" });
-    }
+    enqueueFollowupRun(queueKey, followupRun, resolvedQueue);
     await touchActiveSessionEntry();
     typing.cleanup();
     return undefined;

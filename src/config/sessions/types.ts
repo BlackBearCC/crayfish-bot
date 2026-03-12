@@ -112,7 +112,6 @@ export type SessionEntry = {
   groupActivationNeedsSystemIntro?: boolean;
   sendPolicy?: "allow" | "deny";
   queueMode?:
-    | "smart"
     | "steer"
     | "followup"
     | "collect"
