@@ -253,6 +253,9 @@ importers:
 
   apps/desktop-pet:
     dependencies:
+      marked:
+        specifier: ^17.0.4
+        version: 17.0.4
       ws:
         specifier: ^8.19.0
         version: 8.19.0
