@@ -200,9 +200,36 @@ class LLMService {
       shell: gateway.shell,
     });
 
+    // 处理 gateway 标准输出：合并分片行，流式 assistant 分片只保留最后一条
+    let _gwRemainder = '';
+    const _gwStreamBuf = new Map(); // runId -> 最后一条 assistant 行
+
+    const _gwFlushLine = (msg) => {
+      if (!msg) return;
+      const runMatch = msg.match(/\brun=(\S+)/);
+      const runId = runMatch ? runMatch[1] : null;
+
+      // 流式 assistant 分片：缓存，不打印
+      if (runId && msg.includes('stream=assistant')) {
+        _gwStreamBuf.set(runId, msg);
+        return;
+      }
+      // lifecycle end：先打印最后一条缓存的 assistant 分片，再打印 lifecycle 行
+      if (runId && msg.includes('stream=lifecycle') && msg.includes('phase=end')) {
+        const last = _gwStreamBuf.get(runId);
+        if (last) {
+          console.log(`[gateway] ${last}`);
+          _gwStreamBuf.delete(runId);
+        }
+      }
+      console.log(`[gateway] ${msg}`);
+    };
+
     this.gatewayProcess.stdout.on('data', (data) => {
-      const msg = data.toString().trim();
-      if (msg) console.log(`[gateway] ${msg}`);
+      const chunk = _gwRemainder + data.toString();
+      const lines = chunk.split('\n');
+      _gwRemainder = lines.pop() ?? '';
+      for (const raw of lines) _gwFlushLine(raw.trim());
     });
 
     this.gatewayProcess.stderr.on('data', (data) => {
@@ -215,6 +242,7 @@ class LLMService {
     });
 
     this.gatewayProcess.on('exit', (code) => {
+      if (_gwRemainder.trim()) _gwFlushLine(_gwRemainder.trim());
       logger.gateway(`exited with code ${code}`);
       console.log(`[gateway] exited with code ${code}`);
       this.gatewayReady = false;
