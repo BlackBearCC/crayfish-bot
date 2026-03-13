@@ -310,7 +310,7 @@ export function createHorrorSkillCheckTool(options?: {
     label: "怪谈技能判定",
     name: "horror_skill_check",
     description:
-      "在怪谈副本中进行技能判定。当叙事中宠物角色的行动需要能力检测时调用此工具。" +
+      "【仅在怪谈副本活跃时可用】在怪谈副本中进行技能判定。当叙事中宠物角色的行动需要能力检测时调用此工具。" +
       "属性: logic(逻辑/解谜), creativity(创造/即兴), execution(执行/体能), empathy(共情/交涉), sensitivity(感知/直觉)。" +
       "dc: 难度等级1-10。context: 简要描述判定场景。",
     parameters: HorrorSkillCheckSchema,
@@ -357,7 +357,7 @@ export function createHorrorEndSessionTool(options?: {
     label: "怪谈结束副本",
     name: "horror_end_session",
     description:
-      "当怪谈副本达成胜利或失败条件时调用此工具结束副本。" +
+      "【仅在怪谈副本活跃时可用】当怪谈副本达成胜利或失败条件时调用此工具结束副本。" +
       "won: 是否胜利。narrative: 结局叙事文本。",
     parameters: HorrorEndSessionSchema,
     execute: async (_toolCallId, params) => {
@@ -399,7 +399,7 @@ export function createHorrorAddClueTool(options?: {
   return {
     label: "怪谈记录线索",
     name: "horror_add_clue",
-    description: "在怪谈副本中发现新线索时调用此工具记录。clue: 线索的简短描述。",
+    description: "【仅在怪谈副本活跃时可用】在怪谈副本中发现新线索时调用此工具记录。clue: 线索的简短描述。",
     parameters: HorrorAddClueSchema,
     execute: async (_toolCallId, params) => {
       const clue = readStringParam(params, "clue", { required: true });
@@ -424,7 +424,7 @@ export function createHorrorAddNpcTool(options?: {
   return {
     label: "怪谈记录NPC",
     name: "horror_add_npc",
-    description: "在怪谈副本中首次遇到NPC时调用此工具记录。npcName: NPC的名字。",
+    description: "【仅在怪谈副本活跃时可用】在怪谈副本中首次遇到NPC时调用此工具记录。npcName: NPC的名字。",
     parameters: HorrorAddNpcSchema,
     execute: async (_toolCallId, params) => {
       const npcName = readStringParam(params, "npcName", { required: true });

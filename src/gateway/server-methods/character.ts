@@ -491,9 +491,6 @@ ${conditions.map((c, i) => `${i + 1}. ${c}`).join('\n')}
     // Wire up adventure LLM callback for story + narrative generation
     engine.adventures.setLLMComplete(characterLLMComplete);
 
-    // Wire up horror system LLM callback
-    engine.horror.setLLMComplete(characterLLMComplete);
-
     // Register cron jobs for World Agent + Soul Agent (once per process lifetime)
     if (_cron && !cronJobsRegistered) {
       cronJobsRegistered = true;
@@ -641,8 +638,8 @@ ${conditions.map((c, i) => `${i + 1}. ${c}`).join('\n')}
         for (const [attr, xp] of Object.entries(rewards.skillXp)) {
           if (xp > 0) engine.skills.recordDomainActivity("情感", attr, xp);
         }
-      } catch {
-        // rewards failed; session is still completed
+      } catch (err) {
+        console.warn("[horror] reward granting failed:", err);
       }
 
       if (!_broadcast) return;
@@ -708,7 +705,7 @@ export function getCharacterChatGate(): {
 
 /** Returns true if a horror session is currently active. */
 export function isHorrorSessionActive(): boolean {
-  return engine?.horror.getActiveSession() !== null && engine?.horror.getActiveSession() !== undefined;
+  return engine?.horror.getActiveSession() != null;
 }
 
 /** Returns the singleton CharacterEngine instance (if initialized). */

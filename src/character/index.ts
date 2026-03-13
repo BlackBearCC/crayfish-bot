@@ -76,7 +76,6 @@ export {
   type HorrorOutcome,
   type HorrorRewards,
   type SkillCheckResult,
-  type HorrorLLMCallback,
 } from "./horror-system.js";
 export {
   BUILTIN_SCENARIOS,

@@ -73,8 +73,6 @@ export interface SkillCheckResult {
   dc: number;
 }
 
-/** LLM completion callback — same pattern as adventure-system */
-export type HorrorLLMCallback = (prompt: string) => Promise<string | null>;
 
 // ─── Reward Tables ───
 
@@ -100,7 +98,6 @@ export class HorrorSystem {
   private readonly store: PersistenceStore;
   private sessions: Map<string, HorrorSession> = new Map();
   private activeSessionId: string | null = null;
-  private _llmComplete: HorrorLLMCallback | null = null;
   private _getSkillAttributes: (() => AttrLevelInfo[]) | null = null;
 
   constructor(bus: EventBus, store: PersistenceStore) {
@@ -110,10 +107,6 @@ export class HorrorSystem {
   }
 
   // ─── Callbacks ───
-
-  setLLMComplete(callback: HorrorLLMCallback): void {
-    this._llmComplete = callback;
-  }
 
   setSkillAttributeProvider(fn: () => AttrLevelInfo[]): void {
     this._getSkillAttributes = fn;
