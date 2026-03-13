@@ -89,9 +89,62 @@ html, body {
   cursor: grabbing;
 }
 
+/* ===== 右键菜单 — 等级头部 ===== */
+.ctx-level-header {
+  padding: 8px 12px 6px;
+}
+.ctx-level-top {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 5px;
+}
+.ctx-level-badge {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--clr-primary-dark);
+  letter-spacing: -0.5px;
+}
+.ctx-level-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.ctx-level-stage {
+  font-size: 10px;
+  color: var(--ink-light);
+  margin-left: auto;
+}
+.ctx-level-exp {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ctx-level-exp-track {
+  flex: 1;
+  height: 4px;
+  background: var(--ink-faint);
+  border: 1px solid var(--ink-faint);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.ctx-level-exp-fill {
+  height: 100%;
+  background: var(--clr-primary);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+.ctx-level-exp-text {
+  font-size: 9px;
+  color: var(--ink-light);
+  flex-shrink: 0;
+  min-width: 36px;
+  text-align: right;
+}
+
 /* ===== 右键菜单养成状态块 ===== */
 .ctx-stats {
-  padding: 8px 10px 4px;
+  padding: 4px 12px 6px;
   display: flex;
   flex-direction: column;
   gap: 5px;

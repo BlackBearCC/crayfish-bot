@@ -734,6 +734,8 @@ class PetClawPet {
         hungerMax: this.charSync.getHungerMax(),
         moodMax:   this.charSync.getMoodMax(),
         healthMax: this.charSync.getHealthMax(),
+        level: this.charSync.getLevelInfo(),
+        growthStageName: this.charSync.getGrowthStageName(),
       }), {
         onOpen:  () => this.electronAPI?.setIgnoreMouse(false),
         onClose: () => this._updateMousePassthrough(),

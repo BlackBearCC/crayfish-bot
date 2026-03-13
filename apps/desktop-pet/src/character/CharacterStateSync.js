@@ -26,6 +26,7 @@ export class CharacterStateSync {
     // Cached state from server
     this._attributes = {}; // { mood: {value, level, max}, hunger: {...}, health: {...} }
     this._growth = { points: 0, stage: 0, stageName: '', pointsToNext: Infinity };
+    this._level = { level: 1, exp: 0, expToNext: 50, currentLevelExp: 0, nextLevelExp: 50, title: '小萌新' };
     this._skills = [];
     this._learning = { active: null, isLearning: false };
     this._achievementSummary = { total: 0, unlocked: 0 };
@@ -99,6 +100,10 @@ export class CharacterStateSync {
   getMoodMax() { return this._attributes.mood?.max ?? 100; }
   getHungerMax() { return this._attributes.hunger?.max ?? 300; }
   getHealthMax() { return this._attributes.health?.max ?? 100; }
+
+  getLevel() { return this._level.level; }
+  getLevelTitle() { return this._level.title; }
+  getLevelInfo() { return this._level; }
 
   getMoodLevel() { return this._attributes.mood?.level ?? 'happy'; }
   getHungerLevel() { return this._attributes.hunger?.level ?? 'normal'; }
@@ -228,7 +233,8 @@ export class CharacterStateSync {
       this._prevGrowthStage = state.growth.stage;
     }
 
-    // Skills / learning / achievements (cached for UI)
+    // Level / skills / learning / achievements (cached for UI)
+    if (state.level) this._level = state.level;
     if (state.skills) this._skills = state.skills;
     if (state.learning) this._learning = state.learning;
     if (state.achievements) this._achievementSummary = state.achievements;

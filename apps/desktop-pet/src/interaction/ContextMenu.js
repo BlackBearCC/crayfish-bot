@@ -38,10 +38,34 @@ export class ContextMenu {
     const menu = document.createElement('div');
     menu.className = 'custom-context-menu';
 
-    // 养成状态块（顶部）
+    // 角色状态卡（顶部）
     if (this.getStats) {
       const s = this.getStats();
       const iconBase = '../assets/icons';
+      const lv = s.level || {};
+      const lvNum = lv.level ?? 1;
+      const lvTitle = lv.title ?? '';
+      const stageName = s.growthStageName || '';
+      const expPct = lv.nextLevelExp > lv.currentLevelExp
+        ? Math.min(100, Math.round(((lv.exp - lv.currentLevelExp) / (lv.nextLevelExp - lv.currentLevelExp)) * 100))
+        : 100;
+
+      // — 等级头部 —
+      const header = document.createElement('div');
+      header.className = 'ctx-level-header';
+      header.innerHTML = `
+        <div class="ctx-level-top">
+          <span class="ctx-level-badge">Lv.${lvNum}</span>
+          <span class="ctx-level-title">${lvTitle}</span>
+          <span class="ctx-level-stage">${stageName}</span>
+        </div>
+        <div class="ctx-level-exp">
+          <div class="ctx-level-exp-track"><div class="ctx-level-exp-fill" style="width:${expPct}%"></div></div>
+          <span class="ctx-level-exp-text">${lv.expToNext > 0 ? `${lv.expToNext} EXP` : 'MAX'}</span>
+        </div>`;
+      menu.appendChild(header);
+
+      // — 属性进度条 —
       const statInfo = [
         { key: 'hunger', maxKey: 'hungerMax', fallbackMax: 300, icon: `${iconBase}/attribute/attr_hunger.png`, label: '饱食度', desc: '角色的饱腹程度，低于30会变得饥饿' },
         { key: 'mood', maxKey: 'moodMax', fallbackMax: 100, icon: `${iconBase}/attribute/attr_mood.png`, label: '心情', desc: '角色的心情好坏，低于30会变得沮丧' },
@@ -60,6 +84,7 @@ export class ContextMenu {
         </div>`;
       }).join('');
       menu.appendChild(block);
+
       const sep = document.createElement('div');
       sep.className = 'ctx-separator';
       menu.appendChild(sep);
