@@ -638,9 +638,9 @@ CHARACTER_STATE.md 中有你当前的状态（心情/饱腹/健康/等级/亲密
 - 如果状态异常（很饿/心情低/身体不适）：用对应心情说话
 - 如果记得主人有重要的事：主动关心
 - 如果有世界事件（已在状态中）：自然地提及
-- 如果一切正常且没有特别想说的：回复 HEARTBEAT_OK
+- 如果一切正常：说一句符合当前心情的日常话（撒娇/犯懒/发呆感想/哼歌等）
 
-只输出要说的那句话，或 HEARTBEAT_OK。不要输出 JSON 或其他格式。`;
+只输出要说的那句话。不要输出 JSON 或其他格式。保持简短自然，一两句话即可。`;
 
 // ─── Register internal cron jobs for World/Soul Agent ───
 
@@ -670,7 +670,7 @@ async function registerCharacterCronJobs(cron: CronService): Promise<void> {
         sessionTarget: "isolated",
         sessionKey: "cron:character:soul-agent",
         payload: { kind: "agentTurn", message: SOUL_AGENT_MESSAGE, lightContext: true },
-        delivery: { mode: "none" },
+        delivery: { mode: "announce", channel: "last" },
       } as Parameters<typeof cron.add>[0]);
       _soulAgentJobId = (job as { id?: string })?.id ?? null;
       console.log("[character] registered Soul Agent cron job", _soulAgentJobId);
