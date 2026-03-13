@@ -53,12 +53,14 @@ export class NurturingPanel {
    * @param {object} opts
    * @param {Function} [opts.isConnected] - () => boolean, 检查服务端是否在线
    */
-  constructor(characterRPC, { onBubble, onAnimation, isConnected } = {}) {
+  constructor(characterRPC, { onBubble, onAnimation, isConnected, onNavigate } = {}) {
     /** @type {(method: string, params?: object) => Promise<any>} */
     this._rawRpc = characterRPC;
     this._onBubble = onBubble || (() => {});
     this._onAnimation = onAnimation || (() => {});
     this._isConnected = isConnected || (() => true);
+    /** @type {{ skillPanel?: Function, memoryGraph?: Function }} */
+    this._onNavigate = onNavigate || {};
     this.isOpen = false;
     this._activeTab = 'inventory';
     this._createDOM();
@@ -85,7 +87,11 @@ export class NurturingPanel {
     this.element.innerHTML = `
       <div class="nur-header">
         <span>🐾 养成</span>
-        <button class="nur-close">✕</button>
+        <div class="nur-header-actions">
+          <button class="nur-nav-btn" data-nav="skillPanel" title="图鉴">📖</button>
+          <button class="nur-nav-btn" data-nav="memoryGraph" title="记忆图谱">🧠</button>
+          <button class="nur-close">✕</button>
+        </div>
       </div>
       <div class="nur-level-bar"></div>
       <div class="nur-tabs">
@@ -100,6 +106,9 @@ export class NurturingPanel {
       </div>
     `;
     this.element.querySelector('.nur-close').onclick = () => this.close();
+    this.element.querySelectorAll('.nur-nav-btn').forEach(btn => {
+      btn.onclick = () => { this.close(); this._onNavigate[btn.dataset.nav]?.(); };
+    });
     this.element.querySelectorAll('.nur-tab').forEach(btn => {
       btn.onclick = () => this._switchTab(btn.dataset.tab);
     });

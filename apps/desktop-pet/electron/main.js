@@ -24,7 +24,7 @@ if (process.env.ELECTRON_RUN_AS_NODE) {
   }
 }
 
-const { app, BrowserWindow, ipcMain, Menu, screen, clipboard } = require('electron');
+const { app, BrowserWindow, ipcMain, Menu, Tray, screen, clipboard, nativeImage } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -440,6 +440,87 @@ app.whenReady().then(async () => {
   });
 
   createWindow();
+
+  // ===== 系统托盘（自定义手绘风格弹窗） =====
+  let trayIcon;
+  const iconPath = path.join(__dirname, '..', 'assets', 'icons', 'attribute', 'attr_mood.png');
+  try {
+    trayIcon = nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 });
+    if (trayIcon.isEmpty()) throw new Error('icon image is empty');
+    console.log('[tray] icon loaded from', iconPath, 'size:', trayIcon.getSize());
+  } catch (e) {
+    console.warn('[tray] icon load failed:', e.message, '- using fallback');
+    // 16x16 orange circle fallback via raw RGBA buffer
+    const size = 16;
+    const buf = Buffer.alloc(size * size * 4);
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const dx = x - 7.5, dy = y - 7.5, d = Math.sqrt(dx * dx + dy * dy);
+        const i = (y * size + x) * 4;
+        if (d < 7) { buf[i] = 0xFF; buf[i+1] = 0x8C; buf[i+2] = 0x42; buf[i+3] = 0xFF; }
+      }
+    }
+    trayIcon = nativeImage.createFromBuffer(buf, { width: size, height: size });
+  }
+  const tray = new Tray(trayIcon);
+  tray.setToolTip('PetClaw');
+  console.log('[tray] created, tooltip set');
+
+  let trayPopup = null;
+  const showTrayMenu = () => {
+    if (trayPopup && !trayPopup.isDestroyed()) { trayPopup.close(); trayPopup = null; return; }
+    const cursor = screen.getCursorScreenPoint();
+    const display = screen.getDisplayNearestPoint(cursor);
+    const POPUP_W = 130, POPUP_H = 110;
+    // 弹窗在光标上方，靠近任务栏
+    const px = Math.min(cursor.x - POPUP_W / 2, display.workArea.x + display.workArea.width - POPUP_W);
+    const py = cursor.y - POPUP_H - 10;
+    console.log('[tray] showTrayMenu cursor:', cursor, 'popup pos:', { x: px, y: py });
+    trayPopup = new BrowserWindow({
+      width: POPUP_W, height: POPUP_H,
+      x: Math.round(px), y: Math.round(py),
+      frame: false, resizable: false,
+      skipTaskbar: true, alwaysOnTop: true, focusable: true,
+      show: false, backgroundColor: '#FFF9F2',
+      webPreferences: {
+        preload: path.join(__dirname, 'tray-preload.js'),
+        contextIsolation: true, nodeIntegration: false,
+      },
+    });
+    trayPopup.loadFile(path.join(__dirname, '..', 'src', 'tray-menu.html'));
+    trayPopup.once('ready-to-show', () => {
+      if (trayPopup && !trayPopup.isDestroyed()) {
+        trayPopup.show();
+        trayPopup.focus();
+        console.log('[tray] popup shown');
+      }
+    });
+    trayPopup.on('blur', () => {
+      if (trayPopup && !trayPopup.isDestroyed()) { trayPopup.close(); trayPopup = null; }
+    });
+  };
+
+  ipcMain.handle('tray-state', () => ({ pinned: mainWindow.isAlwaysOnTop() }));
+  ipcMain.on('tray-action', (e, action) => {
+    if (action === 'pin') {
+      const next = !mainWindow.isAlwaysOnTop();
+      mainWindow.setAlwaysOnTop(next);
+      // Refresh popup state
+      if (trayPopup && !trayPopup.isDestroyed()) trayPopup.webContents.send('pin-changed', next);
+    } else if (action === 'settings') {
+      mainWindow.webContents.send('open-settings');
+    } else if (action === 'quit') {
+      app.quit();
+    }
+    // Close popup after any action except pin
+    if (action !== 'pin' && trayPopup && !trayPopup.isDestroyed()) { trayPopup.close(); trayPopup = null; }
+  });
+
+  // Windows 托盘：左键弹出自定义菜单（Windows 11 right-click 事件不可靠）
+  tray.setContextMenu(null);
+  tray.on('click', () => { console.log('[tray] click'); showTrayMenu(); });
+  tray.on('right-click', () => { console.log('[tray] right-click'); showTrayMenu(); });
+  tray.on('double-click', () => { console.log('[tray] double-click'); mainWindow.show(); mainWindow.focus(); });
 
   // 设置 Steam 服务的窗口引用（用于发送事件）
   if (steamService) {

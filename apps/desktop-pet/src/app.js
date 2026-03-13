@@ -401,6 +401,10 @@ class PetClawPet {
         onBubble: (msg) => this.bubble.show(msg, 3000),
         onAnimation: (anim) => this.stateMachine.transition(anim, { force: true, duration: 3000 }),
         isConnected: () => this.charSync?.connected ?? false,
+        onNavigate: {
+          skillPanel:  () => this.skillPanel?.toggle(),
+          memoryGraph: () => this.memoryGraphPanel?.toggle(),
+        },
       }
     );
 
@@ -718,22 +722,11 @@ class PetClawPet {
         for (const p of panels) { if (p && !except.includes(p) && p.isOpen) p.closeQuiet(); }
       };
       this.contextMenu = new ContextMenu(this.canvas, [
-        { icon: '💬', label: '打开聊天',   action: () => this.chatPanel.toggle() },
-        { icon: '⚙️', label: '设置',       action: () => { _closeOtherPanels(this.settingsPanel); this.settingsPanel.open(); } },
-        { icon: '📖', label: '图鉴',       action: () => { _closeOtherPanels(this.skillPanel); this.skillPanel.toggle(); } },
+        { icon: '💬', label: '聊天',       action: () => this.chatPanel.toggle() },
         { icon: '🐾', label: '养成',       action: () => { _closeOtherPanels(this.nurturingPanel); this.nurturingPanel.toggle(); } },
-        { icon: '🧠', label: '记忆图谱',   action: () => { _closeOtherPanels(this.memoryGraphPanel); this.memoryGraphPanel?.toggle(); } },
         { type: 'separator' },
         { icon: _ic('action','action_feed'), label: '喂零食',   action: async () => { if (!this.feedingAnimator.isPlaying) { this.behaviors.recordInteraction(); this.feedingAnimator.play(async () => { try { const r = await api.characterRPC('character.care.feed', { itemId: 'ration_42' }); if (r?.state) this.charSync.handleServerPush({ kind: 'state-update', state: r.state }); this.bubble.show(r?.ok ? ['好吃！~ 😋','喵呜~ 谢谢主人！','啊好香！还有吗！'][Math.floor(Math.random()*3)] : (r?.reason || '吃不下了...'), 3000); } catch { this.charSync.interact('feed'); this.bubble.show('好吃！~ 😋', 3000); } }); } } },
         { icon: _ic('action','action_play'), label: '玩耍',     action: async () => { this.behaviors.recordInteraction(); try { const r = await api.characterRPC('character.care.play', { actionId: 'pet_stroke' }); if (r?.state) this.charSync.handleServerPush({ kind: 'state-update', state: r.state }); this.bubble.show(r?.ok ? ['好好玩！🎉','再来一次！','嘿嘿~ 开心！'][Math.floor(Math.random()*3)] : (r?.reason || '不想玩...'), 3000); } catch { this.charSync.interact('play'); } this.stateMachine.transition('happy', { force: true, duration: 3000 }); } },
-        { icon: _ic('action','action_heal'), label: '治疗',     action: () => { _closeOtherPanels(this.nurturingPanel); this.nurturingPanel.open().then(() => this.nurturingPanel._switchTab('care')); } },
-        { icon: _ic('action','action_rest'), label: '休息',     action: async () => { this.behaviors.recordInteraction(); try { const r = await api.characterRPC('character.care.rest', { typeId: 'nap' }); if (r?.state) this.charSync.handleServerPush({ kind: 'state-update', state: r.state }); this.bubble.show(r?.ok ? ['困了...zzZ','晚安~','让我眯一会儿...'][Math.floor(Math.random()*3)] : (r?.reason || '不困...'), 3000); } catch { this.charSync.interact('rest'); } this.stateMachine.transition('sleep', { force: true }); } },
-        { icon: '📚', label: '去学习',     action: () => { _closeOtherPanels(this.skillPanel); this.skillPanel.openToLearning(); } },
-        { type: 'separator' },
-        { icon: '📌', label: '置顶',       action: () => api.toggleAlwaysOnTop?.() },
-        { type: 'separator' },
-        { type: 'separator' },
-        { icon: '❌', label: '退出',       action: () => api.appQuit?.() },
       ], () => ({
         hunger: this.charSync.getHunger(),
         mood:   this.charSync.getMood(),

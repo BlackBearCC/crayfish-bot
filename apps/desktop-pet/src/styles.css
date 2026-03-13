@@ -2452,6 +2452,23 @@ body.panels-right .md-panel {
   flex-shrink: 0;
   text-shadow: 1px 1px 0 rgba(0,0,0,0.15);
 }
+.nur-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.nur-nav-btn {
+  background: none;
+  border: 1.5px solid rgba(255,255,255,0.35);
+  color: white;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 2px 5px;
+  border-radius: var(--radius-sketchy-sm);
+  opacity: 0.8;
+  transition: opacity 0.15s, background 0.15s;
+}
+.nur-nav-btn:hover { background: rgba(255,255,255,0.25); opacity: 1; }
 .nur-close {
   background: none;
   border: 1.5px solid rgba(255,255,255,0.5);
