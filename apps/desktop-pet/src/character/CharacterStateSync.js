@@ -96,6 +96,10 @@ export class CharacterStateSync {
   getHunger() { return this._attributes.hunger?.value ?? 70; }
   getHealth() { return this._attributes.health?.value ?? 100; }
 
+  getMoodMax() { return this._attributes.mood?.max ?? 100; }
+  getHungerMax() { return this._attributes.hunger?.max ?? 300; }
+  getHealthMax() { return this._attributes.health?.max ?? 100; }
+
   getMoodLevel() { return this._attributes.mood?.level ?? 'happy'; }
   getHungerLevel() { return this._attributes.hunger?.level ?? 'normal'; }
   getHealthLevel() { return this._attributes.health?.level ?? 'healthy'; }

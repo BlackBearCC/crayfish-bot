@@ -43,19 +43,22 @@ export class ContextMenu {
       const s = this.getStats();
       const iconBase = '../assets/icons';
       const statInfo = [
-        { key: 'hunger', icon: `${iconBase}/attribute/attr_hunger.png`, label: '饱食度', desc: '角色的饱腹程度，低于30会变得饥饿' },
-        { key: 'mood', icon: `${iconBase}/attribute/attr_mood.png`, label: '心情', desc: '角色的心情好坏，低于30会变得沮丧' },
-        { key: 'health', icon: `${iconBase}/attribute/attr_health.png`, label: '健康', desc: '角色的身体健康，低于40会生病' },
+        { key: 'hunger', maxKey: 'hungerMax', fallbackMax: 300, icon: `${iconBase}/attribute/attr_hunger.png`, label: '饱食度', desc: '角色的饱腹程度，低于30会变得饥饿' },
+        { key: 'mood', maxKey: 'moodMax', fallbackMax: 100, icon: `${iconBase}/attribute/attr_mood.png`, label: '心情', desc: '角色的心情好坏，低于30会变得沮丧' },
+        { key: 'health', maxKey: 'healthMax', fallbackMax: 100, icon: `${iconBase}/attribute/attr_health.png`, label: '健康', desc: '角色的身体健康，低于40会生病' },
       ];
       const block = document.createElement('div');
       block.className = 'ctx-stats';
-      block.innerHTML = statInfo.map(st => `
+      block.innerHTML = statInfo.map(st => {
+        const max = s[st.maxKey] || st.fallbackMax;
+        const pct = Math.min(100, Math.round((s[st.key] / max) * 100));
+        return `
         <div class="ctx-stat-row" data-tooltip="${st.desc}">
           <span class="ctx-stat-icon"><img src="${st.icon}" alt="${st.label}"></span>
-          <div class="ctx-stat-track"><div class="ctx-stat-fill ctx-stat--${st.key}" style="width:${s[st.key]}%"></div></div>
+          <div class="ctx-stat-track"><div class="ctx-stat-fill ctx-stat--${st.key}" style="width:${pct}%"></div></div>
           <span class="ctx-stat-value">${Math.round(s[st.key])}</span>
-        </div>
-      `).join('');
+        </div>`;
+      }).join('');
       menu.appendChild(block);
       const sep = document.createElement('div');
       sep.className = 'ctx-separator';

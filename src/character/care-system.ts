@@ -165,6 +165,28 @@ export class CareSystem {
     return { ok: true, endsAt: this._restEndsAt };
   }
 
+  /** Use any inventory item (generic) — consume + apply effects */
+  useItem(itemId: string): { ok: boolean; reason?: string; effects?: Record<string, number> } {
+    if (this.isResting()) {
+      return { ok: false, reason: "pet_resting" };
+    }
+
+    const result = this._inventory.useItem(itemId);
+    if (!result) {
+      const cd = this._inventory.getCooldown(itemId);
+      if (cd > 0) {
+        return { ok: false, reason: "cooldown", effects: { cooldownRemaining: cd } };
+      }
+      return { ok: false, reason: "no_item" };
+    }
+
+    this._applyEffects(result.effects);
+    this._levels.gainExp(3, "use_item");
+    this._bus.emit("care:action", { action: `use:${itemId}`, effects: result.effects });
+
+    return { ok: true, effects: result.effects };
+  }
+
   /** Use a healing item */
   heal(itemId: string): { ok: boolean; reason?: string; effects?: Record<string, number> } {
     if (this.isResting()) {

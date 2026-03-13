@@ -1085,9 +1085,9 @@ export const characterHandlers: GatewayRequestHandlers = {
     }
     try {
       const e = getEngine();
-      const result = e.inventory.useItem(itemId);
-      if (!result) {
-        (respond as Function)(false, { reason: "cannot_use" });
+      const result = e.care.useItem(itemId);
+      if (!result.ok) {
+        (respond as Function)(false, { reason: result.reason ?? "cannot_use" });
         return;
       }
       (respond as Function)(true, { ...result, state: e.getState() });
