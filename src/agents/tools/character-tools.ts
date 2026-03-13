@@ -270,6 +270,174 @@ export function createCharacterMemoryGraphSearchTool(options?: {
   };
 }
 
+// ─── Horror Tools ───
+
+const HorrorSkillCheckSchema = Type.Object({
+  attribute: Type.Union([
+    Type.Literal("logic"),
+    Type.Literal("creativity"),
+    Type.Literal("execution"),
+    Type.Literal("empathy"),
+    Type.Literal("sensitivity"),
+  ]),
+  dc: Type.Number(),
+  context: Type.String(),
+});
+
+const HorrorEndSessionSchema = Type.Object({
+  won: Type.Boolean(),
+  narrative: Type.String(),
+});
+
+const HorrorAddClueSchema = Type.Object({
+  clue: Type.String(),
+});
+
+const HorrorAddNpcSchema = Type.Object({
+  npcName: Type.String(),
+});
+
+export function createHorrorSkillCheckTool(options?: {
+  engine?: {
+    horror: {
+      performSkillCheck: (attribute: string, dc: number, context: string) =>
+        { success: boolean; roll: number; playerLevel: number; effectiveScore: number; targetScore: number; sanityChange: number; attribute: string; dc: number } | { error: string };
+      getActiveSession: () => unknown;
+    };
+  };
+}): AnyAgentTool {
+  return {
+    label: "怪谈技能判定",
+    name: "horror_skill_check",
+    description:
+      "在怪谈副本中进行技能判定。当叙事中宠物角色的行动需要能力检测时调用此工具。" +
+      "属性: logic(逻辑/解谜), creativity(创造/即兴), execution(执行/体能), empathy(共情/交涉), sensitivity(感知/直觉)。" +
+      "dc: 难度等级1-10。context: 简要描述判定场景。",
+    parameters: HorrorSkillCheckSchema,
+    execute: async (_toolCallId, params) => {
+      const attribute = readStringParam(params, "attribute", { required: true });
+      const dc = typeof params === "object" && params !== null && "dc" in params ? Number((params as Record<string, unknown>).dc) : 5;
+      const context = readStringParam(params, "context", { required: true });
+
+      const engine = options?.engine;
+      if (!engine) {
+        return jsonResult({ ok: false, error: "Character engine not initialized" });
+      }
+
+      if (!engine.horror.getActiveSession()) {
+        return jsonResult({ ok: false, error: "No active horror session" });
+      }
+
+      const result = engine.horror.performSkillCheck(attribute, dc, context);
+      if ("error" in result) {
+        return jsonResult({ ok: false, error: result.error });
+      }
+
+      return jsonResult({
+        ok: true,
+        ...result,
+        hint: result.success
+          ? "判定成功！请根据这个结果叙述正面的剧情发展。"
+          : "判定失败！请叙述负面后果，理智值已扣减。",
+      });
+    },
+  };
+}
+
+export function createHorrorEndSessionTool(options?: {
+  engine?: {
+    horror: {
+      endSession: (won: boolean, narrative: string) =>
+        { won: boolean; narrative: string; sanityRemaining: number; rewards: unknown } | { error: string };
+      getActiveSession: () => unknown;
+    };
+  };
+}): AnyAgentTool {
+  return {
+    label: "怪谈结束副本",
+    name: "horror_end_session",
+    description:
+      "当怪谈副本达成胜利或失败条件时调用此工具结束副本。" +
+      "won: 是否胜利。narrative: 结局叙事文本。",
+    parameters: HorrorEndSessionSchema,
+    execute: async (_toolCallId, params) => {
+      const won = typeof params === "object" && params !== null && "won" in params ? Boolean((params as Record<string, unknown>).won) : false;
+      const narrative = readStringParam(params, "narrative", { required: true });
+
+      const engine = options?.engine;
+      if (!engine) {
+        return jsonResult({ ok: false, error: "Character engine not initialized" });
+      }
+
+      if (!engine.horror.getActiveSession()) {
+        return jsonResult({ ok: false, error: "No active horror session" });
+      }
+
+      const result = engine.horror.endSession(won, narrative);
+      if ("error" in result) {
+        return jsonResult({ ok: false, error: result.error });
+      }
+
+      return jsonResult({
+        ok: true,
+        won: result.won,
+        rewards: result.rewards,
+        message: won ? "副本通关！奖励已发放。" : "副本失败，但获得了部分奖励。",
+      });
+    },
+  };
+}
+
+export function createHorrorAddClueTool(options?: {
+  engine?: {
+    horror: {
+      addClue: (clue: string) => void;
+      getActiveSession: () => unknown;
+    };
+  };
+}): AnyAgentTool {
+  return {
+    label: "怪谈记录线索",
+    name: "horror_add_clue",
+    description: "在怪谈副本中发现新线索时调用此工具记录。clue: 线索的简短描述。",
+    parameters: HorrorAddClueSchema,
+    execute: async (_toolCallId, params) => {
+      const clue = readStringParam(params, "clue", { required: true });
+      const engine = options?.engine;
+      if (!engine || !engine.horror.getActiveSession()) {
+        return jsonResult({ ok: false, error: "No active horror session" });
+      }
+      engine.horror.addClue(clue);
+      return jsonResult({ ok: true, clue });
+    },
+  };
+}
+
+export function createHorrorAddNpcTool(options?: {
+  engine?: {
+    horror: {
+      addNpcEncounter: (npcName: string) => void;
+      getActiveSession: () => unknown;
+    };
+  };
+}): AnyAgentTool {
+  return {
+    label: "怪谈记录NPC",
+    name: "horror_add_npc",
+    description: "在怪谈副本中首次遇到NPC时调用此工具记录。npcName: NPC的名字。",
+    parameters: HorrorAddNpcSchema,
+    execute: async (_toolCallId, params) => {
+      const npcName = readStringParam(params, "npcName", { required: true });
+      const engine = options?.engine;
+      if (!engine || !engine.horror.getActiveSession()) {
+        return jsonResult({ ok: false, error: "No active horror session" });
+      }
+      engine.horror.addNpcEncounter(npcName);
+      return jsonResult({ ok: true, npcName });
+    },
+  };
+}
+
 // ─── Export all tools ───
 
 export function createCharacterTools(options?: {
@@ -285,6 +453,15 @@ export function createCharacterTools(options?: {
     memoryGraph: {
       enqueueExtraction: (userMsg: string, aiReply: string) => void;
     };
+    horror: {
+      performSkillCheck: (attribute: string, dc: number, context: string) =>
+        { success: boolean; roll: number; playerLevel: number; effectiveScore: number; targetScore: number; sanityChange: number; attribute: string; dc: number } | { error: string };
+      endSession: (won: boolean, narrative: string) =>
+        { won: boolean; narrative: string; sanityRemaining: number; rewards: unknown } | { error: string };
+      addClue: (clue: string) => void;
+      addNpcEncounter: (npcName: string) => void;
+      getActiveSession: () => unknown;
+    };
     bus: { emit: (event: string, data: unknown) => void };
     getState: () => unknown;
   };
@@ -294,5 +471,9 @@ export function createCharacterTools(options?: {
     createCharacterRememberTool(options),
     createCharacterExpressMoodTool(options),
     createCharacterMemoryGraphSearchTool({ cfg: options?.cfg, agentId: options?.agentId }),
+    createHorrorSkillCheckTool(options),
+    createHorrorEndSessionTool(options),
+    createHorrorAddClueTool(options),
+    createHorrorAddNpcTool(options),
   ];
 }

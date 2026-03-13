@@ -70,6 +70,14 @@ export type CharacterEventMap = {
   'adventure:completed': { adventure: { id: string; location: string }; result: { success: boolean; narrative: string; rewards: { exp: number; coins: number; items?: string[] }; damage?: number } };
   /** Adventure cancelled */
   'adventure:cancelled': { adventure: { id: string } };
+  /** Horror session started */
+  'horror:started': { session: { id: string; scenarioId: string; title: string } };
+  /** Horror skill check performed */
+  'horror:check': { attribute: string; dc: number; success: boolean; sanity: number };
+  /** Horror session completed (won or lost) */
+  'horror:completed': { session: { id: string; scenarioId: string }; outcome: { won: boolean; narrative: string; sanityRemaining: number; rewards: { exp: number; coins: number; intimacy: number; moodDelta: number; skillXp: Record<string, number> } } };
+  /** Horror session abandoned */
+  'horror:abandoned': { session: { id: string } };
 };
 
 type EventHandler<T> = (data: T) => void;

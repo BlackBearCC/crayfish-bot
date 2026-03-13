@@ -68,6 +68,23 @@ export {
   type WorldEvent,
 } from "./world-event-system.js";
 
+// Horror system
+export {
+  HorrorSystem,
+  type HorrorSession,
+  type HorrorSessionStatus,
+  type HorrorOutcome,
+  type HorrorRewards,
+  type SkillCheckResult,
+  type HorrorLLMCallback,
+} from "./horror-system.js";
+export {
+  BUILTIN_SCENARIOS,
+  type HorrorScenario,
+  type HorrorNPC,
+  type SkillCheckHint,
+} from "./horror-scenarios.js";
+
 // Domain definitions
 export {
   DOMAINS,

@@ -30,6 +30,7 @@ import { WorldEventSystem } from "./world-event-system.js";
 import { TodoSystem } from "./todo-system.js";
 import { AdventureSystem } from "./adventure-system.js";
 import { FirstTimeSystem } from "./first-time-system.js";
+import { HorrorSystem } from "./horror-system.js";
 import { DEFAULT_ATTRIBUTES, GROWTH_INTIMACY } from "./presets.js";
 import type { AttributeDef } from "./attribute-engine.js";
 
@@ -85,6 +86,7 @@ export class CharacterEngine {
   readonly worldEvents: WorldEventSystem;
   readonly todos: TodoSystem;
   readonly adventures: AdventureSystem;
+  readonly horror: HorrorSystem;
   readonly firstTime: FirstTimeSystem;
 
   private _passiveAcc: number = 0;
@@ -173,6 +175,10 @@ export class CharacterEngine {
 
     // Adventure system (exploration mechanics)
     this.adventures = new AdventureSystem(this.bus, options.store);
+
+    // Horror system (interactive horror story instances)
+    this.horror = new HorrorSystem(this.bus, options.store);
+    this.horror.setSkillAttributeProvider(() => this.skills.getAttributes());
 
     // First-time user experience
     this.firstTime = new FirstTimeSystem(this.bus, options.store);
@@ -301,6 +307,12 @@ export class CharacterEngine {
       adventure: (() => {
         const adv = this.adventures.getActiveAdventure();
         return adv ? { active: true, ...adv } : { active: false };
+      })(),
+      horror: (() => {
+        const h = this.horror.getActiveSession();
+        return h
+          ? { active: true, id: h.id, scenarioId: h.scenarioId, turnCount: h.turnCount, maxTurns: h.maxTurns, sanity: h.sanity }
+          : { active: false };
       })(),
     };
   }
@@ -459,6 +471,14 @@ export interface CharacterState {
     location?: string;
     type?: string;
     duration?: number;
+  };
+  horror: {
+    active: boolean;
+    id?: string;
+    scenarioId?: string;
+    turnCount?: number;
+    maxTurns?: number;
+    sanity?: number;
   };
 }
 
