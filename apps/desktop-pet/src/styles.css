@@ -157,24 +157,6 @@ html, body {
   position: relative;
 }
 
-.ctx-stat-row[data-tooltip]:hover::after {
-  content: attr(data-tooltip);
-  position: absolute;
-  left: 100%;
-  top: 50%;
-  transform: translateY(-50%);
-  margin-left: 8px;
-  padding: 4px 8px;
-  background: rgba(30, 30, 30, 0.95);
-  color: #fff;
-  font-size: 11px;
-  line-height: 1.3;
-  border-radius: 4px;
-  white-space: nowrap;
-  z-index: 1000;
-  pointer-events: none;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-}
 
 .ctx-stat-icon {
   font-size: 12px;
@@ -226,6 +208,60 @@ html, body {
   width: 200px;
   pointer-events: none;
   z-index: 20;
+}
+
+/* ===== 探险事件气泡 ===== */
+.adv-bubble-text {
+  display: block;
+  margin-bottom: 6px;
+  line-height: 1.5;
+}
+.adv-bubble-choices {
+  display: flex;
+  gap: 6px;
+  pointer-events: auto;
+}
+.adv-bubble-btn {
+  flex: 1;
+  padding: 5px 4px;
+  border: 2px solid var(--ink);
+  border-radius: 8px 3px 7px 4px / 4px 7px 3px 8px;
+  background: var(--paper);
+  font-size: 11px;
+  font-weight: 700;
+  font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+  color: var(--ink);
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+  box-shadow: 1.5px 1.5px 0 var(--ink);
+  text-align: center;
+  line-height: 1.3;
+}
+.adv-bubble-btn:hover {
+  background: #FFECD2;
+  transform: translateY(-1px);
+  box-shadow: 2px 2px 0 var(--ink);
+}
+.adv-bubble-btn:active {
+  transform: translateY(1px);
+  box-shadow: 0.5px 0.5px 0 var(--ink);
+  background: #FFD9A0;
+}
+.adv-bubble-btn.chosen {
+  background: #A8D8A8;
+  pointer-events: none;
+  box-shadow: 1px 1px 0 var(--ink);
+}
+.adv-bubble-btn.unchosen {
+  opacity: 0.4;
+  pointer-events: none;
+}
+.adv-bubble-countdown {
+  display: block;
+  text-align: right;
+  font-size: 9px;
+  color: #999;
+  margin-top: 3px;
 }
 
 /* ===== 面板共用基础 — 手绘线条风 ===== */
@@ -3554,4 +3590,254 @@ body.panels-right .md-panel {
 
 .nur-shop-card.nur-disabled .nur-shop-price {
   color: var(--ink-light);
+}
+
+/* ── Horror Tab ── */
+
+.nur-horror-lobby {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.nur-horror-lobby-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.nur-horror-lobby-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.nur-horror-lobby-desc {
+  font-size: 11px;
+  color: var(--ink-light);
+}
+
+.nur-horror-stats {
+  font-size: 11px;
+  color: var(--ink-light);
+}
+
+.nur-horror-stats span {
+  margin-left: 4px;
+}
+
+.nur-horror-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.nur-horror-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.nur-horror-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  border-color: #9b59b6;
+}
+
+.nur-horror-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.nur-horror-card-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.nur-horror-card-diff {
+  font-size: 12px;
+}
+
+.nur-horror-card-hook {
+  font-size: 12px;
+  color: var(--ink-light);
+  margin-bottom: 6px;
+  line-height: 1.4;
+}
+
+.nur-horror-card-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--ink-faint, #999);
+}
+
+.nur-horror-card-themes {
+  font-style: italic;
+}
+
+/* Horror Active Session */
+
+.nur-horror-active {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.nur-horror-active-header {
+  text-align: center;
+}
+
+.nur-horror-active-title {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.nur-horror-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.nur-horror-bar-group {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.nur-horror-bar-label {
+  font-size: 11px;
+  color: var(--ink-light);
+}
+
+.nur-horror-bar-track {
+  height: 8px;
+  background: var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.nur-horror-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #9b59b6, #8e44ad);
+  border-radius: 4px;
+  transition: width 0.3s;
+}
+
+.nur-horror-bar-track.nur-horror-sanity-low .nur-horror-bar-fill {
+  background: linear-gradient(90deg, #e74c3c, #c0392b);
+}
+
+.nur-horror-bar-track.nur-horror-sanity-mid .nur-horror-bar-fill {
+  background: linear-gradient(90deg, #f39c12, #e67e22);
+}
+
+.nur-horror-turn-fill {
+  background: linear-gradient(90deg, #3498db, #2980b9);
+}
+
+.nur-horror-clues, .nur-horror-checks {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.nur-horror-clues-title, .nur-horror-checks-title {
+  font-size: 11px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: var(--ink-light);
+}
+
+.nur-horror-clue-item {
+  font-size: 12px;
+  padding: 3px 0;
+}
+
+.nur-horror-check-item {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  padding: 3px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.nur-horror-check-item:last-child {
+  border-bottom: none;
+}
+
+.nur-horror-check-item.success {
+  color: #27ae60;
+}
+
+.nur-horror-check-item.fail {
+  color: #e74c3c;
+}
+
+.nur-horror-hint {
+  text-align: center;
+  font-size: 12px;
+  color: var(--ink-light);
+  padding: 8px;
+  background: var(--card-bg);
+  border-radius: 8px;
+  border: 1px dashed var(--border);
+}
+
+.nur-horror-abandon-btn {
+  background: transparent;
+  border: 1px solid #e74c3c;
+  color: #e74c3c;
+  border-radius: 8px;
+  padding: 8px;
+  font-size: 12px;
+  cursor: pointer;
+  text-align: center;
+}
+
+.nur-horror-abandon-btn:hover {
+  background: rgba(231, 76, 60, 0.1);
+}
+
+/* Horror History */
+
+.nur-horror-history {
+  margin-top: 4px;
+}
+
+.nur-horror-history-title {
+  text-align: center;
+  font-size: 11px;
+  color: var(--ink-faint, #999);
+  margin-bottom: 6px;
+}
+
+.nur-horror-history-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 8px;
+  font-size: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.nur-horror-history-item:last-child {
+  border-bottom: none;
+}
+
+.nur-horror-history-item.success .nur-horror-hist-result {
+  color: #27ae60;
+}
+
+.nur-horror-history-item.fail .nur-horror-hist-result {
+  color: #e74c3c;
 }

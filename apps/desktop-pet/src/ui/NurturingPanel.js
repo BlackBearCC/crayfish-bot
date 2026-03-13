@@ -99,6 +99,7 @@ export class NurturingPanel {
         <button class="nur-tab" data-tab="tasks">📋 任务</button>
         <button class="nur-tab" data-tab="care">💗 养护</button>
         <button class="nur-tab" data-tab="adventure">🗺️ 探险</button>
+        <button class="nur-tab" data-tab="horror">👻 怪谈</button>
         <button class="nur-tab" data-tab="shop">🪙 商城</button>
       </div>
       <div class="nur-body">
@@ -167,6 +168,7 @@ export class NurturingPanel {
       else if (this._activeTab === 'tasks') await this._renderTasks(body);
       else if (this._activeTab === 'care') await this._renderCare(body);
       else if (this._activeTab === 'adventure') await this._renderAdventure(body);
+      else if (this._activeTab === 'horror') await this._renderHorror(body);
       else if (this._activeTab === 'shop') await this._renderShop(body);
     } catch (err) {
       console.error('[nurturing] render error:', err);
@@ -915,6 +917,192 @@ export class NurturingPanel {
     body.querySelector('.nur-adv-back-btn').onclick = async () => {
       await this._refresh();
     };
+  }
+
+  // ───────────────── Horror Tab ─────────────────
+
+  /** Difficulty → star string */
+  _horrorStars(d) {
+    return '⭐'.repeat(d);
+  }
+
+  async _renderHorror(body) {
+    body.innerHTML = '<div class="nur-loading">加载中...</div>';
+    try {
+      const [activeData, scenariosData, historyData] = await Promise.all([
+        this._rpc('character.horror.active'),
+        this._rpc('character.horror.scenarios'),
+        this._rpc('character.horror.history'),
+      ]);
+
+      const active = activeData?.session;
+      if (active && active.status === 'active') {
+        this._renderHorrorActive(body, active, activeData.scenario);
+      } else {
+        this._renderHorrorLobby(body, scenariosData?.scenarios || [], historyData);
+      }
+    } catch (err) {
+      console.error('[nurturing] horror error:', err);
+      body.innerHTML = `<div class="nur-empty">怪谈加载失败<br><small>${this._esc(String(err?.message || err))}</small></div>`;
+    }
+  }
+
+  // ── Horror Lobby (scenario selection) ──
+
+  _renderHorrorLobby(body, scenarios, historyData) {
+    const history = historyData?.history || [];
+    const stats = historyData?.stats || {};
+
+    const cards = scenarios.map(s => `
+      <div class="nur-horror-card" data-scenario-id="${this._esc(s.id)}">
+        <div class="nur-horror-card-header">
+          <span class="nur-horror-card-title">${this._esc(s.title)}</span>
+          <span class="nur-horror-card-diff">${this._horrorStars(s.difficulty)}</span>
+        </div>
+        <div class="nur-horror-card-hook">${this._esc(s.hook)}</div>
+        <div class="nur-horror-card-meta">
+          <span>~${s.estimatedTurns} 轮</span>
+          <span class="nur-horror-card-themes">${(s.themes || []).map(t => this._esc(t)).join(' · ')}</span>
+        </div>
+      </div>
+    `).join('');
+
+    const statsHtml = stats.total ? `
+      <div class="nur-horror-stats">
+        <span>挑战 ${stats.total} 次</span>
+        <span>· 胜利 ${stats.won || 0}</span>
+        <span>· 失败 ${stats.lost || 0}</span>
+      </div>
+    ` : '';
+
+    const historyHtml = history.length > 0 ? `
+      <div class="nur-horror-history">
+        <div class="nur-horror-history-title">── 最近记录 ──</div>
+        ${history.slice(0, 5).map(h => {
+          const won = h.outcome?.won;
+          const statusIcon = h.status === 'won' ? '✓' : h.status === 'lost' ? '✗' : '—';
+          const statusClass = h.status === 'won' ? 'success' : h.status === 'lost' ? 'fail' : '';
+          return `
+            <div class="nur-horror-history-item ${statusClass}">
+              <span class="nur-horror-hist-name">${this._esc(h.scenarioId)}</span>
+              <span class="nur-horror-hist-result">${statusIcon}</span>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    ` : '';
+
+    body.innerHTML = `
+      <div class="nur-horror-lobby">
+        <div class="nur-horror-lobby-header">
+          <span class="nur-horror-lobby-title">👻 怪谈副本</span>
+          ${statsHtml}
+        </div>
+        <div class="nur-horror-lobby-desc">选择一个剧本，指挥宠物穿越进怪谈世界</div>
+        <div class="nur-horror-cards">${cards}</div>
+        ${historyHtml}
+      </div>
+    `;
+
+    body.querySelectorAll('.nur-horror-card').forEach(el => {
+      el.onclick = () => this._startHorror(el.dataset.scenarioId);
+    });
+  }
+
+  async _startHorror(scenarioId) {
+    try {
+      const result = await this._rpc('character.horror.start', { scenarioId });
+      if (result?.ok) {
+        this._onBubble('穿越进入怪谈世界...');
+        this._onAnimation('surprised');
+        await this._refresh();
+      } else {
+        this._onBubble(result?.error || '无法进入副本...');
+      }
+    } catch (err) {
+      this._onBubble(err?.message?.includes('hunger') ? '太饿了，无法进入副本...' : '进入失败...');
+    }
+  }
+
+  // ── Horror Active Session ──
+
+  _renderHorrorActive(body, session, scenario) {
+    const sanityPct = Math.max(0, Math.min(100, session.sanity));
+    const turnPct = session.maxTurns > 0 ? Math.round((session.turnCount / session.maxTurns) * 100) : 0;
+    const sanityClass = sanityPct <= 30 ? 'nur-horror-sanity-low' : sanityPct <= 60 ? 'nur-horror-sanity-mid' : '';
+
+    const cluesHtml = session.cluesFound?.length ? `
+      <div class="nur-horror-clues">
+        <div class="nur-horror-clues-title">发现的线索</div>
+        ${session.cluesFound.map(c => `<div class="nur-horror-clue-item">🔍 ${this._esc(c)}</div>`).join('')}
+      </div>
+    ` : '';
+
+    const checksHtml = session.checksPerformed?.length ? `
+      <div class="nur-horror-checks">
+        <div class="nur-horror-checks-title">判定记录</div>
+        ${session.checksPerformed.slice(-5).map(ck => `
+          <div class="nur-horror-check-item ${ck.success ? 'success' : 'fail'}">
+            <span>${this._esc(ck.attribute)}</span>
+            <span>DC${ck.dc}</span>
+            <span>${ck.success ? '✓ 成功' : '✗ 失败'}</span>
+          </div>
+        `).join('')}
+      </div>
+    ` : '';
+
+    body.innerHTML = `
+      <div class="nur-horror-active">
+        <div class="nur-horror-active-header">
+          <div class="nur-horror-active-title">
+            <span>👻 ${this._esc(scenario?.title || session.scenarioId)}</span>
+            <span class="nur-horror-active-diff">${this._horrorStars(scenario?.difficulty || 1)}</span>
+          </div>
+        </div>
+
+        <div class="nur-horror-bars">
+          <div class="nur-horror-bar-group">
+            <div class="nur-horror-bar-label">🧠 理智 ${session.sanity}/100</div>
+            <div class="nur-horror-bar-track ${sanityClass}">
+              <div class="nur-horror-bar-fill" style="width:${sanityPct}%"></div>
+            </div>
+          </div>
+          <div class="nur-horror-bar-group">
+            <div class="nur-horror-bar-label">⏳ 轮次 ${session.turnCount}/${session.maxTurns}</div>
+            <div class="nur-horror-bar-track">
+              <div class="nur-horror-bar-fill nur-horror-turn-fill" style="width:${turnPct}%"></div>
+            </div>
+          </div>
+        </div>
+
+        ${cluesHtml}
+        ${checksHtml}
+
+        <div class="nur-horror-hint">在聊天窗口中发送消息来指挥宠物行动</div>
+
+        <button class="nur-horror-abandon-btn" data-id="${this._esc(session.id)}">放弃副本</button>
+      </div>
+    `;
+
+    const abandonBtn = body.querySelector('.nur-horror-abandon-btn');
+    if (abandonBtn) {
+      abandonBtn.onclick = async () => {
+        try {
+          await this._rpc('character.horror.abandon', { sessionId: session.id });
+          this._onBubble('逃出了怪谈世界...');
+          await this._refresh();
+        } catch {
+          this._onBubble('放弃失败...');
+        }
+      };
+    }
+
+    // Auto-refresh every 3s to update state during active session
+    this._horrorRefreshTimer = setTimeout(() => {
+      if (this._activeTab === 'horror' && this.isOpen) {
+        this._refresh();
+      }
+    }, 3000);
   }
 
   // ───────────────── Util ─────────────────

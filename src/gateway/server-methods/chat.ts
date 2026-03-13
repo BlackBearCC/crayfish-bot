@@ -67,7 +67,7 @@ import type {
   GatewayRequestHandlerOptions,
   GatewayRequestHandlers,
 } from "./types.js";
-import { getCharacterChatGate } from "./character.js";
+import { getCharacterChatGate, getCharacterEngine } from "./character.js";
 
 type TranscriptAppendResult = {
   ok: boolean;
@@ -1023,6 +1023,93 @@ export const chatHandlers: GatewayRequestHandlers = {
         return;
       }
       charGate.onMessage(parsedMessage);
+    }
+
+    // ── Horror command interceptor ──
+    // `/怪谈` — list scenarios or start; `/怪谈放弃` — abandon
+    // Works across all channels (desktop, Telegram, Discord).
+    const horrorMatch = rawMessage.match(/^\/怪谈\s*(.*)?$/);
+    if (horrorMatch) {
+      const horrorEngine = getCharacterEngine()?.horror;
+      if (!horrorEngine) {
+        respond(true, { ok: true, runId: clientRunId, status: "started" as const });
+        // No character engine — silently ignore
+        return;
+      }
+
+      const arg = (horrorMatch[1] || "").trim();
+      const { BUILTIN_SCENARIOS } = await import("../../character/horror-scenarios.js");
+
+      if (arg === "放弃") {
+        const active = horrorEngine.getActiveSession();
+        if (!active) {
+          respond(true, { ok: true, runId: clientRunId, horrorReply: "当前没有进行中的怪谈副本" });
+          return;
+        }
+        horrorEngine.abandonSession(active.id);
+        respond(true, { ok: true, runId: clientRunId, horrorReply: "已放弃当前怪谈副本" });
+        return;
+      }
+
+      // Check if already in a session
+      const active = horrorEngine.getActiveSession();
+      if (active) {
+        const scenario = BUILTIN_SCENARIOS.find((s: { id: string }) => s.id === active.scenarioId);
+        respond(true, {
+          ok: true, runId: clientRunId,
+          horrorReply: `正在进行「${scenario?.title || active.scenarioId}」(轮次 ${active.turnCount}/${active.maxTurns}, 理智 ${active.sanity}/100)。直接发消息指挥宠物行动，或发 /怪谈放弃 退出。`,
+        });
+        return;
+      }
+
+      // If arg matches a scenario ID, start it directly
+      if (arg) {
+        const match = BUILTIN_SCENARIOS.find((s: { id: string; title: string }) =>
+          s.id === arg || s.title === arg);
+        if (match) {
+          try {
+            const charEngine = getCharacterEngine()!;
+            const hunger = charEngine.attributes.getValue("hunger");
+            const cost = horrorEngine.getEntryCost();
+            if (hunger < cost) {
+              respond(true, {
+                ok: true, runId: clientRunId,
+                horrorReply: `饱食度不足 (${Math.round(hunger)}/${cost})，无法进入副本`,
+              });
+              return;
+            }
+            const result = horrorEngine.startSession(match.id);
+            if ("error" in result) {
+              respond(true, {
+                ok: true, runId: clientRunId,
+                horrorReply: `无法进入副本: ${result.error}`,
+              });
+              return;
+            }
+            charEngine.attributes.adjust("hunger", -cost);
+            respond(true, {
+              ok: true, runId: clientRunId,
+              horrorReply: `进入怪谈副本「${match.title}」… 直接发消息指挥宠物行动吧！`,
+            });
+          } catch (err: unknown) {
+            respond(true, {
+              ok: true, runId: clientRunId,
+              horrorReply: `无法进入副本: ${err instanceof Error ? err.message : String(err)}`,
+            });
+          }
+          return;
+        }
+      }
+
+      // List available scenarios
+      const list = BUILTIN_SCENARIOS.map((s: { id: string; title: string; hook: string; difficulty: number }) =>
+        `${"⭐".repeat(s.difficulty)} ${s.title} — ${s.hook}\n   /怪谈 ${s.id}`
+      ).join("\n\n");
+      respond(true, {
+        ok: true, runId: clientRunId,
+        horrorReply: `👻 可用怪谈副本:\n\n${list}\n\n发送 /怪谈 <剧本名> 开始`,
+      });
+      return;
     }
 
     try {
