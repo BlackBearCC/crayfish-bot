@@ -262,6 +262,17 @@ function registerCharacterHooks(eng: CharacterEngine): void {
       content,
       missing: false,
     });
+
+    // Inject HORROR_SESSION.md when a horror session is active
+    const horrorCtx = engine.horror.getActivePromptContext();
+    if (horrorCtx) {
+      ctx.bootstrapFiles.push({
+        name: "HORROR_SESSION.md" as WorkspaceBootstrapFile["name"],
+        path: "HORROR_SESSION.md",
+        content: horrorCtx,
+        missing: false,
+      });
+    }
   });
 
   // ── message:received — cache user message + domain keyword inference ──
@@ -323,6 +334,13 @@ function registerCharacterHooks(eng: CharacterEngine): void {
       return;
     }
 
+    // Horror session active → record turn, skip normal chatEval + memory extraction
+    if (engine.horror.getActiveSession()) {
+      engine.horror.recordTurn();
+      consumeLastUserMessage(event.sessionKey); // drain cached msg
+      return;
+    }
+
     // Regular user sessions → memory extraction + chat eval context
     const userMsg = consumeLastUserMessage(event.sessionKey);
     if (userMsg || content) {
@@ -330,7 +348,7 @@ function registerCharacterHooks(eng: CharacterEngine): void {
     }
     if (content) {
       engine.chatEval.onAssistantMessage(content);
-      
+
       // First-time experience: mark first chat completed
       if (!engine.firstTime.isStepCompleted("first_chat")) {
         engine.firstTime.completeStep("first_chat");
@@ -405,6 +423,7 @@ function getEngine(): CharacterEngine {
       engine: {
         care: engine.care,
         memoryGraph: engine.memoryGraph,
+        horror: engine.horror,
         bus: { emit: (event: string, data: unknown) => engine!.bus.emit(event as never, data as never) },
         getState: () => engine!.getState(),
       },
@@ -467,6 +486,9 @@ ${conditions.map((c, i) => `${i + 1}. ${c}`).join('\n')}
 
     // Wire up adventure LLM callback for story + narrative generation
     engine.adventures.setLLMComplete(characterLLMComplete);
+
+    // Wire up horror system LLM callback
+    engine.horror.setLLMComplete(characterLLMComplete);
 
     // Register cron jobs for World Agent + Soul Agent (once per process lifetime)
     if (_cron && !cronJobsRegistered) {
@@ -559,6 +581,34 @@ ${conditions.map((c, i) => `${i + 1}. ${c}`).join('\n')}
       }, { dropIfSlow: false });
     });
 
+    // Grant rewards + broadcast horror session completion
+    engine.bus.on("horror:completed", (data) => {
+      if (!engine) return;
+      const { rewards } = data.outcome;
+      try {
+        if (rewards.exp) engine.levels.gainExp(rewards.exp, "horror");
+        if (rewards.coins) engine.shop.earnCoins(rewards.coins, "horror");
+        if (rewards.intimacy) engine.growth.gain(rewards.intimacy);
+        if (rewards.moodDelta) engine.attributes.adjust("mood", rewards.moodDelta);
+        // Award skill XP from checks
+        for (const [attr, xp] of Object.entries(rewards.skillXp)) {
+          if (xp > 0) engine.skills.recordDomainActivity("情感", attr, xp);
+        }
+      } catch {
+        // rewards failed; session is still completed
+      }
+
+      if (!_broadcast) return;
+      const scenario = engine.horror.getScenario(data.session.scenarioId);
+      _broadcast("character", {
+        kind: "horror-completed",
+        won: data.outcome.won,
+        scenarioTitle: scenario?.title ?? "怪谈",
+        narrative: data.outcome.narrative,
+        rewards,
+      }, { dropIfSlow: false });
+    });
+
     // Event-driven Soul Agent: trigger on every chat interval (every 5 messages)
     // Uses cached job ID + enqueueRun (non-blocking) + cooldown guard
     engine.bus.on("chat:interval", () => {
@@ -607,6 +657,11 @@ export function getCharacterChatGate(): {
     canChat: () => eng.chatEval.canChat(),
     onMessage: (text: string) => { eng.chatEval.onUserMessage(text); },
   };
+}
+
+/** Returns true if a horror session is currently active. */
+export function isHorrorSessionActive(): boolean {
+  return engine?.horror.getActiveSession() !== null && engine?.horror.getActiveSession() !== undefined;
 }
 
 /** Returns the singleton CharacterEngine instance (if initialized). */
@@ -1619,4 +1674,85 @@ export const characterHandlers: GatewayRequestHandlers = {
       steps: helpSteps[provider] ?? ["请参考官方文档配置"],
     });
   },
+
+  // ── Horror System (怪谈副本) ──
+
+  "character.horror.scenarios": safeHandler((e) => ({
+    scenarios: e.horror.getScenarios().map((s) => ({
+      id: s.id,
+      title: s.title,
+      hook: s.hook,
+      difficulty: s.difficulty,
+      estimatedTurns: s.estimatedTurns,
+      themes: s.themes,
+    })),
+  })),
+
+  "character.horror.start": ({ params, respond }) => {
+    const scenarioId = params?.scenarioId as string;
+    if (!scenarioId) {
+      (respond as Function)(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, "missing 'scenarioId' param"));
+      return;
+    }
+
+    try {
+      const e = getEngine();
+
+      // Check hunger gate
+      const hunger = e.attributes.getValue("hunger");
+      const cost = e.horror.getEntryCost();
+      if (hunger < cost) {
+        (respond as Function)(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, `Not enough hunger (${Math.round(hunger)}/${cost})`));
+        return;
+      }
+
+      const result = e.horror.startSession(scenarioId);
+      if ("error" in result) {
+        (respond as Function)(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, result.error));
+        return;
+      }
+
+      // Deduct hunger entry cost
+      e.attributes.adjust("hunger", -cost);
+
+      const scenario = e.horror.getScenario(scenarioId);
+      (respond as Function)(true, { ok: true, session: result, scenario: scenario ? { title: scenario.title, hook: scenario.hook } : null });
+    } catch (err) {
+      (respond as Function)(false, undefined, errorShape(ErrorCodes.UNAVAILABLE, String(err)));
+    }
+  },
+
+  "character.horror.active": safeHandler((e) => {
+    const session = e.horror.getActiveSession();
+    if (!session) return { active: false };
+    const scenario = e.horror.getScenario(session.scenarioId);
+    return {
+      active: true,
+      session,
+      scenario: scenario ? { title: scenario.title, difficulty: scenario.difficulty } : null,
+    };
+  }),
+
+  "character.horror.abandon": ({ params, respond }) => {
+    const sessionId = params?.sessionId as string;
+    if (!sessionId) {
+      (respond as Function)(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, "missing 'sessionId' param"));
+      return;
+    }
+
+    try {
+      const e = getEngine();
+      const result = e.horror.abandonSession(sessionId);
+      (respond as Function)(result.ok, { ...result, stats: e.horror.getStats() });
+    } catch (err) {
+      (respond as Function)(false, undefined, errorShape(ErrorCodes.UNAVAILABLE, String(err)));
+    }
+  },
+
+  "character.horror.history": safeHandler((e) => ({
+    history: e.horror.getHistory(20),
+    stats: e.horror.getStats(),
+  })),
+
+  "character.horror.stats": safeHandler((e) => e.horror.getStats()),
 };
