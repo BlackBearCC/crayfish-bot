@@ -220,7 +220,6 @@ export async function runMiniAgent(params: MiniAgentParams): Promise<MiniAgentRe
         max_tokens: maxTokens,
         temperature,
         stream,
-        enable_thinking: false,
         ...toolsDef,
       };
 

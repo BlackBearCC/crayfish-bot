@@ -170,10 +170,12 @@ async function characterLLMComplete(prompt: string): Promise<string | null> {
         max_tokens: 1024,
         temperature: 0.3,
         stream: false,
-        enable_thinking: false,
       }),
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.warn(`[CharacterLLM] API error ${res.status}: ${await res.text().catch(() => "")}`);
+      return null;
+    }
     const data = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
     return data.choices?.[0]?.message?.content?.trim() ?? null;
   } catch {

@@ -229,3 +229,4 @@ pnpm dev:debug      # 开发模式 + DevTools + prompt debug
 - New character features go in `src/character/` + `src/gateway/server-methods/character.ts`
 - AI 集成（角色状态 → LLM 语气）通过 `agent:bootstrap` hook 无侵入注入，不改上游核心
 - **Git 提交不加 Co-Authored-By** — 提交消息中不要附加 `Co-Authored-By: Claude ...` 签名行
+- **LLM 生成必须有日志** — 所有调用 `characterLLMComplete` / `_llmComplete` 的地方，必须在调用前后打 `console.log`/`console.warn` 日志（含模块前缀如 `[Adventure]`、`[MemoryGraph]`），记录调用意图、返回结果条数、fallback 原因等，便于排查生成失败问题

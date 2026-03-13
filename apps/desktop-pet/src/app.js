@@ -906,6 +906,7 @@ class PetClawPet {
       const choiceUIEl = e.target.closest?.('.learning-choice-ui');
       const contextMenuEl = e.target.closest?.('.custom-context-menu');
       const streamSegEl = e.target.closest?.('.stream-segment');
+      const advBubbleBtnEl = e.target.closest?.('.adv-bubble-btn');
       // 右键菜单展开中 → 全局禁止穿透，确保点击任何区域都能关闭菜单
       if (document.querySelector('.custom-context-menu')) {
         this.electronAPI.setIgnoreMouse(false);
@@ -920,6 +921,7 @@ class PetClawPet {
         !!choiceUIEl ||
         !!contextMenuEl ||
         !!streamSegEl ||
+        !!advBubbleBtnEl ||
         (chatPanel?.classList.contains('open') && chatPanel.contains(e.target)) ||
         (settingsPanel?.classList.contains('open') && settingsPanel.contains(e.target)) ||
         (skillPanel?.classList.contains('open') && skillPanel.contains(e.target)) ||
@@ -1240,26 +1242,61 @@ class PetClawPet {
   /**
    * 探险途中事件：服务端 tick 触发 encounter 后推送气泡通知
    */
-  _handleAdventureEncounter({ encounter } = {}) {
+  _handleAdventureEncounter({ adventureId, encounter } = {}) {
     if (!encounter) return;
     const type = encounter.type;
     if (type === 'narration') {
-      // Plain text bubble
-      this.bubble.show(encounter.text, 3000);
+      this.bubble.show(encounter.text, 5000);
     } else if (type === 'discovery') {
-      // Discovery with golden highlight
       const coins = encounter.reward?.coins ? ` +${encounter.reward.coins}🪙` : '';
-      this.bubble.show(`${encounter.text}${coins}`, 3000);
+      this.bubble.show(`${encounter.text}${coins}`, 5000);
       this.stateMachine.transition('happy', { force: true, duration: 1500 });
     } else if (type === 'choice') {
-      // Choice event — show text, panel will handle buttons
-      this.bubble.show(`${encounter.text}`, 5000);
+      // 选项类事件：气泡内直接显示 A/B 按钮，可点选
+      const html = `<span class="adv-bubble-text">${this._escapeHtml(encounter.text)}</span>`
+        + `<div class="adv-bubble-choices">`
+        + `<button class="adv-bubble-btn" data-choice="a">${this._escapeHtml(encounter.choices?.a || 'A')}</button>`
+        + `<button class="adv-bubble-btn" data-choice="b">${this._escapeHtml(encounter.choices?.b || 'B')}</button>`
+        + `</div>`
+        + `<span class="adv-bubble-countdown">60秒后宠物自动选择</span>`;
+      this.bubble.showRich(html, 0); // 不自动关闭，等玩家点选
       this.stateMachine.transition('idle_ear_twitch', { force: true, duration: 2000 });
+      // 绑定按钮事件
+      const btns = this.bubble.element.querySelectorAll('.adv-bubble-btn');
+      btns.forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const choice = btn.dataset.choice;
+          // 视觉反馈：选中 + 未选中
+          btns.forEach(b => b.classList.add(b === btn ? 'chosen' : 'unchosen'));
+          const countdown = this.bubble.element.querySelector('.adv-bubble-countdown');
+          if (countdown) countdown.remove();
+          try {
+            await this.electronAPI.characterRPC('character.adventure.choice', {
+              adventureId,
+              encounterId: encounter.id,
+              choice,
+            });
+          } catch (e) {
+            console.warn('[Adventure] choice RPC failed:', e);
+          }
+          setTimeout(() => this.bubble.hide(), 1500);
+        }, { once: true });
+      });
+      // 60秒倒计时 — 若超时服务端自动决定，气泡自行关闭
+      this._advChoiceTimer = setTimeout(() => {
+        if (this.bubble.isVisible()) this.bubble.hide();
+      }, 62000);
     }
     // Refresh nurturing panel if open on adventure tab
     if (this.nurturingPanel?.isOpen && this.nurturingPanel._activeTab === 'adventure') {
       this.nurturingPanel._refresh();
     }
+  }
+
+  /** HTML 转义 */
+  _escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
   /**

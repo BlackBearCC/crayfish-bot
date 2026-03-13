@@ -79,7 +79,28 @@ export class Bubble {
       clearTimeout(this.hideTimer);
     }
 
+    this.element.style.pointerEvents = 'none';
     this.textNode.textContent = text;
+    this.element.style.opacity = '1';
+    this.element.style.transform = 'translateY(-5px)';
+
+    if (duration > 0) {
+      this.hideTimer = setTimeout(() => this.hide(), duration);
+    }
+  }
+
+  /**
+   * 显示富内容气泡（支持 HTML + 可点击按钮）
+   * @param {string} html - innerHTML
+   * @param {number} duration - 显示时长(ms), 0=不自动隐藏
+   */
+  showRich(html, duration = 0) {
+    if (this.hideTimer) {
+      clearTimeout(this.hideTimer);
+    }
+
+    this.element.style.pointerEvents = 'auto';
+    this.textNode.innerHTML = html;
     this.element.style.opacity = '1';
     this.element.style.transform = 'translateY(-5px)';
 
@@ -94,6 +115,7 @@ export class Bubble {
   hide() {
     this.element.style.opacity = '0';
     this.element.style.transform = 'translateY(0)';
+    this.element.style.pointerEvents = 'none';
     if (this.hideTimer) {
       clearTimeout(this.hideTimer);
       this.hideTimer = null;

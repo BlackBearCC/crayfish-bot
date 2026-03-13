@@ -146,14 +146,19 @@ export class AdventureSystem {
   async generateRumors(): Promise<RumorCard[]> {
     if (this._llmComplete) {
       try {
+        console.log("[Adventure] generateRumors: LLM callback present, calling _generateRumorsLLM...");
         const cards = await this._generateRumorsLLM();
+        console.log("[Adventure] generateRumors: LLM returned", cards.length, "cards");
         if (cards.length >= 3) {
           this._cachedRumors = cards.slice(0, 3);
           return this._cachedRumors;
         }
-      } catch {
-        // fall through to fallback
+        console.log("[Adventure] generateRumors: LLM returned < 3 cards, falling back");
+      } catch (err) {
+        console.warn("[Adventure] generateRumors: LLM error, falling back:", err);
       }
+    } else {
+      console.log("[Adventure] generateRumors: no LLM callback, using fallback");
     }
 
     this._cachedRumors = this._fallbackRumors();
@@ -163,9 +168,9 @@ export class AdventureSystem {
   private async _generateRumorsLLM(): Promise<RumorCard[]> {
     if (!this._llmComplete) return [];
 
-    // Gather recent locations to avoid repetition
+    // Gather recent locations to avoid repetition (v1 history has no .card)
     const recentLocations = this.getHistory(5)
-      .map((a) => a.card.location)
+      .map((a) => a.card?.location)
       .filter(Boolean);
     const avoidText = recentLocations.length
       ? `\n避免重复以下地点: ${recentLocations.join("、")}`
@@ -183,10 +188,14 @@ export class AdventureSystem {
 [{"hook":"...","location":"...","risk":1,"duration":5,"theme":"forest"},{"hook":"...","location":"...","risk":2,"duration":8,"theme":"ruin"},{"hook":"...","location":"...","risk":3,"duration":12,"theme":"cave"}]`;
 
     const raw = await this._llmComplete(prompt);
+    console.log("[Adventure] _generateRumorsLLM raw response:", raw?.substring(0, 500));
     if (!raw) return [];
 
     const match = raw.match(/\[[\s\S]*\]/);
-    if (!match) return [];
+    if (!match) {
+      console.warn("[Adventure] _generateRumorsLLM: no JSON array found in response");
+      return [];
+    }
 
     const parsed = JSON.parse(match[0]) as Array<{
       hook?: string;
@@ -197,6 +206,7 @@ export class AdventureSystem {
     }>;
 
     const VALID_THEMES = new Set(["forest", "ruin", "water", "cave", "town", "sky"]);
+    console.log("[Adventure] _generateRumorsLLM parsed:", parsed.length, "items, first:", JSON.stringify(parsed[0]));
 
     return parsed
       .filter((c) => c.hook && c.location && c.risk && c.duration && c.theme)
@@ -304,8 +314,10 @@ export class AdventureSystem {
 
     if (this._llmComplete) {
       try {
+        console.log("[Adventure] _generateStoryAndEncounters: calling LLM for", card.location);
         const generated = await this._generateViaLLM(card, encounterCount);
         if (generated) {
+          console.log("[Adventure] LLM story generated, encounters:", generated.encounters.length);
           adventure.story = generated.story;
           adventure.encounters = generated.encounters.map((enc, i) => ({
             ...enc,
@@ -313,8 +325,9 @@ export class AdventureSystem {
           }));
           return;
         }
-      } catch {
-        // fall through to fallback
+        console.log("[Adventure] _generateViaLLM returned null, falling back");
+      } catch (err) {
+        console.warn("[Adventure] _generateStoryAndEncounters LLM error:", err);
       }
     }
 

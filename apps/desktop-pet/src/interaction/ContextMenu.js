@@ -77,7 +77,7 @@ export class ContextMenu {
         const max = s[st.maxKey] || st.fallbackMax;
         const pct = Math.min(100, Math.round((s[st.key] / max) * 100));
         return `
-        <div class="ctx-stat-row" data-tooltip="${st.desc}">
+        <div class="ctx-stat-row" title="${st.label} — ${st.desc}">
           <span class="ctx-stat-icon"><img src="${st.icon}" alt="${st.label}"></span>
           <div class="ctx-stat-track"><div class="ctx-stat-fill ctx-stat--${st.key}" style="width:${pct}%"></div></div>
           <span class="ctx-stat-value">${Math.round(s[st.key])}</span>
