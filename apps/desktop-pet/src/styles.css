@@ -293,11 +293,17 @@ html, body {
 }
 
 #chat-panel.open {
-  width: 300px;
-  height: 420px;
+  width: 460px;
+  height: 580px;
   opacity: 1;
   transform: scale(1) translateX(0);
   pointer-events: all;
+  resize: both;
+  overflow: auto;
+  min-width: 280px;
+  min-height: 300px;
+  max-width: 600px;
+  max-height: 660px;
 }
 
 .chat-header {

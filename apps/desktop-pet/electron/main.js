@@ -80,8 +80,8 @@ function detectClipboardType(text) {
 
 // ===== 窗口尺寸（动态缩放：基础仅宠物区，展开含面板）=====
 const PET_BASE_W = 280;     // 基础宽度（宠物 + 气泡）
-const PET_EXPANDED_W = 596; // 展开宽度（宠物 + 面板）
-const PET_H = 580;
+const PET_EXPANDED_W = 780; // 展开宽度（宠物 + 大聊天面板）
+const PET_H = 680;
 const PET_AREA_W = 256;     // 宠物区域 CSS 宽度
 
 function createWindow() {

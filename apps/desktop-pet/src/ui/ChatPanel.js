@@ -515,6 +515,7 @@ export class ChatPanel {
   open() {
     if (this.isOpen) return;
     this.isOpen = true;
+    this._restorePanelSize();
     this.element.classList.add('open');
     this.onStateChange?.();
     this._loadHistory();
@@ -523,9 +524,30 @@ export class ChatPanel {
 
   close() {
     if (!this.isOpen) return;
+    this._savePanelSize();
     this.isOpen = false;
     this.element.classList.remove('open');
     this.onStateChange?.();
+  }
+
+  /** Save current panel size to localStorage */
+  _savePanelSize() {
+    const w = this.element.offsetWidth;
+    const h = this.element.offsetHeight;
+    if (w > 0 && h > 0) {
+      localStorage.setItem('chatPanelSize', JSON.stringify({ w, h }));
+    }
+  }
+
+  /** Restore saved panel size from localStorage */
+  _restorePanelSize() {
+    try {
+      const saved = JSON.parse(localStorage.getItem('chatPanelSize'));
+      if (saved?.w && saved?.h) {
+        this.element.style.width = saved.w + 'px';
+        this.element.style.height = saved.h + 'px';
+      }
+    } catch {}
   }
 
   closeQuiet() {

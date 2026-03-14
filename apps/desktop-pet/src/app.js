@@ -873,7 +873,7 @@ class PetClawPet {
 
     try {
       const pos = await this.electronAPI.getWindowPosition();
-      const PANEL_W = 316;
+      const PANEL_W = 480;
       const petLeft = pos.x + window.innerWidth - 256; // 宠物区域左边缘
       const side = petLeft >= PANEL_W ? 'left' : 'right';
       document.body.classList.toggle('panels-right', side === 'right');
