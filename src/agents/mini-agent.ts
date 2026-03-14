@@ -59,15 +59,19 @@ export interface MiniAgentToolCall {
 
 function resolveMiniAgentLLMConfig(): { baseUrl: string; apiKey: string; model: string } | null {
   const cfg = loadConfig();
-  const primaryModel = (cfg as Record<string, unknown> as { agents?: { defaults?: { model?: { primary?: string } } } }).agents?.defaults?.model?.primary;
+  const agentModel = (cfg as Record<string, unknown> as { agents?: { defaults?: { model?: { primary?: string; auxiliary?: string } } } }).agents?.defaults?.model;
   const providers = cfg.models?.providers;
-  if (!primaryModel || !providers) return null;
+  if (!providers) return null;
 
-  const slashIdx = primaryModel.indexOf("/");
+  // Prefer auxiliary model for lightweight agent calls; fallback to primary
+  const modelRef = agentModel?.auxiliary || agentModel?.primary;
+  if (!modelRef) return null;
+
+  const slashIdx = modelRef.indexOf("/");
   if (slashIdx <= 0) return null;
 
-  const providerKey = primaryModel.substring(0, slashIdx);
-  const modelName = primaryModel.substring(slashIdx + 1);
+  const providerKey = modelRef.substring(0, slashIdx);
+  const modelName = modelRef.substring(slashIdx + 1);
   const provider = providers[providerKey];
   if (!provider?.baseUrl || !provider?.apiKey) return null;
 

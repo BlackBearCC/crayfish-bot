@@ -858,6 +858,15 @@ class LLMService {
             if (providerConfig.baseUrl) this.config.aiBaseUrl = providerConfig.baseUrl;
             if (providerConfig.apiKey) this.config.aiApiKey = providerConfig.apiKey;
 
+            // Read auxiliary model if set
+            const auxModel = ocConfig.agents?.defaults?.model?.auxiliary;
+            if (auxModel) {
+              const auxSlash = auxModel.indexOf('/');
+              if (auxSlash > 0) {
+                this.config.aiAuxModel = auxModel.substring(auxSlash + 1);
+              }
+            }
+
             console.log(`[llm] Auto-populated AI config from petclaw: ${providerKey}/${modelName}`);
 
             // 保存到本地配置文件，下次不用再读
@@ -894,6 +903,8 @@ class LLMService {
       gatewayReady: this.gatewayReady,
       wsConnected: this.wsConnected,
       gatewayUrl: this.gatewayUrl,
+      // Auxiliary model (character subsystems)
+      aiAuxModel: this.config.aiAuxModel || '',
       // Classifier model
       classifierProvider: this.config.classifierProvider || '',
       classifierBaseUrl: this.config.classifierBaseUrl || '',
@@ -1048,6 +1059,15 @@ class LLMService {
           if (!config.agents.defaults) config.agents.defaults = {};
           if (!config.agents.defaults.model) config.agents.defaults.model = {};
           config.agents.defaults.model.primary = `${providerKey}/${modelName}`;
+        }
+
+        // Auxiliary model for character subsystems (adventure, memory, chat-eval)
+        const auxModel = aiConfig.aiAuxModel;
+        if (auxModel) {
+          if (!config.agents) config.agents = {};
+          if (!config.agents.defaults) config.agents.defaults = {};
+          if (!config.agents.defaults.model) config.agents.defaults.model = {};
+          config.agents.defaults.model.auxiliary = `${providerKey}/${auxModel}`;
         }
       }
 

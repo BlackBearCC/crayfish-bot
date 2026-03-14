@@ -7,8 +7,8 @@
 const PROVIDER_PRESETS = {
   openai:   { label: 'OpenAI',        baseUrl: 'https://api.openai.com/v1',                           defaultModel: 'gpt-4o',
               models: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo', 'o1', 'o1-mini', 'o3-mini'] },
-  bailian:  { label: '百炼 (Bailian)', baseUrl: 'https://coding.dashscope.aliyuncs.com/v1',             defaultModel: 'glm-5',
-              models: ['glm-5', 'glm-4-plus', 'qwen-plus', 'qwen3.5-plus', 'qwen-turbo', 'qwen-max'] },
+  bailian:  { label: '百炼 (Bailian)', baseUrl: 'https://coding.dashscope.aliyuncs.com/v1',             defaultModel: 'MiniMax-M2.5',
+              models: ['MiniMax-M2.5', 'kimi-k2.5', 'glm-5', 'glm-4-plus', 'qwen-plus', 'qwen3.5-plus', 'qwen-turbo', 'qwen-max'] },
   doubao:   { label: '豆包 (Doubao)',  baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',            defaultModel: 'doubao-1-5-pro-32k-250115',
               models: ['doubao-1-5-pro-32k-250115', 'doubao-1-5-lite-32k-250115', 'doubao-pro-32k', 'doubao-lite-32k'] },
   deepseek: { label: 'DeepSeek',      baseUrl: 'https://api.deepseek.com/v1',                         defaultModel: 'deepseek-chat',
@@ -71,9 +71,13 @@ export class SettingsPanel {
           <input type="password" id="set-ai-api-key" placeholder="输入 API Key" />
         </div>
         <div class="settings-group">
-          <label>Model</label>
-          <input type="text" id="set-ai-model" placeholder="模型名称" />
-          <div class="settings-hint">选择 Provider 后自动填充默认模型</div>
+          <label>主模型（对话）</label>
+          <select id="set-ai-model"></select>
+        </div>
+        <div class="settings-group">
+          <label>辅助模型（探险/记忆/评估）</label>
+          <select id="set-ai-aux-model"></select>
+          <div class="settings-hint">角色子系统用的轻量模型，默认 kimi-k2.5</div>
         </div>
 
         <!-- PetClaw 设置 -->
@@ -125,13 +129,14 @@ export class SettingsPanel {
     this.element.querySelector('.btn-cancel').addEventListener('click', () => this.close());
     this.element.querySelector('.btn-save').addEventListener('click', () => this._save());
 
-    // Provider 切换时自动填充 URL 和 Model
+    // Provider 切换时自动填充 URL + 刷新模型下拉列表
     this.element.querySelector('#set-ai-provider').addEventListener('change', (e) => {
       const key = e.target.value;
       const preset = PROVIDER_PRESETS[key];
       if (preset) {
         document.getElementById('set-ai-base-url').value = preset.baseUrl;
-        document.getElementById('set-ai-model').value = preset.defaultModel;
+        this._populateModelDropdown('set-ai-model', preset.models, preset.defaultModel);
+        this._populateModelDropdown('set-ai-aux-model', preset.models, 'kimi-k2.5');
       }
     });
 
@@ -181,11 +186,17 @@ export class SettingsPanel {
         }
 
         // AI 服务字段
-        document.getElementById('set-ai-provider').value = config.aiProvider || '';
+        const providerKey = config.aiProvider || '';
+        document.getElementById('set-ai-provider').value = providerKey;
         document.getElementById('set-ai-base-url').value = config.aiBaseUrl || '';
-        document.getElementById('set-ai-model').value = config.aiModel || '';
         document.getElementById('set-ai-api-key').value = '';
         document.getElementById('set-ai-api-key').placeholder = config.hasApiKey ? '已设置 (****)' : '输入 API Key';
+
+        // 填充模型下拉
+        const preset = PROVIDER_PRESETS[providerKey];
+        const models = preset?.models || [];
+        this._populateModelDropdown('set-ai-model', models, config.aiModel || '');
+        this._populateModelDropdown('set-ai-aux-model', models, config.aiAuxModel || 'kimi-k2.5');
 
         // PetClaw 字段
         document.getElementById('set-agent-id').value = config.agentId || 'main';
@@ -261,7 +272,8 @@ export class SettingsPanel {
       systemPrompt: document.getElementById('set-system').value,
       aiProvider: document.getElementById('set-ai-provider').value,
       aiBaseUrl: document.getElementById('set-ai-base-url').value.trim(),
-      aiModel: document.getElementById('set-ai-model').value.trim(),
+      aiModel: document.getElementById('set-ai-model').value,
+      aiAuxModel: document.getElementById('set-ai-aux-model').value,
     };
 
     // 只在有输入时更新敏感字段
@@ -292,6 +304,28 @@ export class SettingsPanel {
     } catch (e) {
       statusEl.textContent = e.message;
       statusEl.style.color = '#f44336';
+    }
+  }
+
+  /** 填充模型下拉列表 */
+  _populateModelDropdown(selectId, models, selectedValue) {
+    const sel = document.getElementById(selectId);
+    if (!sel) return;
+    sel.innerHTML = '';
+    for (const m of models) {
+      const opt = document.createElement('option');
+      opt.value = m;
+      opt.textContent = m;
+      if (m === selectedValue) opt.selected = true;
+      sel.appendChild(opt);
+    }
+    // 如果当前值不在列表中，追加一个选项
+    if (selectedValue && !models.includes(selectedValue)) {
+      const opt = document.createElement('option');
+      opt.value = selectedValue;
+      opt.textContent = selectedValue;
+      opt.selected = true;
+      sel.insertBefore(opt, sel.firstChild);
     }
   }
 
