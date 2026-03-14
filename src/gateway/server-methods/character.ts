@@ -135,15 +135,19 @@ function getFsAccessSettings() {
 
 function resolveCharacterLLMConfig(): { baseUrl: string; apiKey: string; model: string } | null {
   const cfg = loadConfig();
-  const primaryModel = (cfg as Record<string, unknown> as { agents?: { defaults?: { model?: { primary?: string } } } }).agents?.defaults?.model?.primary;
+  const agentModel = (cfg as Record<string, unknown> as { agents?: { defaults?: { model?: { primary?: string; auxiliary?: string } } } }).agents?.defaults?.model;
   const providers = cfg.models?.providers;
-  if (!primaryModel || !providers) return null;
+  if (!providers) return null;
 
-  const slashIdx = primaryModel.indexOf("/");
+  // Prefer auxiliary model (lighter, faster) for character subsystems; fallback to primary
+  const modelRef = agentModel?.auxiliary || agentModel?.primary;
+  if (!modelRef) return null;
+
+  const slashIdx = modelRef.indexOf("/");
   if (slashIdx <= 0) return null;
 
-  const providerKey = primaryModel.substring(0, slashIdx);
-  const modelName = primaryModel.substring(slashIdx + 1);
+  const providerKey = modelRef.substring(0, slashIdx);
+  const modelName = modelRef.substring(slashIdx + 1);
   const provider = providers[providerKey];
   if (!provider?.baseUrl || !provider?.apiKey) return null;
 
@@ -429,7 +433,17 @@ function getEngine(): CharacterEngine {
       engine: {
         care: engine.care,
         memoryGraph: engine.memoryGraph,
-        horror: engine.horror,
+        horror: {
+          getScenarios: () => engine!.horror.getScenarios().map((s) => ({ id: s.id, title: s.title, hook: s.hook, difficulty: s.difficulty, estimatedTurns: s.estimatedTurns, themes: s.themes })),
+          startSession: (scenarioId: string) => engine!.horror.startSession(scenarioId),
+          getActiveSession: () => engine!.horror.getActiveSession(),
+          abandonSession: (sessionId: string) => engine!.horror.abandonSession(sessionId),
+          performSkillCheck: (attr: string, dc: number, ctx: string) => engine!.horror.performSkillCheck(attr, dc, ctx),
+          endSession: (won: boolean, narrative: string) => engine!.horror.endSession(won, narrative),
+          addClue: (clue: string) => engine!.horror.addClue(clue),
+          addNpcEncounter: (name: string) => engine!.horror.addNpcEncounter(name),
+          getEntryCost: () => engine!.horror.getEntryCost(),
+        },
         bus: { emit: (event: string, data: unknown) => engine!.bus.emit(event as never, data as never) },
         getState: () => engine!.getState(),
       },
