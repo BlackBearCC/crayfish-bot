@@ -99,6 +99,7 @@ export class HorrorSystem {
   private sessions: Map<string, HorrorSession> = new Map();
   private activeSessionId: string | null = null;
   private _getSkillAttributes: (() => AttrLevelInfo[]) | null = null;
+  private _getPersona: (() => string) | null = null;
 
   constructor(bus: EventBus, store: PersistenceStore) {
     this.bus = bus;
@@ -110,6 +111,10 @@ export class HorrorSystem {
 
   setSkillAttributeProvider(fn: () => AttrLevelInfo[]): void {
     this._getSkillAttributes = fn;
+  }
+
+  setPersonaProvider(fn: () => string): void {
+    this._getPersona = fn;
   }
 
   // ─── Scenario Queries ───
@@ -409,17 +414,24 @@ export class HorrorSystem {
           .join("\n")
       : "  无";
 
+    const persona = this._getPersona?.() ?? "";
+
     return `# 怪谈副本模式 — 活跃中
 
 你同时扮演两个角色：
 1. **DM（旁白）**：第三人称叙述世界、环境、NPC 行为
-2. **宠物角色**：保持原有性格，穿越进了这个怪谈世界，按用户指令行动并做出符合自身性格的反应
+2. **宠物角色**：穿越进了这个怪谈世界，按用户指令行动
 
 用户 = 在故事之外操控宠物的"玩家"，用户的消息是对宠物的指令或建议。
 
+## 宠物人设（必须贯穿全程）
+${persona || "（未配置人设）"}
+
+> 宠物在怪谈中必须保持以上性格和说话风格。恐惧、紧张等情绪叠加在原有性格之上，而非替代。
+
 ## 输出格式
 - 先写【旁白】段落：描述环境变化、NPC 动作、事件发展（第三人称）
-- 再写宠物反应：宠物的台词用「」包裹，动作用叙述描写
+- 再写宠物反应：宠物的台词用「」包裹，动作用叙述描写，**语气和用词必须符合上述人设**
 - 末尾用 > 引用块给出 2-3 个建议行动供用户选择（非强制）
 
 ## 当前副本：${scenario.title}
@@ -451,17 +463,28 @@ ${attrLines}
 - 技能判定记录（最近5次）：
 ${checkSummary}
 
+## 技能判定规则（核心机制，严格执行）
+- 公式：**roll(1~10) + 属性等级 ≥ DC + 5** → 成功，否则失败
+- 以下行动**必须**调用 character_horror 工具进行判定，禁止跳过或自行编造结果：
+  - 搜索/调查/观察可疑物品 → 逻辑(logic) 或 感知(sensitivity) 判定
+  - 说服/安抚/与 NPC 交涉 → 共情(empathy) 判定
+  - 逃跑/开锁/物理操作 → 执行(execution) 判定
+  - 推理/解谜/分析线索 → 逻辑(logic) 判定
+  - 即兴发挥/灵机一动 → 创造(creativity) 判定
+- 判定结果决定叙事走向：成功则行动达成，失败则遇阻/受惊（理智-12）
+- 每轮至少 0~2 次判定，根据行动复杂度决定
+- **禁止**未调用工具就写"判定成功/失败"
+
 ## GM 行为规则
 1. 每次回复推进 1 步，保持悬疑节奏
-2. 用户指令 → 宠物尝试执行 → 可能触发技能判定
-3. 需要判定时调用 horror_skill_check 工具，根据结果叙述成败
-4. PG-13 恐怖氛围，不过度血腥
-5. 理智值高(>60) → 暗示恐怖（气氛描写），低(<40) → 直接恐怖（异象显现）
-6. 宠物应表现出符合自身性格的恐惧/勇气/吐槽，不是纯工具人
-7. 轮次接近上限（剩余<5轮）时加速推向结局
-8. 达成胜利/失败条件时调用 horror_end_session 工具结束副本
-9. 发现新线索时调用 horror_add_clue 工具记录
-10. 首次遇到 NPC 时调用 horror_add_npc 工具记录`;
+2. 用户指令 → 宠物尝试执行 → 触发技能判定（见上方规则）→ 根据工具返回的结果叙述成败
+3. PG-13 恐怖氛围，不过度血腥
+4. 理智值高(>60) → 暗示恐怖（气氛描写），低(<40) → 直接恐怖（异象显现）
+5. 宠物的恐惧/勇气/吐槽必须符合上方人设的性格和语气
+6. 轮次接近上限（剩余<5轮）时加速推向结局
+7. 达成胜利/失败条件时调用 character_horror 工具结束副本
+8. 发现新线索时调用 character_horror 工具记录
+9. 首次遇到 NPC 时调用 character_horror 工具记录`;
   }
 
   // ─── Queries ───

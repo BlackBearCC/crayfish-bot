@@ -179,6 +179,7 @@ export class CharacterEngine {
     // Horror system (interactive horror story instances)
     this.horror = new HorrorSystem(this.bus, options.store);
     this.horror.setSkillAttributeProvider(() => this.skills.getAttributes());
+    this.horror.setPersonaProvider(() => this.persona.resolve());
 
     // First-time user experience
     this.firstTime = new FirstTimeSystem(this.bus, options.store);
